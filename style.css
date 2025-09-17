@@ -1,0 +1,214 @@
+/* --- VARIAVEIS GLOBAIS --- */
+:root {
+    --cor-primaria: #007bff;
+    --cor-primaria-clara: #e6f2ff;
+    --cor-fundo-principal: #f4f7f6;
+    --cor-fundo-secundario: #ffffff;
+    --cor-texto-principal: #333333;
+    --cor-texto-claro: #ffffff;
+    --cor-perigo: #dc3545;
+    --sombra-padrao: 0 4px 8px rgba(0,0,0,0.1);
+    --borda-radius: 8px;
+    --altura-nav: 60px;
+}
+
+/* --- ESTILOS DE BASE E RESET --- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--cor-fundo-principal);
+    color: var(--cor-texto-principal);
+    line-height: 1.6;
+    padding-bottom: var(--altura-nav);
+}
+
+/* --- CLASSE UTILITÁRIA --- */
+.hidden {
+    display: none !important;
+}
+
+/* --- LAYOUT DAS ABAS --- */
+.tab-content {
+    padding: 1rem;
+}
+
+.tab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background-color: var(--cor-fundo-secundario);
+    border-radius: var(--borda-radius);
+    box-shadow: var(--sombra-padrao);
+}
+
+.tab-header h1 {
+    font-size: 1.5rem;
+}
+
+.placeholder-content {
+    padding: 1rem;
+    text-align: center;
+    color: #888;
+}
+
+/* --- BARRA DE NAVEGAÇÃO INFERIOR --- */
+#bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: var(--altura-nav);
+    background-color: var(--cor-fundo-secundario);
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    z-index: 100;
+}
+
+.nav-btn {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #888;
+    font-size: 0.8rem;
+    transition: color 0.2s ease, background-color 0.2s ease;
+    border-top: 3px solid transparent;
+}
+
+.nav-btn:hover {
+    color: var(--cor-primaria);
+}
+
+.nav-btn.active {
+    color: var(--cor-primaria);
+    font-weight: bold;
+    border-top: 3px solid var(--cor-primaria);
+}
+
+/* --- COMPONENTES ESPECÍFICOS DAS ABAS --- */
+#seletor-cliente-container {
+    flex-grow: 1;
+}
+
+#seletor-cliente {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: var(--borda-radius);
+    background-color: #fff;
+    font-size: 1rem;
+}
+
+/* --- COMPONENTES GERAIS (Botões, etc.) --- */
+.acoes-principais {
+    padding: 0 1rem 1rem 1rem;
+}
+
+.btn {
+    padding: 0.8rem 1.5rem;
+    border: none;
+    border-radius: var(--borda-radius);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.btn-primario {
+    background-color: var(--cor-primaria);
+    color: var(--cor-texto-claro);
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.5rem;
+    padding: 0.2rem;
+    margin-left: 0.5rem;
+}
+
+button:disabled {
+    background-color: #a0aec0; /* Cor de fundo para botões desativados */
+    cursor: not-allowed;
+}
+
+
+/* --- MODAIS (Estilos gerais) --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-container {
+    background-color: var(--cor-fundo-secundario);
+    padding: 2rem;
+    border-radius: var(--borda-radius);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    width: 90%;
+    max-width: 500px;
+    z-index: 1001;
+}
+
+.modal-container h2 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #ccc;
+    border-radius: var(--borda-radius);
+    font-size: 1rem;
+    background-color: #fff;
+}
+
+.form-acoes {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+/* --- MODAL DE PAGAMENTO (NOVOS ESTILOS) --- */
+.pagamento-metodo-btn {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pagamento-metodo-btn.selected {
+    border-color: var(--cor-primaria);
+    background-color: var(--cor-primaria-clara);
+    color: var(--cor-primaria);
+    font-weight: bold;
+}

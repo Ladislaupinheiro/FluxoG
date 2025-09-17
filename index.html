@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor Bar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans pb-16">
+
+    <main id="app-container" class="p-4">
+        <section id="tab-dashboard" class="tab-content">
+            <header class="bg-white p-4 rounded-lg shadow-md mb-4">
+                <h1 class="text-2xl font-bold">Dashboard</h1>
+            </header>
+            <div class="text-center text-gray-500 py-8">
+                <p>Visão geral do negócio em construção.</p>
+            </div>
+        </section>
+
+        <section id="tab-atendimento" class="tab-content hidden">
+            <header class="bg-white p-3 rounded-lg shadow-md mb-4 flex justify-between items-center gap-4">
+                <div class="flex-grow">
+                    <select id="seletor-cliente" class="w-full p-2 border border-gray-300 rounded-md bg-white text-base"></select>
+                </div>
+                 <button id="btn-abrir-conta" class="flex-shrink-0 text-2xl p-2" title="Abrir Nova Conta">➕</button>
+            </header>
+            <div id="vista-cliente-ativo">
+                <p class="text-center text-gray-500 py-8">Selecione um cliente para ver os detalhes.</p>
+            </div>
+        </section>
+
+        <section id="tab-inventario" class="tab-content hidden">
+            <header class="bg-white p-4 rounded-lg shadow-md mb-4">
+                <h1 class="text-2xl font-bold">Inventário</h1>
+            </header>
+            <div class="text-center text-gray-500 py-8">
+                <p>Funcionalidade de inventário em construção.</p>
+            </div>
+        </section>
+
+        <section id="tab-fluxo-caixa" class="tab-content hidden">
+            <header class="bg-white p-4 rounded-lg shadow-md mb-4">
+                <h1 class="text-2xl font-bold">Fluxo de Caixa & Banco</h1>
+            </header>
+            <div class="p-4">
+                <button id="btn-fecho-global" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-md">Ver Fecho Global do Dia</button>
+            </div>
+            <div class="text-center text-gray-500 py-8">
+                <p>Funcionalidade de relatórios em construção.</p>
+            </div>
+        </section>
+    </main>
+
+    <nav id="bottom-nav" class="fixed bottom-0 left-0 w-full bg-white shadow-[0_-2px_5px_rgba(0,0,0,0.1)] grid grid-cols-4 z-50">
+        <button class="nav-btn active text-blue-500 border-t-4 border-blue-500" data-tab="tab-dashboard" title="Dashboard">📊</button>
+        <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-atendimento" title="Atendimento">📋</button>
+        <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-inventario" title="Inventário">📦</button>
+        <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-fluxo-caixa" title="Relatórios">💰</button>
+    </nav>
+
+    <div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
+            <h2 class="text-xl font-bold mb-4">Abrir Nova Conta</h2>
+            <form id="form-nova-conta">
+                <div>
+                    <label for="input-nome-conta" class="block mb-2 font-semibold">Nome da Conta</label>
+                    <input type="text" id="input-nome-conta" placeholder="Ex: Mesa 12, Cliente VIP" required autocomplete="off" class="w-full p-2 border border-gray-300 rounded-md">
+                </div>
+                <div class="flex justify-end gap-4 mt-6">
+                    <button type="button" id="btn-cancelar-modal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Criar Conta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="modal-add-pedido-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
+            <h2 class="text-xl font-bold mb-4">Adicionar Pedido a <span id="modal-pedido-nome-conta"></span></h2>
+            <form id="form-add-pedido">
+                <input type="hidden" id="hidden-conta-id">
+                <div class="mb-4">
+                    <label for="select-produto" class="block mb-2 font-semibold">Produto</label>
+                    <select id="select-produto" required class="w-full p-2 border border-gray-300 rounded-md bg-white"></select>
+                </div>
+                <div>
+                    <label for="input-quantidade" class="block mb-2 font-semibold">Quantidade</label>
+                    <input type="number" id="input-quantidade" value="1" min="1" required class="w-full p-2 border border-gray-300 rounded-md">
+                </div>
+                <div class="flex justify-end gap-4 mt-6">
+                    <button type="button" id="btn-cancelar-pedido-modal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
+                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Adicionar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-pagamento-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
+            <input type="hidden" id="pagamento-conta-id">
+            <div class="text-center">
+                <h2 class="text-xl font-bold mb-2">Finalizar Pagamento</h2>
+                <p class="text-gray-600 mb-4">Conta: <span id="pagamento-nome-conta" class="font-semibold"></span></p>
+                <p class="text-3xl font-bold text-blue-600 mb-6" id="pagamento-total"></p>
+            </div>
+            <div class="mb-4">
+                <p class="text-center font-semibold mb-2">Selecione o método de pagamento:</p>
+                <div id="pagamento-metodos-container" class="grid grid-cols-2 gap-4">
+                    <button data-metodo="Numerário" class="pagamento-metodo-btn border-2 border-gray-300 p-4 rounded-lg text-lg">💵 Numerário</button>
+                    <button data-metodo="TPA" class="pagamento-metodo-btn border-2 border-gray-300 p-4 rounded-lg text-lg">💳 TPA</button>
+                </div>
+            </div>
+            <div class="flex justify-end gap-4 mt-6">
+                <button type="button" id="btn-cancelar-pagamento-modal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
+                <button type="button" id="btn-confirmar-pagamento" disabled class="bg-blue-200 text-white font-bold py-2 px-4 rounded cursor-not-allowed">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-notificacao" class="fixed bottom-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-white font-semibold shadow-lg transition-opacity duration-300 opacity-0 hidden">
+        <span>Mensagem de sucesso!</span>
+    </div>
+
+    <script src="script.js" defer></script>
+</body>
+</html>
