@@ -5,16 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestor Bar</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans pb-16">
 
     <main id="app-container" class="p-4">
         <section id="tab-dashboard" class="tab-content">
             <header class="bg-white p-4 rounded-lg shadow-md mb-4">
-                <h1 class="text-2xl font-bold">Dashboard</h1>
+                <h1 class="text-2xl font-bold">Dashboard do Dia</h1>
             </header>
-            <div class="text-center text-gray-500 py-8">
-                <p>Visão geral do negócio em construção.</p>
+            
+            <div id="dashboard-content" class="grid grid-cols-2 gap-4">
+                <div class="bg-white p-4 rounded-lg shadow-md text-center">
+                    <p class="text-sm text-gray-500">Vendas de Hoje</p>
+                    <span id="db-vendas-hoje" class="text-3xl font-bold text-blue-600">Kz 0,00</span>
+                </div>
+
+                <div class="bg-white p-4 rounded-lg shadow-md text-center">
+                    <p class="text-sm text-gray-500">Contas Ativas</p>
+                    <span id="db-contas-ativas" class="text-3xl font-bold text-gray-800">0</span>
+                </div>
+
+                <div class="bg-white p-4 rounded-lg shadow-md text-center col-span-2">
+                    <p class="text-sm text-gray-500">Alertas de Stock Baixo</p>
+                    <span id="db-alertas-stock" class="text-3xl font-bold text-red-500">0</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="tab-inventario" class="tab-content hidden">
+            <header class="bg-white p-4 rounded-lg shadow-md mb-4 flex justify-between items-center">
+                <h1 class="text-2xl font-bold">Inventário</h1>
+                <button id="btn-add-produto" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow">Adicionar Produto</button>
+            </header>
+            <div class="mb-4">
+                <input type="search" id="input-busca-inventario" placeholder="🔎 Buscar por nome..." class="w-full p-3 border border-gray-300 rounded-lg">
+            </div>
+            <div id="lista-inventario" class="text-center text-gray-500 py-8">
+                <p>Nenhum produto no inventário.</p>
             </div>
         </section>
 
@@ -23,19 +51,13 @@
                 <div class="flex-grow">
                     <select id="seletor-cliente" class="w-full p-2 border border-gray-300 rounded-md bg-white text-base"></select>
                 </div>
-                 <button id="btn-abrir-conta" class="flex-shrink-0 text-2xl p-2" title="Abrir Nova Conta">➕</button>
+                 <button id="btn-abrir-conta" class="flex-shrink-0 text-2xl p-2" title="Abrir Nova Conta">
+                    <i class="fa-solid fa-plus text-blue-500"></i>
+                </button>
             </header>
+            <div id="alerta-stock-container" class="hidden p-2 text-red-600 font-semibold text-center"></div>
             <div id="vista-cliente-ativo">
                 <p class="text-center text-gray-500 py-8">Selecione um cliente para ver os detalhes.</p>
-            </div>
-        </section>
-
-        <section id="tab-inventario" class="tab-content hidden">
-            <header class="bg-white p-4 rounded-lg shadow-md mb-4">
-                <h1 class="text-2xl font-bold">Inventário</h1>
-            </header>
-            <div class="text-center text-gray-500 py-8">
-                <p>Funcionalidade de inventário em construção.</p>
             </div>
         </section>
 
@@ -53,10 +75,10 @@
     </main>
 
     <nav id="bottom-nav" class="fixed bottom-0 left-0 w-full bg-white shadow-[0_-2px_5px_rgba(0,0,0,0.1)] grid grid-cols-4 z-50">
-        <button class="nav-btn active text-blue-500 border-t-4 border-blue-500" data-tab="tab-dashboard" title="Dashboard">📊</button>
-        <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-atendimento" title="Atendimento">📋</button>
-        <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-inventario" title="Inventário">📦</button>
-        <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-fluxo-caixa" title="Relatórios">💰</button>
+        <button class="nav-btn active text-blue-500 border-t-4 border-blue-500" data-tab="tab-dashboard" title="Dashboard"><i class="fa-solid fa-chart-pie"></i></button>
+        <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-inventario" title="Inventário"><i class="fa-solid fa-boxes-stacked"></i></button>
+        <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-atendimento" title="Atendimento"><i class="fa-solid fa-clipboard-list"></i></button>
+        <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-fluxo-caixa" title="Relatórios"><i class="fa-solid fa-sack-dollar"></i></button>
     </nav>
 
     <div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
@@ -113,14 +135,146 @@
             </div>
             <div class="flex justify-end gap-4 mt-6">
                 <button type="button" id="btn-cancelar-pagamento-modal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
-                <button type="button" id="btn-confirmar-pagamento" disabled class="bg-blue-200 text-white font-bold py-2 px-4 rounded cursor-not-allowed">Confirmar</button>
+                <button type="button" id="btn-confirmar-pagamento" disabled class="bg-gray-400 text-white font-bold py-2 px-4 rounded cursor-not-allowed">Confirmar</button>
             </div>
         </div>
     </div>
 
-    <div id="toast-notificacao" class="fixed bottom-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-white font-semibold shadow-lg transition-opacity duration-300 opacity-0 hidden">
-        <span>Mensagem de sucesso!</span>
+    <div id="modal-add-produto-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
+            <h2 class="text-xl font-bold mb-4">Adicionar Novo Produto</h2>
+            <form id="form-add-produto">
+                <div class="space-y-4">
+                    <div>
+                        <label for="input-produto-nome" class="block mb-1 font-semibold">Nome da Bebida</label>
+                        <input type="text" id="input-produto-nome" required class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label for="input-produto-preco" class="block mb-1 font-semibold">Preço (Kz)</label>
+                        <input type="number" id="input-produto-preco" required min="0" class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label for="input-produto-stock" class="block mb-1 font-semibold">Stock Inicial</label>
+                        <input type="number" id="input-produto-stock" required min="0" class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label for="input-produto-stock-minimo" class="block mb-1 font-semibold">Stock Mínimo (Alerta)</label>
+                        <input type="number" id="input-produto-stock-minimo" required min="0" class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-4 mt-6">
+                    <button type="button" id="btn-cancelar-add-produto-modal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Adicionar</button>
+                </div>
+            </form>
+        </div>
     </div>
+
+    <div id="modal-edit-produto-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
+            <h2 class="text-xl font-bold mb-4">Editar Produto</h2>
+            <form id="form-edit-produto">
+                <input type="hidden" id="hidden-edit-produto-id">
+                <div class="space-y-4">
+                    <div>
+                        <label for="input-edit-produto-nome" class="block mb-1 font-semibold">Nome da Bebida</label>
+                        <input type="text" id="input-edit-produto-nome" required class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label for="input-edit-produto-preco" class="block mb-1 font-semibold">Preço (Kz)</label>
+                        <input type="number" id="input-edit-produto-preco" required min="0" class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label for="input-edit-produto-stock" class="block mb-1 font-semibold">Stock Atual</label>
+                        <input type="number" id="input-edit-produto-stock" required min="0" class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label for="input-edit-produto-stock-minimo" class="block mb-1 font-semibold">Stock Mínimo (Alerta)</label>
+                        <input type="number" id="input-edit-produto-stock-minimo" required min="0" class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-4 mt-6">
+                    <button type="button" id="btn-cancelar-edit-produto-modal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Guardar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="modal-edit-nome-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
+            <h2 class="text-xl font-bold mb-4">Editar Nome da Conta</h2>
+            <form id="form-edit-nome">
+                <input type="hidden" id="hidden-edit-nome-id">
+                <div>
+                    <label for="input-edit-nome" class="block mb-2 font-semibold">Novo Nome</label>
+                    <input type="text" id="input-edit-nome" required autocomplete="off" class="w-full p-2 border border-gray-300 rounded-md">
+                </div>
+                <div class="flex justify-end gap-4 mt-6">
+                    <button type="button" id="btn-cancelar-edit-nome-modal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="modal-add-stock-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
+            <h2 class="text-xl font-bold mb-4">Adicionar Stock a <span id="add-stock-nome-produto" class="text-blue-600"></span></h2>
+            <form id="form-add-stock">
+                <input type="hidden" id="hidden-add-stock-id">
+                <div>
+                    <label for="input-add-stock-quantidade" class="block mb-2 font-semibold">Quantidade a Adicionar</label>
+                    <input type="number" id="input-add-stock-quantidade" required min="1" class="w-full p-2 border border-gray-300 rounded-md" placeholder="Ex: 24">
+                </div>
+                <div class="flex justify-end gap-4 mt-6">
+                    <button type="button" id="btn-cancelar-add-stock-modal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
+                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Confirmar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-fecho-global-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
+            <div class="text-center mb-4">
+                <h2 class="text-2xl font-bold">Fecho Global do Dia</h2>
+                <p class="text-sm text-gray-500" id="fg-data-relatorio"></p>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <h3 class="font-semibold mb-2 text-lg">Resumo Financeiro</h3>
+                    <div class="space-y-1 text-sm">
+                        <div class="flex justify-between"><span>Total Bruto Vendido:</span><span id="fg-total-vendido" class="font-bold"></span></div>
+                        <div class="flex justify-between"><span>Em Numerário:</span><span id="fg-total-numerario" class="font-semibold"></span></div>
+                        <div class="flex justify-between"><span>Em TPA:</span><span id="fg-total-tpa" class="font-semibold"></span></div>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <h3 class="font-semibold mb-2 text-lg">Resumo Operacional</h3>
+                    <div class="space-y-1 text-sm">
+                        <div class="flex justify-between"><span>Contas Fechadas:</span><span id="fg-contas-fechadas" class="font-bold"></span></div>
+                        <div class="flex justify-between"><span>Média por Conta:</span><span id="fg-media-por-conta" class="font-semibold"></span></div>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <h3 class="font-semibold mb-2 text-lg">Produtos Vendidos</h3>
+                    <div id="fg-lista-produtos" class="space-y-1 text-sm max-h-32 overflow-y-auto">
+                        </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-4 mt-6">
+                <button type="button" id="btn-arquivar-dia" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded">Arquivar Dia e Iniciar Novo Dia</button>
+                <button type="button" id="btn-cancelar-fecho-global-modal" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Voltar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-notificacao" class="fixed bottom-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-white font-semibold shadow-lg transition-opacity duration-300 opacity-0 hidden"></div>
 
     <script src="script.js" defer></script>
 </body>
