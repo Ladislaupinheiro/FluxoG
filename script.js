@@ -1,5 +1,4 @@
 'use strict';
-
 // ===================================
 // 1. GESTÃO DE ESTADO (STATE)
 // ===================================
@@ -9,6 +8,8 @@ const estado = {
     historicoFechos: [],
     config: {}
 };
+let relatorioAtualParaExportar = null;
+let dataAtualCalendario = new Date();
 
 // ===================================
 // 2. SELETORES DE ELEMENTOS DO DOM
@@ -16,11 +17,14 @@ const estado = {
 // Navegação e Abas
 const bottomNav = document.getElementById('bottom-nav');
 const tabContents = document.querySelectorAll('.tab-content');
-
 // Aba Dashboard
-const dbVendasHoje = document.getElementById('db-vendas-hoje');
+const dbVendasTotal = document.getElementById('db-vendas-total');
+const dbVendasNumerario = document.getElementById('db-vendas-numerario');
+const dbVendasTpa = document.getElementById('db-vendas-tpa');
 const dbContasAtivas = document.getElementById('db-contas-ativas');
 const dbAlertasStock = document.getElementById('db-alertas-stock');
+const dbTopProdutoNome = document.getElementById('db-top-produto-nome');
+const dbTopProdutoQtd = document.getElementById('db-top-produto-qtd');
 
 // Aba Atendimento
 const seletorCliente = document.getElementById('seletor-cliente');
@@ -33,15 +37,18 @@ const btnAddProduto = document.getElementById('btn-add-produto');
 const listaInventario = document.getElementById('lista-inventario');
 const inputBuscaInventario = document.getElementById('input-busca-inventario');
 
-// Aba Fluxo de Caixa
-const btnFechoGlobal = document.getElementById('btn-fecho-global');
+// Aba Fecho / Relatórios
+const btnVerFechoDiaAtual = document.getElementById('btn-ver-fecho-dia-atual');
+const calendarioTitulo = document.getElementById('calendario-titulo');
+const calendarioGridDias = document.getElementById('calendario-grid-dias');
+const btnMesAnterior = document.getElementById('btn-mes-anterior');
+const btnMesSeguinte = document.getElementById('btn-mes-seguinte');
 
 // Modal Nova Conta
 const modalOverlay = document.getElementById('modal-overlay');
 const formNovaConta = document.getElementById('form-nova-conta');
 const inputNomeConta = document.getElementById('input-nome-conta');
 const btnCancelarModal = document.getElementById('btn-cancelar-modal');
-
 // Modal Adicionar Pedido
 const modalAddPedidoOverlay = document.getElementById('modal-add-pedido-overlay');
 const modalPedidoNomeConta = document.getElementById('modal-pedido-nome-conta');
@@ -50,6 +57,7 @@ const hiddenContaId = document.getElementById('hidden-conta-id');
 const selectProduto = document.getElementById('select-produto');
 const inputQuantidade = document.getElementById('input-quantidade');
 const btnCancelarPedidoModal = document.getElementById('btn-cancelar-pedido-modal');
+const inputBuscaProdutoPedido = document.getElementById('input-busca-produto-pedido');
 
 // Modal de Pagamento
 const modalPagamentoOverlay = document.getElementById('modal-pagamento-overlay');
@@ -68,7 +76,6 @@ const inputProdutoPreco = document.getElementById('input-produto-preco');
 const inputProdutoStock = document.getElementById('input-produto-stock');
 const inputProdutoStockMinimo = document.getElementById('input-produto-stock-minimo');
 const btnCancelarAddProdutoModal = document.getElementById('btn-cancelar-add-produto-modal');
-
 // Modal Editar Produto
 const modalEditProdutoOverlay = document.getElementById('modal-edit-produto-overlay');
 const formEditProduto = document.getElementById('form-edit-produto');
@@ -78,7 +85,6 @@ const inputEditProdutoPreco = document.getElementById('input-edit-produto-preco'
 const inputEditProdutoStock = document.getElementById('input-edit-produto-stock');
 const inputEditProdutoStockMinimo = document.getElementById('input-edit-produto-stock-minimo');
 const btnCancelarEditProdutoModal = document.getElementById('btn-cancelar-edit-produto-modal');
-
 // Modal Editar Nome da Conta
 const modalEditNomeOverlay = document.getElementById('modal-edit-nome-overlay');
 const formEditNome = document.getElementById('form-edit-nome');
@@ -93,7 +99,6 @@ const hiddenAddStockId = document.getElementById('hidden-add-stock-id');
 const addStockNomeProduto = document.getElementById('add-stock-nome-produto');
 const inputAddStockQuantidade = document.getElementById('input-add-stock-quantidade');
 const btnCancelarAddStockModal = document.getElementById('btn-cancelar-add-stock-modal');
-
 // Modal Fecho Global
 const modalFechoGlobalOverlay = document.getElementById('modal-fecho-global-overlay');
 const fgDataRelatorio = document.getElementById('fg-data-relatorio');
@@ -105,12 +110,20 @@ const fgMediaPorConta = document.getElementById('fg-media-por-conta');
 const fgListaProdutos = document.getElementById('fg-lista-produtos');
 const btnArquivarDia = document.getElementById('btn-arquivar-dia');
 const btnCancelarFechoGlobalModal = document.getElementById('btn-cancelar-fecho-global-modal');
+const btnExportarPdf = document.getElementById('btn-exportar-pdf');
+const btnExportarXls = document.getElementById('btn-exportar-xls');
+
+// Modal de Confirmação
+const modalConfirmacaoOverlay = document.getElementById('modal-confirmacao-overlay');
+const modalConfirmacaoTitulo = document.getElementById('modal-confirmacao-titulo');
+const modalConfirmacaoMensagem = document.getElementById('modal-confirmacao-mensagem');
+const btnCancelarConfirmacaoModal = document.getElementById('btn-cancelar-confirmacao-modal');
+const btnConfirmarConfirmacaoModal = document.getElementById('btn-confirmar-confirmacao-modal');
+
 
 // Notificação Toast
 const toastNotificacao = document.getElementById('toast-notificacao');
 let toastTimeout;
-
-
 // ===================================
 // 3. FUNÇÕES PRINCIPAIS
 // ===================================
@@ -158,14 +171,48 @@ function navigateToTab(tabId) {
 
 function renderizarDashboard() {
     const contasFechadas = estado.contasAtivas.filter(c => c.status === 'fechada');
-    const totalVendas = contasFechadas.reduce((total, conta) => total + (conta.valorFinal || 0), 0);
-    dbVendasHoje.textContent = totalVendas.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
+    
+    let totalVendas = 0;
+    let totalNumerario = 0;
+    let totalTpa = 0;
+    
+    contasFechadas.forEach(conta => {
+        const valorConta = conta.valorFinal || 0;
+        totalVendas += valorConta;
+        if (conta.metodoPagamento === 'Numerário') {
+            totalNumerario += valorConta;
+        } else if (conta.metodoPagamento === 'TPA') {
+            totalTpa += valorConta;
+        }
+    });
+
+    dbVendasTotal.textContent = totalVendas.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
+    dbVendasNumerario.textContent = totalNumerario.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
+    dbVendasTpa.textContent = totalTpa.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
 
     const contasAtivas = estado.contasAtivas.filter(c => c.status === 'ativa');
     dbContasAtivas.textContent = contasAtivas.length;
-
+    
     const itensComStockBaixo = estado.inventario.filter(item => item.stockAtual > 0 && item.stockAtual <= item.stockMinimo);
     dbAlertasStock.textContent = itensComStockBaixo.length;
+    
+    const produtosVendidos = {};
+    contasFechadas.forEach(conta => {
+        conta.pedidos.forEach(pedido => {
+            produtosVendidos[pedido.nome] = (produtosVendidos[pedido.nome] || 0) + pedido.qtd;
+        });
+    });
+
+    let topProdutoNome = '—';
+    let topProdutoQtd = 0;
+    if (Object.keys(produtosVendidos).length > 0) {
+        const [nome, qtd] = Object.entries(produtosVendidos).reduce((a, b) => b[1] > a[1] ? b : a);
+        topProdutoNome = nome;
+        topProdutoQtd = qtd;
+    }
+    
+    dbTopProdutoNome.textContent = topProdutoNome;
+    dbTopProdutoQtd.textContent = `${topProdutoQtd} vendidos`;
 }
 
 function atualizarTodaUI() {
@@ -173,6 +220,7 @@ function atualizarTodaUI() {
     renderizarSeletorDeClientes();
     renderizarVistaClienteAtivo();
     renderizarInventario();
+    renderizarCalendario();
     verificarAlertasDeStock();
 }
 
@@ -269,7 +317,6 @@ function renderizarInventario() {
         const vendidos = (item.stockInicial + item.entradas) - item.stockAtual;
         const isLowStock = item.stockAtual > 0 && item.stockAtual <= item.stockMinimo;
         const destaqueClasse = isLowStock ? 'border-2 border-red-500 bg-red-50' : 'shadow-md';
-
         return `
         <div class="bg-white p-4 rounded-lg ${destaqueClasse}">
             <div class="flex justify-between items-start">
@@ -297,6 +344,86 @@ function renderizarInventario() {
     listaInventario.innerHTML = `<div class="space-y-4">${inventoryHTML}</div>`;
 }
 
+function renderizarCalendario() {
+    const ano = dataAtualCalendario.getFullYear();
+    const mes = dataAtualCalendario.getMonth();
+
+    calendarioTitulo.textContent = new Date(ano, mes).toLocaleDateString('pt-PT', {
+        month: 'long', year: 'numeric'
+    }).replace(/^\w/, c => c.toUpperCase());
+
+    calendarioGridDias.innerHTML = '';
+
+    const primeiroDiaDoMes = new Date(ano, mes, 1).getDay();
+    const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+
+    const diasComRelatorio = new Set();
+    if (estado.historicoFechos) {
+        estado.historicoFechos.forEach(relatorio => {
+            const dataRelatorio = new Date(relatorio.data);
+            if (dataRelatorio.getFullYear() === ano && dataRelatorio.getMonth() === mes) {
+                diasComRelatorio.add(dataRelatorio.getDate());
+            }
+        });
+    }
+
+    for (let i = 0; i < primeiroDiaDoMes; i++) {
+        calendarioGridDias.innerHTML += '<div></div>';
+    }
+
+    for (let dia = 1; dia <= diasNoMes; dia++) {
+        const celulaDia = document.createElement('div');
+        celulaDia.textContent = dia;
+        celulaDia.className = 'p-2 text-center rounded-full';
+
+        if (diasComRelatorio.has(dia)) {
+            celulaDia.classList.add('bg-blue-500', 'text-white', 'font-bold', 'cursor-pointer', 'hover:bg-blue-600');
+            celulaDia.dataset.dia = dia;
+        } else {
+            celulaDia.classList.add('text-gray-400');
+        }
+        calendarioGridDias.appendChild(celulaDia);
+    }
+}
+
+function navegarMesAnterior() {
+    dataAtualCalendario.setMonth(dataAtualCalendario.getMonth() - 1);
+    renderizarCalendario();
+}
+
+function navegarMesSeguinte() {
+    dataAtualCalendario.setMonth(dataAtualCalendario.getMonth() + 1);
+    renderizarCalendario();
+}
+
+function abrirModalFechoGlobalHistorico(relatorioIndex) {
+    const relatorio = estado.historicoFechos[relatorioIndex];
+    if (!relatorio) return;
+
+    relatorioAtualParaExportar = relatorio;
+
+    renderizarRelatorioFechoGlobal(relatorio);
+    
+    btnArquivarDia.classList.add('hidden');
+    btnExportarPdf.classList.remove('hidden');
+    btnExportarXls.classList.remove('hidden');
+    modalFechoGlobalOverlay.classList.remove('hidden');
+}
+
+let onConfirmCallback = null;
+
+function abrirModalConfirmacao(titulo, mensagem, onConfirm) {
+    modalConfirmacaoTitulo.textContent = titulo;
+    modalConfirmacaoMensagem.textContent = mensagem;
+    onConfirmCallback = onConfirm;
+    modalConfirmacaoOverlay.classList.remove('hidden');
+}
+
+function fecharModalConfirmacao() {
+    modalConfirmacaoOverlay.classList.add('hidden');
+    onConfirmCallback = null;
+}
+
 function abrirModalNovaConta() {
     modalOverlay.classList.remove('hidden');
     inputNomeConta.focus();
@@ -305,23 +432,47 @@ function fecharModalNovaConta() {
     modalOverlay.classList.add('hidden');
     formNovaConta.reset();
 }
+
+function renderizarOpcoesDeProduto(filtro = '') {
+    const termoBusca = filtro.toLowerCase().trim();
+    selectProduto.innerHTML = '';
+    
+    const produtosFiltrados = estado.inventario.filter(item => 
+        item.stockAtual > 0 && item.nome.toLowerCase().includes(termoBusca)
+    );
+
+    if (produtosFiltrados.length === 0) {
+        const option = document.createElement('option');
+        option.value = "";
+        option.textContent = "Nenhum produto encontrado";
+        option.disabled = true;
+        selectProduto.appendChild(option);
+        return;
+    }
+    
+    selectProduto.innerHTML = '<option value="">Selecione um produto...</option>';
+    produtosFiltrados.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.id;
+        option.textContent = `${item.nome} (${item.stockAtual} disp.)`;
+        selectProduto.appendChild(option);
+    });
+}
+
 function abrirModalAddPedido(idConta) {
     const conta = estado.contasAtivas.find(c => c.id === idConta);
     if (!conta) return;
+    
     modalPedidoNomeConta.textContent = conta.nome;
     hiddenContaId.value = idConta;
-    selectProduto.innerHTML = '<option value="">Selecione um produto...</option>';
-    estado.inventario.forEach(item => {
-        if (item.stockAtual > 0) {
-            const option = document.createElement('option');
-            option.value = item.id;
-            option.textContent = `${item.nome} (${item.stockAtual} disp.)`;
-            selectProduto.appendChild(option);
-        }
-    });
+    
+    inputBuscaProdutoPedido.value = '';
+    renderizarOpcoesDeProduto();
+    
     modalAddPedidoOverlay.classList.remove('hidden');
-    inputQuantidade.focus();
+    inputBuscaProdutoPedido.focus();
 }
+
 function fecharModalAddPedido() {
     modalAddPedidoOverlay.classList.add('hidden');
     formAddPedido.reset();
@@ -412,9 +563,8 @@ function calcularRelatorioDia() {
     });
     return { data: hoje, totalVendido, totalNumerario, totalTpa, numContasFechadas, mediaPorConta, produtosVendidos };
 }
-function renderizarRelatorioFechoGlobal() {
-    const relatorio = calcularRelatorioDia();
-    fgDataRelatorio.textContent = relatorio.data.toLocaleDateString('pt-PT', { dateStyle: 'full' });
+function renderizarRelatorioFechoGlobal(relatorio) {
+    fgDataRelatorio.textContent = new Date(relatorio.data).toLocaleDateString('pt-PT', { dateStyle: 'full' });
     fgTotalVendido.textContent = relatorio.totalVendido.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
     fgTotalNumerario.textContent = relatorio.totalNumerario.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
     fgTotalTpa.textContent = relatorio.totalTpa.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
@@ -430,8 +580,13 @@ function renderizarRelatorioFechoGlobal() {
         }
     }
 }
-function abrirModalFechoGlobal() {
-    renderizarRelatorioFechoGlobal();
+function abrirModalFechoGlobal() { 
+    const relatorio = calcularRelatorioDia();
+    relatorioAtualParaExportar = relatorio;
+    renderizarRelatorioFechoGlobal(relatorio);
+    btnArquivarDia.classList.remove('hidden');
+    btnExportarPdf.classList.add('hidden');
+    btnExportarXls.classList.add('hidden');
     modalFechoGlobalOverlay.classList.remove('hidden');
 }
 function fecharModalFechoGlobal() {
@@ -441,7 +596,8 @@ function fecharModalFechoGlobal() {
 function handleCriarNovaConta(event) {
     event.preventDefault();
     const nomeConta = inputNomeConta.value.trim();
-    if (!nomeConta) { mostrarNotificacao("O nome da conta não pode estar vazio.", "erro"); return; }
+    if (!nomeConta) { mostrarNotificacao("O nome da conta não pode estar vazio.", "erro"); return;
+    }
     const nomeNormalizado = nomeConta.toLowerCase();
     if (estado.contasAtivas.some(c => c.status === 'ativa' && c.nome.toLowerCase() === nomeNormalizado)) {
         mostrarNotificacao(`Já existe uma conta ativa com o nome "${nomeConta}".`, "erro");
@@ -463,9 +619,12 @@ function handleAddPedido(event) {
     const quantidade = parseInt(inputQuantidade.value);
     const conta = estado.contasAtivas.find(c => c.id === idConta);
     const produto = estado.inventario.find(p => p.id === idProduto);
-    if (!conta || !produto || !quantidade) { mostrarNotificacao("Por favor, preencha todos os campos.", "erro"); return; }
-    if (quantidade <= 0) { mostrarNotificacao("A quantidade deve ser positiva.", "erro"); return; }
-    if (quantidade > produto.stockAtual) { mostrarNotificacao(`Stock insuficiente. Apenas ${produto.stockAtual} unidades de ${produto.nome} disponíveis.`, "erro"); return; }
+    if (!conta || !produto || !quantidade) { mostrarNotificacao("Por favor, preencha todos os campos.", "erro");
+    return; }
+    if (quantidade <= 0) { mostrarNotificacao("A quantidade deve ser positiva.", "erro"); return;
+    }
+    if (quantidade > produto.stockAtual) { mostrarNotificacao(`Stock insuficiente. Apenas ${produto.stockAtual} unidades de ${produto.nome} disponíveis.`, "erro"); return;
+    }
     produto.stockAtual -= quantidade;
     const pedidoExistente = conta.pedidos.find(p => p.produtoId === produto.id);
     if (pedidoExistente) {
@@ -493,7 +652,8 @@ function handleSalvarNovoNome(event) {
 function handleFinalizarPagamento() {
     const idConta = parseInt(pagamentoContaIdInput.value);
     const metodoBtn = pagamentoMetodosContainer.querySelector('.border-blue-500');
-    if (!metodoBtn) { mostrarNotificacao("Por favor, selecione um método de pagamento.", "erro"); return; }
+    if (!metodoBtn) { mostrarNotificacao("Por favor, selecione um método de pagamento.", "erro"); return;
+    }
     const metodoPagamento = metodoBtn.dataset.metodo;
     const conta = estado.contasAtivas.find(c => c.id === idConta);
     if (!conta) return;
@@ -512,7 +672,8 @@ function handleAddProduto(event) {
     const preco = parseFloat(inputProdutoPreco.value);
     const stock = parseInt(inputProdutoStock.value);
     const stockMinimo = parseInt(inputProdutoStockMinimo.value);
-    if (!nome || preco <= 0 || stock < 0 || stockMinimo < 0 || isNaN(preco) || isNaN(stock) || isNaN(stockMinimo)) { mostrarNotificacao("Dados inválidos. Verifique os valores.", "erro"); return; }
+    if (!nome || preco <= 0 || stock < 0 || stockMinimo < 0 || isNaN(preco) || isNaN(stock) || isNaN(stockMinimo)) { mostrarNotificacao("Dados inválidos. Verifique os valores.", "erro");
+    return; }
     const novoProduto = { id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, nome, preco, stockInicial: stock, stockAtual: stock, entradas: 0, stockMinimo };
     estado.inventario.push(novoProduto);
     fecharModalAddProduto();
@@ -524,12 +685,14 @@ function handleEditProduto(event) {
     event.preventDefault();
     const id = hiddenEditProdutoId.value;
     const produto = estado.inventario.find(p => p.id === id);
-    if (!produto) { mostrarNotificacao("Produto não encontrado.", "erro"); return; }
+    if (!produto) { mostrarNotificacao("Produto não encontrado.", "erro"); return;
+    }
     const nome = inputEditProdutoNome.value.trim();
     const preco = parseFloat(inputEditProdutoPreco.value);
     const stockAtualNovo = parseInt(inputEditProdutoStock.value);
     const stockMinimo = parseInt(inputEditProdutoStockMinimo.value);
-    if (!nome || preco <= 0 || stockAtualNovo < 0 || stockMinimo < 0 || isNaN(preco) || isNaN(stockAtualNovo) || isNaN(stockMinimo)) { mostrarNotificacao("Dados inválidos. Verifique os valores.", "erro"); return; }
+    if (!nome || preco <= 0 || stockAtualNovo < 0 || stockMinimo < 0 || isNaN(preco) || isNaN(stockAtualNovo) || isNaN(stockMinimo)) { mostrarNotificacao("Dados inválidos. Verifique os valores.", "erro");
+    return; }
     const diferencaStock = stockAtualNovo - produto.stockAtual;
     produto.nome = nome;
     produto.preco = preco;
@@ -547,7 +710,8 @@ function handleAddStock(event) {
     const produto = estado.inventario.find(p => p.id === produtoId);
     if (!produto) return;
     const quantidade = parseInt(inputAddStockQuantidade.value);
-    if (isNaN(quantidade) || quantidade <= 0) { mostrarNotificacao("Por favor, insira um número válido e positivo.", "erro"); return; }
+    if (isNaN(quantidade) || quantidade <= 0) { mostrarNotificacao("Por favor, insira um número válido e positivo.", "erro");
+    return; }
     produto.entradas += quantidade;
     produto.stockAtual += quantidade;
     fecharModalAddStock();
@@ -573,21 +737,144 @@ function handleEditarNomeConta(idConta) {
     abrirModalEditNome(idConta);
 }
 function handleArquivarDia() {
-    const confirmou = confirm("Tem a certeza que deseja arquivar o dia e iniciar um novo? Esta ação não pode ser desfeita e irá reiniciar o seu inventário para o dia seguinte.");
-    if (!confirmou) return;
-    const relatorio = calcularRelatorioDia();
-    if (!estado.historicoFechos) { estado.historicoFechos = []; }
-    estado.historicoFechos.push(relatorio);
-    estado.contasAtivas = estado.contasAtivas.filter(c => c.status === 'ativa');
-    estado.inventario.forEach(item => {
-        item.stockInicial = item.stockAtual;
-        item.entradas = 0;
-    });
-    fecharModalFechoGlobal();
-    atualizarTodaUI();
-    salvarEstado();
-    mostrarNotificacao("Dia arquivado com sucesso. Pronto para um novo dia!");
+    const hojeStr = new Date().toDateString();
+    const jaArquivado = estado.historicoFechos && estado.historicoFechos.some(relatorio => new Date(relatorio.data).toDateString() === hojeStr);
+
+    if (jaArquivado) {
+        mostrarNotificacao("O dia de hoje já foi fechado e arquivado.", "erro");
+        return;
+    }
+
+    abrirModalConfirmacao(
+        'Arquivar o Dia?',
+        'Esta ação não pode ser desfeita e irá reiniciar o inventário para o dia seguinte.',
+        () => {
+            const relatorio = calcularRelatorioDia();
+            if (!estado.historicoFechos) { estado.historicoFechos = []; }
+            estado.historicoFechos.push(relatorio);
+            estado.contasAtivas = estado.contasAtivas.filter(c => c.status === 'ativa');
+            estado.inventario.forEach(item => {
+                item.stockInicial = item.stockAtual;
+                item.entradas = 0;
+            });
+            fecharModalFechoGlobal();
+            atualizarTodaUI();
+            salvarEstado();
+            mostrarNotificacao("Dia arquivado com sucesso. Pronto para um novo dia!");
+        }
+    );
 }
+
+function handleExportarPdf() {
+    if (!relatorioAtualParaExportar) return;
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const relatorio = relatorioAtualParaExportar;
+    const dataFormatada = new Date(relatorio.data).toLocaleDateString('pt-PT');
+    const margem = 14;
+    const larguraPagina = doc.internal.pageSize.getWidth();
+    let y = 22;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text('Relatório de Fecho do Dia', larguraPagina / 2, y, { align: 'center' });
+    y += 10;
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.text(`Data: ${new Date(relatorio.data).toLocaleDateString('pt-PT', { dateStyle: 'full' })}`, larguraPagina / 2, y, { align: 'center' });
+    y += 10;
+    doc.line(margem, y, larguraPagina - margem, y);
+    y += 10;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text('Resumo Financeiro', margem, y);
+    y += 7;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text('Total Bruto Vendido:', margem, y);
+    doc.text(relatorio.totalVendido.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' }), larguraPagina - margem, y, { align: 'right' });
+    y += 7;
+    doc.text('Em Numerário:', margem, y);
+    doc.text(relatorio.totalNumerario.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' }), larguraPagina - margem, y, { align: 'right' });
+    y += 7;
+    doc.text('Em TPA:', margem, y);
+    doc.text(relatorio.totalTpa.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' }), larguraPagina - margem, y, { align: 'right' });
+    y += 10;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text('Resumo Operacional', margem, y);
+    y += 7;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text('Contas Fechadas:', margem, y);
+    doc.text(relatorio.numContasFechadas.toString(), larguraPagina - margem, y, { align: 'right' });
+    y += 7;
+    doc.text('Média por Conta:', margem, y);
+    doc.text(relatorio.mediaPorConta.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' }), larguraPagina - margem, y, { align: 'right' });
+    y += 10;
+    doc.line(margem, y, larguraPagina - margem, y);
+    y += 10;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text('Produtos Vendidos', margem, y);
+    y += 7;
+    doc.setFont("helvetica", "bold");
+    doc.text('Qtd.', margem, y);
+    doc.text('Produto', margem + 20, y);
+    doc.setFont("helvetica", "normal");
+    y += 7;
+
+    for (const [nome, qtd] of Object.entries(relatorio.produtosVendidos)) {
+        doc.text(`${qtd}x`, margem, y);
+        doc.text(nome, margem + 20, y);
+        y += 7;
+        if (y > 280) {
+            doc.addPage();
+            y = 20;
+        }
+    }
+    
+    doc.save(`Relatorio_${dataFormatada.replace(/\//g, '-')}.pdf`);
+}
+
+function handleExportarXls() {
+    if (!relatorioAtualParaExportar) return;
+
+    const relatorio = relatorioAtualParaExportar;
+    const dataFormatada = new Date(relatorio.data).toLocaleDateString('pt-PT').replace(/\//g, '-');
+
+    const resumoData = [
+        ['Resumo Financeiro', ''],
+        ['Total Bruto Vendido', relatorio.totalVendido],
+        ['Em Numerário', relatorio.totalNumerario],
+        ['Em TPA', relatorio.totalTpa],
+        [],
+        ['Resumo Operacional', ''],
+        ['Contas Fechadas', relatorio.numContasFechadas],
+        ['Média por Conta', relatorio.mediaPorConta]
+    ];
+    const wsResumo = XLSX.utils.aoa_to_sheet(resumoData);
+    wsResumo['!cols'] = [{ wch: 25 }, { wch: 20 }];
+
+    const produtosData = [['Produto', 'Quantidade Vendida']];
+    for (const [nome, qtd] of Object.entries(relatorio.produtosVendidos)) {
+        produtosData.push([nome, qtd]);
+    }
+    const wsProdutos = XLSX.utils.aoa_to_sheet(produtosData);
+    wsProdutos['!cols'] = [{ wch: 30 }, { wch: 20 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo');
+    XLSX.utils.book_append_sheet(wb, wsProdutos, 'Produtos Vendidos');
+
+    XLSX.writeFile(wb, `Relatorio_${dataFormatada}.xlsx`);
+}
+
 function verificarAlertasDeStock() {
     const itensComStockBaixo = estado.inventario.filter(item => item.stockAtual > 0 && item.stockAtual <= item.stockMinimo);
     if (itensComStockBaixo.length > 0) {
@@ -599,7 +886,13 @@ function verificarAlertasDeStock() {
 }
 function inicializarApp() {
     carregarEstado();
-    navigateToTab('tab-dashboard');
+    
+    if (estado.inventario.length === 0) {
+        navigateToTab('tab-inventario');
+    } else {
+        navigateToTab('tab-atendimento');
+    }
+    
     atualizarTodaUI();
 }
 
@@ -631,6 +924,9 @@ modalOverlay.addEventListener('click', (event) => { if (event.target === modalOv
 formAddPedido.addEventListener('submit', handleAddPedido);
 btnCancelarPedidoModal.addEventListener('click', fecharModalAddPedido);
 modalAddPedidoOverlay.addEventListener('click', (event) => { if (event.target === modalAddPedidoOverlay) { fecharModalAddPedido(); } });
+inputBuscaProdutoPedido.addEventListener('input', () => {
+    renderizarOpcoesDeProduto(inputBuscaProdutoPedido.value);
+});
 pagamentoMetodosContainer.addEventListener('click', (event) => {
     const target = event.target.closest('.pagamento-metodo-btn');
     if (!target) return;
@@ -666,7 +962,7 @@ listaInventario.addEventListener('click', (event) => {
     }
 });
 inputBuscaInventario.addEventListener('input', renderizarInventario);
-btnFechoGlobal.addEventListener('click', abrirModalFechoGlobal);
+btnVerFechoDiaAtual.addEventListener('click', abrirModalFechoGlobal);
 btnCancelarFechoGlobalModal.addEventListener('click', fecharModalFechoGlobal);
 btnArquivarDia.addEventListener('click', handleArquivarDia);
 formEditNome.addEventListener('submit', handleSalvarNovoNome);
@@ -675,3 +971,29 @@ modalEditNomeOverlay.addEventListener('click', (event) => { if (event.target ===
 formAddStock.addEventListener('submit', handleAddStock);
 btnCancelarAddStockModal.addEventListener('click', fecharModalAddStock);
 modalAddStockOverlay.addEventListener('click', (event) => { if (event.target === modalAddStockOverlay) { fecharModalAddStock(); } });
+btnCancelarConfirmacaoModal.addEventListener('click', fecharModalConfirmacao);
+btnConfirmarConfirmacaoModal.addEventListener('click', () => {
+    if (typeof onConfirmCallback === 'function') {
+        onConfirmCallback();
+    }
+    fecharModalConfirmacao();
+});
+btnExportarPdf.addEventListener('click', handleExportarPdf);
+btnExportarXls.addEventListener('click', handleExportarXls);
+calendarioGridDias.addEventListener('click', (event) => {
+    const target = event.target.closest('[data-dia]');
+    if (!target) return;
+
+    const dia = parseInt(target.dataset.dia);
+    const ano = dataAtualCalendario.getFullYear();
+    const mes = dataAtualCalendario.getMonth();
+    const dataClicadaStr = new Date(ano, mes, dia).toDateString();
+
+    const relatorioIndex = estado.historicoFechos.findIndex(rel => new Date(rel.data).toDateString() === dataClicadaStr);
+
+    if (relatorioIndex !== -1) {
+        abrirModalFechoGlobalHistorico(relatorioIndex);
+    }
+});
+btnMesAnterior.addEventListener('click', navegarMesAnterior);
+btnMesSeguinte.addEventListener('click', navegarMesSeguinte);
