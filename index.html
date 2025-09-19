@@ -15,10 +15,6 @@
     <main id="app-container" class="p-4">
         
         <section id="tab-dashboard" class="tab-content">
-            <header class="bg-white p-4 rounded-lg shadow-md mb-4">
-                <h1 class="text-2xl font-bold">Dashboard do Dia</h1>
-            </header>
-            
             <div id="dashboard-content" class="flex flex-col gap-4">
                 
                 <div class="bg-white p-6 rounded-lg shadow-md text-center">
@@ -51,8 +47,7 @@
 
 
         <section id="tab-inventario" class="tab-content hidden">
-            <header class="bg-white p-4 rounded-lg shadow-md mb-4 flex justify-between items-center">
-                <h1 class="text-2xl font-bold">Inventário</h1>
+            <header class="bg-white p-4 rounded-lg shadow-md mb-4 flex justify-end items-center">
                 <button id="btn-add-produto" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow">Adicionar Produto</button>
             </header>
             <div class="mb-4">
@@ -81,9 +76,8 @@
 
         <section id="tab-fluxo-caixa" class="tab-content hidden">
             <header class="bg-white p-4 rounded-lg shadow-md mb-4 space-y-4">
-                <div class="flex justify-between items-center">
-                    <h1 class="text-2xl font-bold">Fecho</h1>
-                    <button id="btn-ver-fecho-dia-atual" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow">Ver Fecho do Dia</button>
+                <div class="flex justify-end items-center">
+                    <button id="btn-ver-fecho-dia-atual" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow">Fechar o Dia</button>
                 </div>
                 <div id="calendario-nav" class="flex justify-between items-center pt-2 border-t">
                     <button id="btn-mes-anterior" class="p-2 text-lg"><i class="fa-solid fa-chevron-left"></i></button>
@@ -114,9 +108,9 @@
         <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-fluxo-caixa" title="Relatórios"><i class="fa-solid fa-sack-dollar"></i></button>
     </nav>
 
-    <div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+    <div id="modal-overlay" role="dialog" aria-labelledby="modal-nova-conta-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 class="text-xl font-bold mb-4">Abrir Nova Conta</h2>
+            <h2 id="modal-nova-conta-titulo" class="text-xl font-bold mb-4">Abrir Nova Conta</h2>
             <form id="form-nova-conta">
                 <div>
                     <label for="input-nome-conta" class="block mb-2 font-semibold">Nome da Conta</label>
@@ -130,18 +124,15 @@
         </div>
     </div>
     
-    <div id="modal-add-pedido-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+    <div id="modal-add-pedido-overlay" role="dialog" aria-labelledby="modal-add-pedido-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 class="text-xl font-bold mb-4">Adicionar Pedido a <span id="modal-pedido-nome-conta"></span></h2>
+            <h2 id="modal-add-pedido-titulo" class="text-xl font-bold mb-4">Adicionar Pedido a <span id="modal-pedido-nome-conta"></span></h2>
             <form id="form-add-pedido">
                 <input type="hidden" id="hidden-conta-id">
                 <div class="mb-4">
                     <label for="input-busca-produto-pedido" class="block mb-2 font-semibold">Buscar Produto</label>
                     <input type="search" id="input-busca-produto-pedido" placeholder="Digite para buscar..." class="w-full p-2 border border-gray-300 rounded-md">
-                </div>
-                <div class="mb-4">
-                    <label for="select-produto" class="block mb-2 font-semibold">Produto</label>
-                    <select id="select-produto" required class="w-full p-2 border border-gray-300 rounded-md bg-white"></select>
+                    <div id="autocomplete-results" class="hidden mt-1 border border-gray-300 rounded-md bg-white max-h-32 overflow-y-auto"></div>
                 </div>
                 <div>
                     <label for="input-quantidade" class="block mb-2 font-semibold">Quantidade</label>
@@ -155,11 +146,11 @@
         </div>
     </div>
 
-    <div id="modal-pagamento-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+    <div id="modal-pagamento-overlay" role="dialog" aria-labelledby="modal-pagamento-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
             <input type="hidden" id="pagamento-conta-id">
             <div class="text-center">
-                <h2 class="text-xl font-bold mb-2">Finalizar Pagamento</h2>
+                <h2 id="modal-pagamento-titulo" class="text-xl font-bold mb-2">Finalizar Pagamento</h2>
                 <p class="text-gray-600 mb-4">Conta: <span id="pagamento-nome-conta" class="font-semibold"></span></p>
                 <p class="text-3xl font-bold text-blue-600 mb-6" id="pagamento-total"></p>
             </div>
@@ -177,9 +168,9 @@
         </div>
     </div>
 
-    <div id="modal-add-produto-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+    <div id="modal-add-produto-overlay" role="dialog" aria-labelledby="modal-add-produto-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 class="text-xl font-bold mb-4">Adicionar Novo Produto</h2>
+            <h2 id="modal-add-produto-titulo" class="text-xl font-bold mb-4">Adicionar Novo Produto</h2>
             <form id="form-add-produto">
                 <div class="space-y-4">
                     <div>
@@ -207,9 +198,9 @@
         </div>
     </div>
 
-    <div id="modal-edit-produto-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+    <div id="modal-edit-produto-overlay" role="dialog" aria-labelledby="modal-edit-produto-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 class="text-xl font-bold mb-4">Editar Produto</h2>
+            <h2 id="modal-edit-produto-titulo" class="text-xl font-bold mb-4">Editar Produto</h2>
             <form id="form-edit-produto">
                 <input type="hidden" id="hidden-edit-produto-id">
                 <div class="space-y-4">
@@ -238,9 +229,9 @@
         </div>
     </div>
     
-    <div id="modal-edit-nome-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+    <div id="modal-edit-nome-overlay" role="dialog" aria-labelledby="modal-edit-nome-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 class="text-xl font-bold mb-4">Editar Nome da Conta</h2>
+            <h2 id="modal-edit-nome-titulo" class="text-xl font-bold mb-4">Editar Nome da Conta</h2>
             <form id="form-edit-nome">
                 <input type="hidden" id="hidden-edit-nome-id">
                 <div>
@@ -255,9 +246,9 @@
         </div>
     </div>
     
-    <div id="modal-add-stock-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+    <div id="modal-add-stock-overlay" role="dialog" aria-labelledby="modal-add-stock-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 class="text-xl font-bold mb-4">Adicionar Stock a <span id="add-stock-nome-produto" class="text-blue-600"></span></h2>
+            <h2 id="modal-add-stock-titulo" class="text-xl font-bold mb-4">Adicionar Stock a <span id="add-stock-nome-produto" class="text-blue-600"></span></h2>
             <form id="form-add-stock">
                 <input type="hidden" id="hidden-add-stock-id">
                 <div>
@@ -272,10 +263,10 @@
         </div>
     </div>
 
-    <div id="modal-fecho-global-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+    <div id="modal-fecho-global-overlay" role="dialog" aria-labelledby="modal-fecho-global-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
             <div class="text-center mb-4">
-                <h2 class="text-2xl font-bold">Fecho Global do Dia</h2>
+                <h2 id="modal-fecho-global-titulo" class="text-2xl font-bold">Fecho Global do Dia</h2>
                 <p class="text-sm text-gray-500" id="fg-data-relatorio"></p>
             </div>
             
@@ -315,7 +306,7 @@
         </div>
     </div>
 
-    <div id="modal-confirmacao-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+    <div id="modal-confirmacao-overlay" role="dialog" aria-labelledby="modal-confirmacao-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
             <h2 id="modal-confirmacao-titulo" class="text-xl font-bold mb-4">Confirmar Ação</h2>
             <p id="modal-confirmacao-mensagem" class="text-gray-700 mb-6">Tem a certeza que deseja prosseguir com esta ação? Ela não pode ser desfeita.</p>
@@ -326,7 +317,7 @@
         </div>
     </div>
 
-    <div id="toast-notificacao" class="fixed top-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-white font-semibold shadow-lg transition-opacity duration-300 opacity-0 hidden"></div>
+    <div id="toast-notificacao" class="fixed top-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-white font-semibold shadow-lg transition-opacity duration-300 opacity-0 z-[100] hidden"></div>
 
     <script src="script.js" defer></script>
 </body>

@@ -10,6 +10,7 @@ const estado = {
 };
 let relatorioAtualParaExportar = null;
 let dataAtualCalendario = new Date();
+let produtoSelecionadoParaPedido = null;
 
 // ===================================
 // 2. SELETORES DE ELEMENTOS DO DOM
@@ -54,10 +55,10 @@ const modalAddPedidoOverlay = document.getElementById('modal-add-pedido-overlay'
 const modalPedidoNomeConta = document.getElementById('modal-pedido-nome-conta');
 const formAddPedido = document.getElementById('form-add-pedido');
 const hiddenContaId = document.getElementById('hidden-conta-id');
-const selectProduto = document.getElementById('select-produto');
 const inputQuantidade = document.getElementById('input-quantidade');
 const btnCancelarPedidoModal = document.getElementById('btn-cancelar-pedido-modal');
 const inputBuscaProdutoPedido = document.getElementById('input-busca-produto-pedido');
+const autocompleteResults = document.getElementById('autocomplete-results');
 
 // Modal de Pagamento
 const modalPagamentoOverlay = document.getElementById('modal-pagamento-overlay');
@@ -120,10 +121,10 @@ const modalConfirmacaoMensagem = document.getElementById('modal-confirmacao-mens
 const btnCancelarConfirmacaoModal = document.getElementById('btn-cancelar-confirmacao-modal');
 const btnConfirmarConfirmacaoModal = document.getElementById('btn-confirmar-confirmacao-modal');
 
-
 // Notificação Toast
 const toastNotificacao = document.getElementById('toast-notificacao');
-let toastTimeout;
+let filaDeNotificacoes = [];
+let notificacaoAtiva = false;
 // ===================================
 // 3. FUNÇÕES PRINCIPAIS
 // ===================================
@@ -139,22 +140,35 @@ function carregarEstado() {
     }
 }
 
-function mostrarNotificacao(mensagem, tipo = 'sucesso') {
-    clearTimeout(toastTimeout);
-    toastNotificacao.textContent = mensagem;
+function processarFilaDeNotificacoes() {
+    if (notificacaoAtiva || filaDeNotificacoes.length === 0) {
+        return;
+    }
+    notificacaoAtiva = true;
+    const notificacao = filaDeNotificacoes.shift();
+
+    toastNotificacao.textContent = notificacao.mensagem;
     toastNotificacao.classList.remove('bg-green-500', 'bg-red-500');
-    if (tipo === 'sucesso') {
+    if (notificacao.tipo === 'sucesso') {
         toastNotificacao.classList.add('bg-green-500');
     } else {
         toastNotificacao.classList.add('bg-red-500');
     }
     toastNotificacao.classList.remove('hidden', 'opacity-0');
-    toastTimeout = setTimeout(() => {
+
+    setTimeout(() => {
         toastNotificacao.classList.add('opacity-0');
         toastNotificacao.addEventListener('transitionend', () => {
             toastNotificacao.classList.add('hidden');
+            notificacaoAtiva = false;
+            processarFilaDeNotificacoes();
         }, { once: true });
     }, 3000);
+}
+
+function mostrarNotificacao(mensagem, tipo = 'sucesso') {
+    filaDeNotificacoes.push({ mensagem, tipo });
+    processarFilaDeNotificacoes();
 }
 
 function navigateToTab(tabId) {
@@ -433,30 +447,33 @@ function fecharModalNovaConta() {
     formNovaConta.reset();
 }
 
-function renderizarOpcoesDeProduto(filtro = '') {
+function renderizarAutocomplete(filtro = '') {
     const termoBusca = filtro.toLowerCase().trim();
-    selectProduto.innerHTML = '';
+    autocompleteResults.innerHTML = '';
     
+    if (!termoBusca) {
+        autocompleteResults.classList.add('hidden');
+        return;
+    }
+
     const produtosFiltrados = estado.inventario.filter(item => 
         item.stockAtual > 0 && item.nome.toLowerCase().includes(termoBusca)
     );
 
     if (produtosFiltrados.length === 0) {
-        const option = document.createElement('option');
-        option.value = "";
-        option.textContent = "Nenhum produto encontrado";
-        option.disabled = true;
-        selectProduto.appendChild(option);
+        autocompleteResults.classList.add('hidden');
         return;
     }
-    
-    selectProduto.innerHTML = '<option value="">Selecione um produto...</option>';
+
     produtosFiltrados.forEach(item => {
-        const option = document.createElement('option');
-        option.value = item.id;
-        option.textContent = `${item.nome} (${item.stockAtual} disp.)`;
-        selectProduto.appendChild(option);
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'p-2 hover:bg-gray-100 cursor-pointer';
+        itemDiv.textContent = `${item.nome} (${item.stockAtual} disp.)`;
+        itemDiv.dataset.id = item.id;
+        itemDiv.dataset.nome = item.nome;
+        autocompleteResults.appendChild(itemDiv);
     });
+    autocompleteResults.classList.remove('hidden');
 }
 
 function abrirModalAddPedido(idConta) {
@@ -467,7 +484,8 @@ function abrirModalAddPedido(idConta) {
     hiddenContaId.value = idConta;
     
     inputBuscaProdutoPedido.value = '';
-    renderizarOpcoesDeProduto();
+    produtoSelecionadoParaPedido = null;
+    autocompleteResults.classList.add('hidden');
     
     modalAddPedidoOverlay.classList.remove('hidden');
     inputBuscaProdutoPedido.focus();
@@ -615,15 +633,27 @@ function handleCriarNovaConta(event) {
 function handleAddPedido(event) {
     event.preventDefault();
     const idConta = parseInt(hiddenContaId.value);
-    const idProduto = selectProduto.value;
     const quantidade = parseInt(inputQuantidade.value);
+    
+    if (!produtoSelecionadoParaPedido) {
+        mostrarNotificacao("Por favor, selecione um produto da lista.", "erro");
+        return;
+    }
+    const idProduto = produtoSelecionadoParaPedido.id;
     const conta = estado.contasAtivas.find(c => c.id === idConta);
     const produto = estado.inventario.find(p => p.id === idProduto);
-    if (!conta || !produto || !quantidade) { mostrarNotificacao("Por favor, preencha todos os campos.", "erro");
-    return; }
-    if (quantidade <= 0) { mostrarNotificacao("A quantidade deve ser positiva.", "erro"); return;
+
+    if (!conta || !produto || !quantidade) { 
+        mostrarNotificacao("Por favor, preencha todos os campos.", "erro");
+        return; 
     }
-    if (quantidade > produto.stockAtual) { mostrarNotificacao(`Stock insuficiente. Apenas ${produto.stockAtual} unidades de ${produto.nome} disponíveis.`, "erro"); return;
+    if (quantidade <= 0) { 
+        mostrarNotificacao("A quantidade deve ser positiva.", "erro"); 
+        return;
+    }
+    if (quantidade > produto.stockAtual) { 
+        mostrarNotificacao(`Stock insuficiente. Apenas ${produto.stockAtual} unidades de ${produto.nome} disponíveis.`, "erro"); 
+        return;
     }
     produto.stockAtual -= quantidade;
     const pedidoExistente = conta.pedidos.find(p => p.produtoId === produto.id);
@@ -672,9 +702,19 @@ function handleAddProduto(event) {
     const preco = parseFloat(inputProdutoPreco.value);
     const stock = parseInt(inputProdutoStock.value);
     const stockMinimo = parseInt(inputProdutoStockMinimo.value);
-    if (!nome || preco <= 0 || stock < 0 || stockMinimo < 0 || isNaN(preco) || isNaN(stock) || isNaN(stockMinimo)) { mostrarNotificacao("Dados inválidos. Verifique os valores.", "erro");
-    return; }
-    const novoProduto = { id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, nome, preco, stockInicial: stock, stockAtual: stock, entradas: 0, stockMinimo };
+    if (!nome || isNaN(preco) || preco <= 0 || isNaN(stock) || stock < 0 || isNaN(stockMinimo) || stockMinimo < 0) { 
+        mostrarNotificacao("Dados inválidos. Verifique os valores.", "erro");
+        return; 
+    }
+    const novoProduto = { 
+        id: crypto.randomUUID(), 
+        nome, 
+        preco, 
+        stockInicial: stock, 
+        stockAtual: stock, 
+        entradas: 0, 
+        stockMinimo 
+    };
     estado.inventario.push(novoProduto);
     fecharModalAddProduto();
     atualizarTodaUI();
@@ -925,7 +965,15 @@ formAddPedido.addEventListener('submit', handleAddPedido);
 btnCancelarPedidoModal.addEventListener('click', fecharModalAddPedido);
 modalAddPedidoOverlay.addEventListener('click', (event) => { if (event.target === modalAddPedidoOverlay) { fecharModalAddPedido(); } });
 inputBuscaProdutoPedido.addEventListener('input', () => {
-    renderizarOpcoesDeProduto(inputBuscaProdutoPedido.value);
+    renderizarAutocomplete(inputBuscaProdutoPedido.value);
+});
+autocompleteResults.addEventListener('click', (event) => {
+    const target = event.target;
+    if (target.dataset.id) {
+        produtoSelecionadoParaPedido = { id: target.dataset.id, nome: target.dataset.nome };
+        inputBuscaProdutoPedido.value = target.dataset.nome;
+        autocompleteResults.classList.add('hidden');
+    }
 });
 pagamentoMetodosContainer.addEventListener('click', (event) => {
     const target = event.target.closest('.pagamento-metodo-btn');
