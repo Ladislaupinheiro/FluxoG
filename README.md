@@ -1,44 +1,37 @@
-# HPMC--gestor-de-atendimento-ao-cliente
-# Gestor Bar v0.1
+# Gestor Bar - Aplicação de Ponto de Venda (POS)
 
-## Descrição do Projeto
+## Descrição
 
-O **Gestor Bar** é uma aplicação web de ponto de venda (POS) e gestão de operações, desenhada especificamente para bares e negócios de venda de bebidas. O seu objetivo é substituir o caos operacional por um controlo digital, intuitivo e em tempo real, cobrindo todo o ciclo de vida da operação diária: desde a gestão de inventário até ao fecho de caixa.
+O **Gestor Bar** é uma aplicação web de ponto de venda (POS) *frontend-only*, desenhada para gerir o atendimento ao cliente, inventário de bebidas e fluxo de caixa de um pequeno bar ou estabelecimento similar. A aplicação funciona inteiramente no navegador e utiliza o `localStorage` para persistir os dados, não necessitando de um backend.
 
-Este projeto é uma colaboração entre o Diretor Criativo e o Engenheiro de Produto & Mestre de Arte, seguindo a metodologia do "Manifesto do Estúdio Criativo".
+## Funcionalidades Principais
 
----
+- **Dashboard:** Visão geral em tempo real das vendas do dia, contas ativas e alertas de stock.
+- **Atendimento ao Cliente:** Abertura e gestão de múltiplas contas de clientes (mesas, clientes nominais), com adição e remoção de pedidos.
+- **Gestão de Inventário:** Adição e edição de produtos (bebidas), com controlo de stock inicial, entradas, e stock atual.
+- **Fluxo de Caixa:** Calendário para visualização de relatórios de fecho de dias anteriores.
+- **Fecho do Dia:** Geração de um relatório diário detalhado, com opção de arquivamento para iniciar um novo dia de trabalho.
+- **Exportação de Relatórios:** Capacidade de exportar os relatórios de fecho de dia para os formatos PDF e XLS.
 
-## Funcionalidades Planeadas
+## Arquitetura e Tecnologias
 
-### Essenciais (Primeira Versão - P1)
+- **HTML5:** Estrutura semântica.
+- **Tailwind CSS:** Framework de CSS para um design rápido e responsivo.
+- **Font Awesome:** Biblioteca de ícones.
+- **JavaScript (ES Modules):** A lógica da aplicação é modularizada para melhor organização e manutenibilidade.
+  - `main.js`: Ponto de entrada da aplicação e registo dos *event listeners*.
+  - `state.js`: Módulo para gestão do estado global da aplicação e persistência no `localStorage`.
+  - `ui.js`: Módulo responsável por toda a manipulação do DOM e funções de renderização.
+  - `handlers.js`: Módulo que contém a lógica de negócio e os manipuladores de eventos.
+- **Bibliotecas Externas (via CDN):**
+  - `jsPDF`: Para a geração de relatórios em PDF.
+  - `XLSX (SheetJS)`: Para a geração de relatórios em Excel (XLS).
 
-* **Controlo de Stock:** Lançamento de stock inicial e definição de níveis de alerta por item.
-* **Gestão de Contas de Cliente:**
-    * Abertura de contas com registo de caução obrigatória.
-    * Adição de múltiplos pedidos a uma conta ativa.
-    * Fecho de conta com cálculo de total, desconto de caução e lógica para reembolso.
-* **Alerta de Stock em Tempo Real:** Notificações visuais imediatas quando o stock de um item atinge o nível mínimo definido.
+## Como Utilizar
 
-### Gestão & Relatórios (Evolução - P2)
-
-* **Gestão de Despesas:** Funcionalidade para lançar saídas de caixa (despesas).
-* **Relatório de Fecho Global:** Um painel de controlo completo de fim de dia que inclui:
-    * **Fluxo de Caixa e Banco:** Resumo de todas as entradas (vendas por tipo de pagamento) e saídas (despesas), com o saldo final.
-    * **Análise de Stock:** Relatório detalhado de stock inicial, itens vendidos e stock final.
-* **Exportação de Dados:** Capacidade de exportar relatórios em formatos PDF e XLS.
-
----
-
-## Tecnologias
-
-* **Frontend:** HTML5
-* **Estilização:** CSS3
-* **Lógica:** JavaScript (ES6+)
+1. Clone o repositório.
+2. Abra o ficheiro `index.html` num navegador web moderno.
+3. A aplicação está pronta a ser utilizada. Os dados serão guardados localmente no seu navegador.
 
 ---
-
-## Autores
-
-* **Diretor Criativo:** HPMC 
-* **Engenheiro de Produto & Mestre de Arte:** Gemini
+*Desenvolvido como parte do projeto HAPP.*
