@@ -83,7 +83,6 @@ const formEditProduto = document.getElementById('form-edit-produto');
 const hiddenEditProdutoId = document.getElementById('hidden-edit-produto-id');
 const inputEditProdutoNome = document.getElementById('input-edit-produto-nome');
 const inputEditProdutoPreco = document.getElementById('input-edit-produto-preco');
-const inputEditProdutoStock = document.getElementById('input-edit-produto-stock');
 const inputEditProdutoStockMinimo = document.getElementById('input-edit-produto-stock-minimo');
 const btnCancelarEditProdutoModal = document.getElementById('btn-cancelar-edit-produto-modal');
 // Modal Editar Nome da Conta
@@ -100,6 +99,19 @@ const hiddenAddStockId = document.getElementById('hidden-add-stock-id');
 const addStockNomeProduto = document.getElementById('add-stock-nome-produto');
 const inputAddStockQuantidade = document.getElementById('input-add-stock-quantidade');
 const btnCancelarAddStockModal = document.getElementById('btn-cancelar-add-stock-modal');
+
+// ==== INÍCIO DA CRIAÇÃO (MÓDULO 4) ====
+// Seletores para o novo Modal Mover Stock
+const modalMoverStockOverlay = document.getElementById('modal-mover-stock-overlay');
+const formMoverStock = document.getElementById('form-mover-stock');
+const hiddenMoverStockId = document.getElementById('hidden-mover-stock-id');
+const moverStockNomeProduto = document.getElementById('mover-stock-nome-produto');
+const moverStockArmazemQtd = document.getElementById('mover-stock-armazem-qtd');
+const moverStockGeleiraQtd = document.getElementById('mover-stock-geleira-qtd');
+const inputMoverStockQuantidade = document.getElementById('input-mover-stock-quantidade');
+const btnCancelarMoverStockModal = document.getElementById('btn-cancelar-mover-stock-modal');
+// ==== FIM DA CRIAÇÃO ====
+
 // Modal Fecho Global
 const modalFechoGlobalOverlay = document.getElementById('modal-fecho-global-overlay');
 const fgDataRelatorio = document.getElementById('fg-data-relatorio');
@@ -136,9 +148,24 @@ function salvarEstado() {
 function carregarEstado() {
     const estadoSalvo = localStorage.getItem('gestorBarEstado');
     if (estadoSalvo) {
-        Object.assign(estado, JSON.parse(estadoSalvo));
+        const estadoCarregado = JSON.parse(estadoSalvo);
+        
+        if (estadoCarregado.inventario && estadoCarregado.inventario.length > 0) {
+            estadoCarregado.inventario.forEach(produto => {
+                if (produto.hasOwnProperty('stockAtual') && !produto.hasOwnProperty('stockArmazem')) {
+                    produto.stockArmazem = produto.stockAtual;
+                    produto.stockGeleira = 0;
+                    delete produto.stockAtual;
+                    delete produto.stockInicial;
+                    delete produto.entradas;
+                }
+            });
+        }
+        
+        Object.assign(estado, estadoCarregado);
     }
 }
+
 
 function processarFilaDeNotificacoes() {
     if (notificacaoAtiva || filaDeNotificacoes.length === 0) {
@@ -207,7 +234,7 @@ function renderizarDashboard() {
     const contasAtivas = estado.contasAtivas.filter(c => c.status === 'ativa');
     dbContasAtivas.textContent = contasAtivas.length;
     
-    const itensComStockBaixo = estado.inventario.filter(item => item.stockAtual > 0 && item.stockAtual <= item.stockMinimo);
+    const itensComStockBaixo = estado.inventario.filter(item => item.stockGeleira > 0 && item.stockGeleira <= item.stockMinimo);
     dbAlertasStock.textContent = itensComStockBaixo.length;
     
     const produtosVendidos = {};
@@ -318,7 +345,9 @@ function renderizarInventario() {
     const inventarioParaMostrar = estado.inventario.filter(item => 
         item.nome.toLowerCase().includes(termoBusca)
     );
+
     listaInventario.innerHTML = '';
+
     if (inventarioParaMostrar.length === 0) {
         if (termoBusca) {
             listaInventario.innerHTML = `<p class="text-center text-gray-500 py-8">Nenhum produto encontrado para "${inputBuscaInventario.value}".</p>`;
@@ -327,36 +356,49 @@ function renderizarInventario() {
         }
         return;
     }
+
     const inventoryHTML = inventarioParaMostrar.map(item => {
-        const vendidos = (item.stockInicial + item.entradas) - item.stockAtual;
-        const isLowStock = item.stockAtual > 0 && item.stockAtual <= item.stockMinimo;
+        const isLowStock = item.stockGeleira > 0 && item.stockGeleira <= item.stockMinimo;
         const destaqueClasse = isLowStock ? 'border-2 border-red-500 bg-red-50' : 'shadow-md';
+        
         return `
         <div class="bg-white p-4 rounded-lg ${destaqueClasse}">
-            <div class="flex justify-between items-start">
+            <div class="flex justify-between items-start mb-2">
                 <div>
                     <p class="font-bold text-lg">${item.nome}</p>
                     <p class="text-sm text-gray-600">Preço: ${item.preco.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</p>
                 </div>
-                <div class="flex gap-4">
-                    <button class="btn-icon btn-add-stock text-2xl text-green-500 hover:text-green-700" data-id="${item.id}" title="Adicionar Stock">
-                        <i class="fas fa-plus-circle"></i>
-                    </button>
-                    <button class="btn-icon btn-edit-produto text-2xl text-gray-500 hover:text-blue-500" data-id="${item.id}" title="Editar Produto">
-                        <i class="fas fa-edit"></i>
-                    </button>
+                <button class="btn-icon btn-editar-produto text-xl text-gray-500 hover:text-blue-500" data-id="${item.id}" title="Editar Produto">
+                    <i class="fas fa-pencil-alt"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 text-center border-t border-b py-2 my-2">
+                <div>
+                    <p class="text-xs text-gray-500">ARMAZÉM</p>
+                    <p class="font-bold text-2xl">${item.stockArmazem}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-blue-500">GELEIRA</p>
+                    <p class="font-bold text-2xl text-blue-500">${item.stockGeleira}</p>
                 </div>
             </div>
-            <div class="mt-4 pt-2 border-t grid grid-cols-4 text-center">
-                <div><p class="text-xs text-gray-500">Inicial</p><p class="font-semibold">${item.stockInicial}</p></div>
-                <div><p class="text-xs text-blue-500">Entradas</p><p class="font-semibold text-blue-500">+${item.entradas}</p></div>
-                <div><p class="text-xs text-red-500">Vendido</p><p class="font-semibold text-red-500">${vendidos}</p></div>
-                <div><p class="text-xs text-green-600">Atual</p><p class="font-bold text-lg text-green-600">${item.stockAtual}</p></div>
+
+            <div class="flex justify-end items-center gap-4 mt-2">
+                <button class="btn-icon btn-adicionar-armazem text-2xl text-green-500 hover:text-green-700" data-id="${item.id}" title="Adicionar ao Armazém">
+                    <i class="fas fa-box"></i>
+                </button>
+                <button class="btn-icon btn-mover-geleira text-2xl text-blue-500 hover:text-blue-700" data-id="${item.id}" title="Mover para Geleira">
+                    <i class="fas fa-arrow-right"></i>
+                </button>
             </div>
         </div>
-    `}).join('');
+        `;
+    }).join('');
+
     listaInventario.innerHTML = `<div class="space-y-4">${inventoryHTML}</div>`;
 }
+
 
 function renderizarCalendario() {
     const ano = dataAtualCalendario.getFullYear();
@@ -455,9 +497,9 @@ function renderizarAutocomplete(filtro = '') {
         autocompleteResults.classList.add('hidden');
         return;
     }
-
+    
     const produtosFiltrados = estado.inventario.filter(item => 
-        item.stockAtual > 0 && item.nome.toLowerCase().includes(termoBusca)
+        item.stockGeleira > 0 && item.nome.toLowerCase().includes(termoBusca)
     );
 
     if (produtosFiltrados.length === 0) {
@@ -468,7 +510,7 @@ function renderizarAutocomplete(filtro = '') {
     produtosFiltrados.forEach(item => {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'p-2 hover:bg-gray-100 cursor-pointer';
-        itemDiv.textContent = `${item.nome} (${item.stockAtual} disp.)`;
+        itemDiv.textContent = `${item.nome} (${item.stockGeleira} disp.)`;
         itemDiv.dataset.id = item.id;
         itemDiv.dataset.nome = item.nome;
         autocompleteResults.appendChild(itemDiv);
@@ -528,7 +570,6 @@ function abrirModalEditProduto(produtoId) {
     hiddenEditProdutoId.value = produto.id;
     inputEditProdutoNome.value = produto.nome;
     inputEditProdutoPreco.value = produto.preco;
-    inputEditProdutoStock.value = produto.stockAtual;
     inputEditProdutoStockMinimo.value = produto.stockMinimo;
     modalEditProdutoOverlay.classList.remove('hidden');
     inputEditProdutoNome.focus();
@@ -561,6 +602,25 @@ function fecharModalAddStock() {
     modalAddStockOverlay.classList.add('hidden');
     formAddStock.reset();
 }
+
+// ==== INÍCIO DA CRIAÇÃO (MÓDULO 4) ====
+function abrirModalMoverStock(produtoId) {
+    const produto = estado.inventario.find(p => p.id === produtoId);
+    if (!produto) return;
+    hiddenMoverStockId.value = produto.id;
+    moverStockNomeProduto.textContent = produto.nome;
+    moverStockArmazemQtd.textContent = produto.stockArmazem;
+    moverStockGeleiraQtd.textContent = produto.stockGeleira;
+    modalMoverStockOverlay.classList.remove('hidden');
+    inputMoverStockQuantidade.focus();
+}
+
+function fecharModalMoverStock() {
+    modalMoverStockOverlay.classList.add('hidden');
+    formMoverStock.reset();
+}
+// ==== FIM DA CRIAÇÃO ====
+
 function calcularRelatorioDia() {
     const hoje = new Date();
     const contasFechadasHoje = estado.contasAtivas.filter(c => {
@@ -651,11 +711,13 @@ function handleAddPedido(event) {
         mostrarNotificacao("A quantidade deve ser positiva.", "erro"); 
         return;
     }
-    if (quantidade > produto.stockAtual) { 
-        mostrarNotificacao(`Stock insuficiente. Apenas ${produto.stockAtual} unidades de ${produto.nome} disponíveis.`, "erro"); 
+    
+    if (quantidade > produto.stockGeleira) { 
+        mostrarNotificacao(`Stock insuficiente na geleira. Apenas ${produto.stockGeleira} unidades de ${produto.nome} disponíveis.`, "erro"); 
         return;
     }
-    produto.stockAtual -= quantidade;
+    produto.stockGeleira -= quantidade;
+
     const pedidoExistente = conta.pedidos.find(p => p.produtoId === produto.id);
     if (pedidoExistente) {
         pedidoExistente.qtd += quantidade;
@@ -710,9 +772,8 @@ function handleAddProduto(event) {
         id: crypto.randomUUID(), 
         nome, 
         preco, 
-        stockInicial: stock, 
-        stockAtual: stock, 
-        entradas: 0, 
+        stockArmazem: stock,
+        stockGeleira: 0,
         stockMinimo 
     };
     estado.inventario.push(novoProduto);
@@ -729,16 +790,20 @@ function handleEditProduto(event) {
     }
     const nome = inputEditProdutoNome.value.trim();
     const preco = parseFloat(inputEditProdutoPreco.value);
-    const stockAtualNovo = parseInt(inputEditProdutoStock.value);
     const stockMinimo = parseInt(inputEditProdutoStockMinimo.value);
-    if (!nome || preco <= 0 || stockAtualNovo < 0 || stockMinimo < 0 || isNaN(preco) || isNaN(stockAtualNovo) || isNaN(stockMinimo)) { mostrarNotificacao("Dados inválidos. Verifique os valores.", "erro");
-    return; }
-    const diferencaStock = stockAtualNovo - produto.stockAtual;
+    
+    // ==== INÍCIO DA ALTERAÇÃO (MÓDULO 4) ====
+    // A função agora apenas atualiza nome, preço e stock mínimo.
+    if (!nome || preco <= 0 || stockMinimo < 0 || isNaN(preco) || isNaN(stockMinimo)) {
+        mostrarNotificacao("Dados inválidos. Verifique os valores.", "erro");
+        return; 
+    }
+    // ==== FIM DA ALTERAÇÃO ====
+    
     produto.nome = nome;
     produto.preco = preco;
-    produto.stockAtual = stockAtualNovo;
-    produto.entradas += diferencaStock;
     produto.stockMinimo = stockMinimo;
+    
     fecharModalEditProduto();
     atualizarTodaUI();
     salvarEstado();
@@ -750,15 +815,57 @@ function handleAddStock(event) {
     const produto = estado.inventario.find(p => p.id === produtoId);
     if (!produto) return;
     const quantidade = parseInt(inputAddStockQuantidade.value);
-    if (isNaN(quantidade) || quantidade <= 0) { mostrarNotificacao("Por favor, insira um número válido e positivo.", "erro");
-    return; }
-    produto.entradas += quantidade;
-    produto.stockAtual += quantidade;
+    if (isNaN(quantidade)) { 
+        mostrarNotificacao("Por favor, insira um número válido.", "erro");
+        return; 
+    }
+    
+    if ((produto.stockArmazem + quantidade) < 0) {
+        mostrarNotificacao(`Operação inválida. O stock do armazém não pode ser negativo. Stock atual: ${produto.stockArmazem}`, "erro");
+        return;
+    }
+    produto.stockArmazem += quantidade;
+
     fecharModalAddStock();
     atualizarTodaUI();
     salvarEstado();
-    mostrarNotificacao(`${quantidade} un. adicionadas ao stock de ${produto.nome}!`);
+    if (quantidade > 0) {
+        mostrarNotificacao(`${quantidade} un. adicionadas ao armazém de ${produto.nome}!`);
+    } else {
+        mostrarNotificacao(`${Math.abs(quantidade)} un. removidas do armazém de ${produto.nome} (correção).`);
+    }
 }
+function handleMoverParaGeleira(produtoId, quantidade) {
+    const produto = estado.inventario.find(p => p.id === produtoId);
+    if (!produto || isNaN(quantidade) || quantidade <= 0) {
+        mostrarNotificacao("A quantidade para mover deve ser um número positivo.", "erro");
+        return false;
+    }
+    if (quantidade > produto.stockArmazem) {
+        mostrarNotificacao(`Não é possível mover ${quantidade} un. Apenas ${produto.stockArmazem} un. disponíveis no armazém.`, "erro");
+        return false;
+    }
+    produto.stockArmazem -= quantidade;
+    produto.stockGeleira += quantidade;
+    atualizarTodaUI();
+    salvarEstado();
+    mostrarNotificacao(`${quantidade} un. de ${produto.nome} movidas para a geleira.`);
+    return true;
+}
+
+// ==== INÍCIO DA CRIAÇÃO (MÓDULO 4) ====
+function handleFormMoverStock(event) {
+    event.preventDefault();
+    const produtoId = hiddenMoverStockId.value;
+    const quantidade = parseInt(inputMoverStockQuantidade.value);
+    
+    const sucesso = handleMoverParaGeleira(produtoId, quantidade);
+    if (sucesso) {
+        fecharModalMoverStock();
+    }
+}
+// ==== FIM DA CRIAÇÃO ====
+
 function handleRemoverItem(idConta, itemIndex) {
     const conta = estado.contasAtivas.find(c => c.id === idConta);
     if (!conta) return;
@@ -766,7 +873,7 @@ function handleRemoverItem(idConta, itemIndex) {
     if(!pedidoRemovido) return;
     const produtoInventario = estado.inventario.find(p => p.id === pedidoRemovido.produtoId);
     if (produtoInventario) {
-        produtoInventario.stockAtual += pedidoRemovido.qtd;
+        produtoInventario.stockGeleira += pedidoRemovido.qtd;
     }
     conta.pedidos.splice(itemIndex, 1);
     atualizarTodaUI();
@@ -787,16 +894,21 @@ function handleArquivarDia() {
 
     abrirModalConfirmacao(
         'Arquivar o Dia?',
-        'Esta ação não pode ser desfeita e irá reiniciar o inventário para o dia seguinte.',
+        'O stock restante na geleira será devolvido ao armazém. Esta ação não pode ser desfeita.',
         () => {
             const relatorio = calcularRelatorioDia();
             if (!estado.historicoFechos) { estado.historicoFechos = []; }
             estado.historicoFechos.push(relatorio);
+            
             estado.contasAtivas = estado.contasAtivas.filter(c => c.status === 'ativa');
+
             estado.inventario.forEach(item => {
-                item.stockInicial = item.stockAtual;
-                item.entradas = 0;
+                if (item.stockGeleira > 0) {
+                    item.stockArmazem += item.stockGeleira;
+                    item.stockGeleira = 0;
+                }
             });
+
             fecharModalFechoGlobal();
             atualizarTodaUI();
             salvarEstado();
@@ -916,9 +1028,9 @@ function handleExportarXls() {
 }
 
 function verificarAlertasDeStock() {
-    const itensComStockBaixo = estado.inventario.filter(item => item.stockAtual > 0 && item.stockAtual <= item.stockMinimo);
+    const itensComStockBaixo = estado.inventario.filter(item => item.stockGeleira > 0 && item.stockGeleira <= item.stockMinimo);
     if (itensComStockBaixo.length > 0) {
-        alertaStockContainer.textContent = `⚠️ Itens com Stock Baixo: ${itensComStockBaixo.length}`;
+        alertaStockContainer.textContent = `⚠️ Alerta: ${itensComStockBaixo.map(i => i.nome).join(', ')} com stock baixo na geleira.`;
         alertaStockContainer.classList.remove('hidden');
     } else {
         alertaStockContainer.classList.add('hidden');
@@ -998,17 +1110,25 @@ modalAddProdutoOverlay.addEventListener('click', (event) => { if (event.target =
 formEditProduto.addEventListener('submit', handleEditProduto);
 btnCancelarEditProdutoModal.addEventListener('click', fecharModalEditProduto);
 modalEditProdutoOverlay.addEventListener('click', (event) => { if (event.target === modalEditProdutoOverlay) { fecharModalEditProduto(); } });
+
+// ==== INÍCIO DA ALTERAÇÃO (MÓDULO 4) ====
 listaInventario.addEventListener('click', (event) => {
     const target = event.target.closest('button');
     if (!target) return;
     const produtoId = target.dataset.id;
-    if (target.classList.contains('btn-edit-produto')) {
+    
+    if (target.classList.contains('btn-editar-produto')) {
         abrirModalEditProduto(produtoId);
     }
-    if (target.classList.contains('btn-add-stock')) {
+    if (target.classList.contains('btn-adicionar-armazem')) {
         abrirModalAddStock(produtoId);
     }
+    if (target.classList.contains('btn-mover-geleira')) {
+        abrirModalMoverStock(produtoId);
+    }
 });
+// ==== FIM DA ALTERAÇÃO ====
+
 inputBuscaInventario.addEventListener('input', renderizarInventario);
 btnVerFechoDiaAtual.addEventListener('click', abrirModalFechoGlobal);
 btnCancelarFechoGlobalModal.addEventListener('click', fecharModalFechoGlobal);
@@ -1019,6 +1139,13 @@ modalEditNomeOverlay.addEventListener('click', (event) => { if (event.target ===
 formAddStock.addEventListener('submit', handleAddStock);
 btnCancelarAddStockModal.addEventListener('click', fecharModalAddStock);
 modalAddStockOverlay.addEventListener('click', (event) => { if (event.target === modalAddStockOverlay) { fecharModalAddStock(); } });
+
+// ==== INÍCIO DA CRIAÇÃO (MÓDULO 4) ====
+formMoverStock.addEventListener('submit', handleFormMoverStock);
+btnCancelarMoverStockModal.addEventListener('click', fecharModalMoverStock);
+modalMoverStockOverlay.addEventListener('click', (event) => { if (event.target === modalMoverStockOverlay) { fecharModalMoverStock(); } });
+// ==== FIM DA CRIAÇÃO ====
+
 btnCancelarConfirmacaoModal.addEventListener('click', fecharModalConfirmacao);
 btnConfirmarConfirmacaoModal.addEventListener('click', () => {
     if (typeof onConfirmCallback === 'function') {
