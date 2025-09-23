@@ -1,0 +1,21 @@
+{
+    "name": "Gestor de Bar Pro",
+    "short_name": "GestorBar",
+    "description": "Uma aplicação para gestão de inventário e vendas de um bar.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#f4f7f6",
+    "theme_color": "#007bff",
+    "icons": [
+        {
+            "src": "icons/logo-small-192.png",
+            "type": "image/png",
+            "sizes": "192x192"
+        },
+        {
+            "src": "icons/logo-big-512.png",
+            "type": "image/png",
+            "sizes": "512x512"
+        }
+    ]
+}

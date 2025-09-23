@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestor Bar</title>
+
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#007bff">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     
@@ -108,9 +112,9 @@
         <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-fluxo-caixa" title="Relatórios"><i class="fa-solid fa-sack-dollar"></i></button>
     </nav>
 
-    <div id="modal-overlay" role="dialog" aria-labelledby="modal-nova-conta-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+    <div id="modal-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 id="modal-nova-conta-titulo" class="text-xl font-bold mb-4">Abrir Nova Conta</h2>
+            <h2 class="text-xl font-bold mb-4">Abrir Nova Conta</h2>
             <form id="form-nova-conta">
                 <div>
                     <label for="input-nome-conta" class="block mb-2 font-semibold">Nome da Conta</label>
@@ -124,9 +128,9 @@
         </div>
     </div>
     
-    <div id="modal-add-pedido-overlay" role="dialog" aria-labelledby="modal-add-pedido-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+    <div id="modal-add-pedido-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 id="modal-add-pedido-titulo" class="text-xl font-bold mb-4">Adicionar Pedido a <span id="modal-pedido-nome-conta"></span></h2>
+            <h2 class="text-xl font-bold mb-4">Adicionar Pedido a <span id="modal-pedido-nome-conta"></span></h2>
             <form id="form-add-pedido">
                 <input type="hidden" id="hidden-conta-id">
                 <div class="mb-4">
@@ -146,11 +150,11 @@
         </div>
     </div>
 
-    <div id="modal-pagamento-overlay" role="dialog" aria-labelledby="modal-pagamento-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+    <div id="modal-pagamento-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
             <input type="hidden" id="pagamento-conta-id">
             <div class="text-center">
-                <h2 id="modal-pagamento-titulo" class="text-xl font-bold mb-2">Finalizar Pagamento</h2>
+                <h2 class="text-xl font-bold mb-2">Finalizar Pagamento</h2>
                 <p class="text-gray-600 mb-4">Conta: <span id="pagamento-nome-conta" class="font-semibold"></span></p>
                 <p class="text-3xl font-bold text-blue-600 mb-6" id="pagamento-total"></p>
             </div>
@@ -168,9 +172,9 @@
         </div>
     </div>
 
-    <div id="modal-add-produto-overlay" role="dialog" aria-labelledby="modal-add-produto-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+    <div id="modal-add-produto-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 id="modal-add-produto-titulo" class="text-xl font-bold mb-4">Adicionar Novo Produto</h2>
+            <h2 class="text-xl font-bold mb-4">Adicionar Novo Produto</h2>
             <form id="form-add-produto">
                 <div class="space-y-4">
                     <div>
@@ -198,9 +202,9 @@
         </div>
     </div>
 
-    <div id="modal-edit-produto-overlay" role="dialog" aria-labelledby="modal-edit-produto-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+    <div id="modal-edit-produto-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 id="modal-edit-produto-titulo" class="text-xl font-bold mb-4">Editar Produto</h2>
+            <h2 class="text-xl font-bold mb-4">Editar Produto</h2>
             <form id="form-edit-produto">
                 <input type="hidden" id="hidden-edit-produto-id">
                 <div class="space-y-4">
@@ -224,9 +228,10 @@
             </form>
         </div>
     </div>
-    <div id="modal-edit-nome-overlay" role="dialog" aria-labelledby="modal-edit-nome-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+    
+    <div id="modal-edit-nome-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 id="modal-edit-nome-titulo" class="text-xl font-bold mb-4">Editar Nome da Conta</h2>
+            <h2 class="text-xl font-bold mb-4">Editar Nome da Conta</h2>
             <form id="form-edit-nome">
                 <input type="hidden" id="hidden-edit-nome-id">
                 <div>
@@ -241,11 +246,11 @@
         </div>
     </div>
     
-    <div id="modal-add-stock-overlay" role="dialog" aria-labelledby="modal-add-stock-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+    <div id="modal-add-stock-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-             <h2 id="modal-add-stock-titulo" class="text-xl font-bold mb-4">Adicionar Stock ao Armazém</h2>
+            <h2 class="text-xl font-bold mb-4">Adicionar Stock ao Armazém</h2>
             <p class="mb-4">Produto: <span id="add-stock-nome-produto" class="font-semibold text-blue-600"></span></p>
-             <form id="form-add-stock">
+            <form id="form-add-stock">
                 <input type="hidden" id="hidden-add-stock-id">
                 <div>
                     <label for="input-add-stock-quantidade" class="block mb-2 font-semibold">Quantidade a Adicionar</label>
@@ -259,9 +264,9 @@
         </div>
     </div>
 
-    <div id="modal-mover-stock-overlay" role="dialog" aria-labelledby="modal-mover-stock-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+    <div id="modal-mover-stock-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 id="modal-mover-stock-titulo" class="text-xl font-bold mb-4">Mover para Geleira</h2>
+            <h2 class="text-xl font-bold mb-4">Mover para Geleira</h2>
             <p class="mb-4">Produto: <span id="mover-stock-nome-produto" class="font-semibold text-blue-600"></span></p>
 
             <div class="grid grid-cols-2 gap-4 text-center bg-gray-50 p-2 rounded-lg mb-4">
@@ -288,10 +293,11 @@
             </form>
         </div>
     </div>
-    <div id="modal-fecho-global-overlay" role="dialog" aria-labelledby="modal-fecho-global-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+
+    <div id="modal-fecho-global-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
             <div class="text-center mb-4">
-                <h2 id="modal-fecho-global-titulo" class="text-2xl font-bold">Fecho Global do Dia</h2>
+                <h2 class="text-2xl font-bold">Fecho Global do Dia</h2>
                 <p class="text-sm text-gray-500" id="fg-data-relatorio"></p>
             </div>
             
@@ -331,7 +337,7 @@
         </div>
     </div>
 
-    <div id="modal-confirmacao-overlay" role="dialog" aria-labelledby="modal-confirmacao-titulo" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+    <div id="modal-confirmacao-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
             <h2 id="modal-confirmacao-titulo" class="text-xl font-bold mb-4">Confirmar Ação</h2>
             <p id="modal-confirmacao-mensagem" class="text-gray-700 mb-6">Tem a certeza que deseja prosseguir com esta ação? Ela não pode ser desfeita.</p>
@@ -343,8 +349,21 @@
     </div>
 
     <div id="toast-notificacao" class="fixed top-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-white font-semibold shadow-lg transition-opacity duration-300 opacity-0 z-[100] hidden"></div>
+    
+    <script type="module" src="./modules/main.js" defer></script>
 
-    <script src="script.js" defer></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => {
+                        console.log('Service Worker registado com sucesso:', registration);
+                    })
+                    .catch(error => {
+                        console.log('Falha ao registar o Service Worker:', error);
+                    });
+            });
+        }
+    </script>
 </body>
-
 </html>
