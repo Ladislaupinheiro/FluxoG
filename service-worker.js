@@ -1,23 +1,22 @@
 // service-worker.js
 
-const CACHE_NAME = 'gestorbar-v1';
-// Lista de todos os ficheiros essenciais para a aplicação funcionar offline.
+const CACHE_NAME = 'gestorbar-v2'; // Versão incrementada para forçar a atualização
+// CAMINHOS CORRIGIDOS: Removidos os "/" no início para torná-los relativos.
 const URLS_TO_CACHE = [
-    '/',
-    'index.html',
-    'style.css',
-    '/modules/main.js',
-    '/modules/state.js',
-    '/modules/ui.js',
-    '/modules/handlers.js',
-    '/modules/modals.js',
-    '/modules/selectors.js',
-    'icons/logo-small-192.png',
-    'icons/logo-big-512.png'
+    './',
+    './index.html',
+    './style.css',
+    './modules/main.js',
+    './modules/state.js',
+    './modules/ui.js',
+    './modules/handlers.js',
+    './modules/modals.js',
+    './modules/selectors.js',
+    './icons/logo-small-192.png',
+    './icons/logo-big-512.png'
 ];
 
-// Evento 'install': é disparado quando o service worker é instalado.
-// Aqui, guardamos todos os nossos ficheiros em cache.
+// Evento 'install': guarda os ficheiros essenciais em cache.
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME)
@@ -28,19 +27,29 @@ self.addEventListener('install', (event) => {
     );
 });
 
-// Evento 'fetch': é disparado sempre que a aplicação faz um pedido de rede (ex: pedir um ficheiro).
-// Aqui, intercetamos o pedido e respondemos com o ficheiro em cache, se existir.
+// Evento 'activate': limpa caches antigas para garantir que usamos os ficheiros novos.
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    if (cacheName !== CACHE_NAME) {
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        })
+    );
+});
+
+// Evento 'fetch': responde aos pedidos com os ficheiros em cache se disponíveis.
 self.addEventListener('fetch', (event) => {
     event.respondWith(
         caches.match(event.request)
             .then((response) => {
                 // Se encontrarmos o ficheiro em cache, retornamo-lo.
-                if (response) {
-                    return response;
-                }
                 // Se não, fazemos o pedido à rede.
-                return fetch(event.request);
+                return response || fetch(event.request);
             })
     );
-
 });
