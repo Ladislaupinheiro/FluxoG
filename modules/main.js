@@ -20,7 +20,39 @@ function inicializarApp() {
     }
     
     atualizarTodaUI();
+    
+    // Adiciona a gestão de conectividade
+    setupConnectivityListener();
 }
+
+// Gestão de Conectividade
+function handleConnectionChange() {
+    if (navigator.onLine) {
+        sel.offlineIndicator.textContent = 'De volta online!';
+        sel.offlineIndicator.classList.remove('bg-red-600');
+        sel.offlineIndicator.classList.add('bg-green-600', 'visible');
+        
+        // Esconde a notificação após alguns segundos
+        setTimeout(() => {
+            sel.offlineIndicator.classList.remove('visible');
+        }, 3000);
+    } else {
+        sel.offlineIndicator.textContent = 'Sem ligação à internet. A aplicação está em modo offline.';
+        sel.offlineIndicator.classList.remove('bg-green-600');
+        sel.offlineIndicator.classList.add('bg-red-600', 'visible');
+    }
+}
+
+function setupConnectivityListener() {
+    // Verifica o estado inicial
+    if (!navigator.onLine) {
+        handleConnectionChange();
+    }
+    // Adiciona listeners para mudanças futuras
+    window.addEventListener('online', handleConnectionChange);
+    window.addEventListener('offline', handleConnectionChange);
+}
+
 
 // ===================================
 // EVENT LISTENERS

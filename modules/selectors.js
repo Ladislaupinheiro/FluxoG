@@ -122,3 +122,6 @@ export const btnConfirmarConfirmacaoModal = document.getElementById('btn-confirm
 
 // Notificação Toast
 export const toastNotificacao = document.getElementById('toast-notificacao');
+
+// Indicador de Conectividade
+export const offlineIndicator = document.getElementById('offline-indicator');
