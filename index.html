@@ -10,14 +10,15 @@
 
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans pb-16">
 
-    <main id="app-container" class="p-4">
+    <!-- APLICAÇÃO PRINCIPAL (INICIA OCULTA) -->
+    <main id="app-container" class="p-4 hidden">
         
         <section id="tab-dashboard" class="tab-content">
             <div id="dashboard-content" class="flex flex-col gap-4">
@@ -106,13 +107,60 @@
         </section>
     </main>
 
-    <nav id="bottom-nav" class="fixed bottom-0 left-0 w-full bg-white shadow-[0_-2px_5px_rgba(0,0,0,0.1)] grid grid-cols-4 z-50">
+    <nav id="bottom-nav" class="fixed bottom-0 left-0 w-full bg-white shadow-[0_-2px_5px_rgba(0,0,0,0.1)] grid grid-cols-4 z-50 hidden">
         <button class="nav-btn active text-blue-500 border-t-4 border-blue-500" data-tab="tab-dashboard" title="Dashboard"><i class="fa-solid fa-chart-pie"></i></button>
         <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-inventario" title="Inventário"><i class="fa-solid fa-boxes-stacked"></i></button>
         <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-atendimento" title="Atendimento"><i class="fa-solid fa-clipboard-list"></i></button>
         <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-fluxo-caixa" title="Relatórios"><i class="fa-solid fa-sack-dollar"></i></button>
     </nav>
+    <!-- FIM DA APLICAÇÃO PRINCIPAL -->
 
+
+    <!-- ============================ -->
+    <!-- MODAIS DE SEGURANÇA (NOVOS) -->
+    <!-- ============================ -->
+
+    <!-- Modal de Ativação de Licença -->
+    <div id="modal-ativacao-licenca" class="fixed inset-0 bg-gray-100 z-[100] flex justify-center items-center p-4 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md text-center">
+            <h2 class="text-2xl font-bold mb-2">Ativação Necessária</h2>
+            <p class="text-gray-600 mb-6">Por favor, insira a sua chave de licença para ativar a aplicação neste dispositivo.</p>
+            <form id="form-ativacao">
+                <input type="text" id="input-chave-licenca" placeholder="GESTORBAR-XXXX-XXXX-XXXX" required autocomplete="off" class="w-full p-3 border border-gray-300 rounded-md text-center uppercase tracking-widest font-mono">
+                <p id="ativacao-mensagem-erro" class="text-red-500 text-sm mt-2 h-5"></p>
+                <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg mt-4">Ativar Aplicação</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para Criar Senha (PIN) -->
+    <div id="modal-criar-senha" class="fixed inset-0 bg-gray-100 z-[100] flex justify-center items-center p-4 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md text-center">
+            <h2 class="text-2xl font-bold mb-2">Crie a sua Senha</h2>
+            <p class="text-gray-600 mb-6">Crie um PIN de 4 dígitos para proteger o acesso à aplicação.</p>
+            <form id="form-criar-senha">
+                <input type="password" id="input-criar-pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" required class="w-full p-3 border border-gray-300 rounded-md text-center text-2xl tracking-[.5em]">
+                <p id="criar-senha-mensagem-erro" class="text-red-500 text-sm mt-2 h-5"></p>
+                <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg mt-4">Guardar Senha</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal para Inserir Senha (PIN) -->
+    <div id="modal-inserir-senha" class="fixed inset-0 bg-gray-100 z-[100] flex justify-center items-center p-4 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md text-center">
+            <h2 class="text-2xl font-bold mb-2">Bem-vindo de Volta!</h2>
+            <p class="text-gray-600 mb-6">Insira o seu PIN de 4 dígitos para aceder.</p>
+            <form id="form-inserir-senha">
+                <input type="password" id="input-inserir-pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" required class="w-full p-3 border border-gray-300 rounded-md text-center text-2xl tracking-[.5em]">
+                <p id="inserir-senha-mensagem-erro" class="text-red-500 text-sm mt-2 h-5"></p>
+                <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg mt-4">Desbloquear</button>
+                <button type="button" id="btn-esqueci-senha" class="text-blue-500 hover:underline text-sm mt-4">Esqueci-me da senha</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- MODAIS DA APLICAÇÃO (EXISTENTES) -->
     <div id="modal-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
             <h2 class="text-xl font-bold mb-4">Abrir Nova Conta</h2>
@@ -351,12 +399,15 @@
 
     <div id="toast-notificacao" class="fixed top-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-white font-semibold shadow-lg transition-opacity duration-300 opacity-0 z-[100] hidden"></div>
     
+    <div id="offline-indicator" class="hidden fixed bottom-0 left-0 w-full bg-red-600 text-white text-center p-2 shadow-lg transition-transform duration-300 translate-y-full">
+        <p>Sem ligação à internet. A aplicação está em modo offline.</p>
+    </div>
+
     <script type="module" src="./modules/main.js" defer></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                // CORREÇÃO: Removido o "/" inicial para tornar o caminho relativo
                 navigator.serviceWorker.register('service-worker.js')
                     .then(registration => {
                         console.log('Service Worker registado com sucesso:', registration);
@@ -367,9 +418,6 @@
             });
         }
     </script>
-<div id="offline-indicator" class="hidden fixed bottom-0 left-0 w-full bg-red-600 text-white text-center p-2 shadow-lg transition-transform duration-300 translate-y-full">
-        <p>Sem ligação à internet. A aplicação está em modo offline.</p>
-    </div>
-
 </body>
 </html>
+

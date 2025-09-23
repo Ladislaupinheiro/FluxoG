@@ -211,8 +211,10 @@ button:disabled {
     background-color: var(--cor-primaria-clara);
     color: var(--cor-primaria);
     font-weight: bold;
-
 }
+
+/* ... (todo o seu CSS existente) ... */
+
 
 /* --- NOVOS ESTILOS PARA INDICADOR DE CONECTIVIDADE --- */
 #offline-indicator {

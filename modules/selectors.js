@@ -1,5 +1,8 @@
 // /modules/selectors.js - Centraliza a seleção de todos os elementos do DOM.
 
+// Aplicação Principal
+export const appContainer = document.getElementById('app-container');
+
 // Navegação e Abas
 export const bottomNav = document.getElementById('bottom-nav');
 export const tabContents = document.querySelectorAll('.tab-content');
@@ -125,3 +128,28 @@ export const toastNotificacao = document.getElementById('toast-notificacao');
 
 // Indicador de Conectividade
 export const offlineIndicator = document.getElementById('offline-indicator');
+
+
+// ===================================
+// SELETORES DE SEGURANÇA (NOVOS)
+// ===================================
+
+// Modal de Ativação
+export const modalAtivacao = document.getElementById('modal-ativacao-licenca');
+export const formAtivacao = document.getElementById('form-ativacao');
+export const inputChaveLicenca = document.getElementById('input-chave-licenca');
+export const ativacaoMensagemErro = document.getElementById('ativacao-mensagem-erro');
+
+// Modal Criar Senha
+export const modalCriarSenha = document.getElementById('modal-criar-senha');
+export const formCriarSenha = document.getElementById('form-criar-senha');
+export const inputCriarPin = document.getElementById('input-criar-pin');
+export const criarSenhaMensagemErro = document.getElementById('criar-senha-mensagem-erro');
+
+// Modal Inserir Senha
+export const modalInserirSenha = document.getElementById('modal-inserir-senha');
+export const formInserirSenha = document.getElementById('form-inserir-senha');
+export const inputInserirPin = document.getElementById('input-inserir-pin');
+export const inserirSenhaMensagemErro = document.getElementById('inserir-senha-mensagem-erro');
+export const btnEsqueciSenha = document.getElementById('btn-esqueci-senha');
+
