@@ -1,4 +1,4 @@
-// main.js - O Ponto de Entrada e Orquestrador da Aplicação (v2.5 Estável)
+// main.js - O Ponto de Entrada e Orquestrador da Aplicação (v2.6 com Recuperação Automática)
 'use strict';
 
 import { carregarEstado, estado } from './state.js';
@@ -9,19 +9,55 @@ import * as sel from './selectors.js';
 import * as security from './security.js';
 
 /**
+ * Tenta recuperar a aplicação de um estado de cache inconsistente.
+ * Desregista o service worker, limpa a cache e recarrega a página.
+ */
+async function attemptRecovery() {
+    console.warn("Inconsistência de cache detetada. A iniciar recuperação automática...");
+    try {
+        // Passo 1: Desregistar todos os service workers ativos.
+        if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (const registration of registrations) {
+                await registration.unregister();
+                console.log("Service Worker desregistado com sucesso.");
+            }
+        }
+
+        // Passo 2: Limpar todas as caches relacionadas com esta aplicação.
+        const keys = await caches.keys();
+        await Promise.all(keys.map(key => {
+            if (key.startsWith('gestorbar-')) {
+                console.log(`A limpar cache antiga: ${key}`);
+                return caches.delete(key);
+            }
+            return Promise.resolve();
+        }));
+
+        // Passo 3: Recarregar a página para obter os ficheiros mais recentes.
+        console.log("Recuperação concluída. A recarregar a página...");
+        window.location.reload();
+
+    } catch (error) {
+        console.error("A recuperação automática falhou:", error);
+        // Mensagem de último recurso se a recuperação falhar.
+        document.body.innerHTML = '<div style="padding: 20px; text-align: center;">Ocorreu um erro crítico. Por favor, limpe os dados de navegação do seu browser para este site e tente novamente.</div>';
+    }
+}
+
+
+/**
  * Função de inicialização da aplicação.
  * Orquestra o fluxo de verificação de segurança antes de mostrar a app principal.
  */
 async function inicializarApp() {
-    // CORREÇÃO: Verificação de integridade da UI para evitar erros de cache.
-    // Se os modais de segurança não existirem no DOM, é porque a versão do HTML
-    // está desatualizada. A função para para evitar o erro "TypeError".
+    // Verificação de integridade da UI. Se falhar, aciona a recuperação.
     if (!sel.modalAtivacao || !sel.modalCriarSenha || !sel.modalInserirSenha) {
-        console.error("Interface de segurança não encontrada. A versão do HTML em cache pode estar desatualizada. Um 'hard refresh' (Ctrl+Shift+R) pode ser necessário.");
-        return; // Para a execução para prevenir o erro.
+        await attemptRecovery();
+        return; // Para a execução para aguardar o recarregamento.
     }
 
-    // Orquestração de arranque
+    // Orquestração de arranque normal
     try {
         const licencaAtiva = await security.verificarLicencaAtiva();
         if (!licencaAtiva) {
@@ -39,7 +75,6 @@ async function inicializarApp() {
         sel.inputInserirPin.focus();
     } catch (error) {
         console.error("Ocorreu um erro durante a inicialização da segurança:", error);
-        // Pode-se mostrar uma mensagem de erro ao utilizador aqui
     }
 }
 
