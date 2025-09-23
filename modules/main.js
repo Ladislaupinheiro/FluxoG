@@ -15,29 +15,6 @@ import * as security from './security.js';
  * Orquestra o fluxo de segurança antes de mostrar a UI principal.
  */
 async function inicializarApp() {
-    // VERIFICAÇÃO DE INTEGRIDADE DA UI (CORREÇÃO PARA TELA BRANCA)
-    // Se o modal principal de segurança não existir, o HTML em cache está desatualizado.
-    if (!document.getElementById('modal-ativacao')) {
-        console.warn("Detetada versão de HTML desatualizada na cache. A forçar atualização completa...");
-        
-        // Tenta remover o controlo do Service Worker e recarregar a página a partir da rede.
-        if ('serviceWorker' in navigator) {
-            try {
-                const registrations = await navigator.serviceWorker.getRegistrations();
-                for (const registration of registrations) {
-                    await registration.unregister();
-                }
-                window.location.reload(true);
-            } catch (error) {
-                console.error("Falha ao remover o Service Worker. A recarregar via método alternativo.", error);
-                window.location.reload(true);
-            }
-        } else {
-            window.location.reload(true);
-        }
-        return; // Pára a execução do script atual.
-    }
-
     // Adiciona os event listeners para toda a aplicação.
     setupEventListeners();
     // Adiciona a gestão de conectividade.
