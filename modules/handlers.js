@@ -1,10 +1,33 @@
 // /modules/handlers.js - Contém a lógica de negócio e os gestores de eventos.
 
-import { estado, salvarEstado, produtoSelecionadoParaPedido, relatorioAtualParaExportar } from './state.js';
-import { atualizarTodaUI, mostrarNotificacao } from './ui.js';
+import { estado, salvarEstado, carregarEstado, produtoSelecionadoParaPedido, relatorioAtualParaExportar } from './state.js';
+import { atualizarTodaUI, mostrarNotificacao, navigateToTab } from './ui.js';
 import * as modals from './modals.js';
 import * as sel from './selectors.js';
 import * as security from './security.js';
+
+// ===================================
+// LÓGICA DE SESSÃO CENTRALIZADA
+// ===================================
+
+/**
+ * Helper function que carrega o estado, renderiza a UI e exibe a aplicação principal.
+ * Chamada apenas após uma autenticação bem-sucedida.
+ */
+function _iniciarSessaoAposLogin() {
+    carregarEstado();
+    if (estado.inventario.length === 0) {
+        navigateToTab('tab-inventario');
+    } else {
+        navigateToTab('tab-atendimento');
+    }
+    atualizarTodaUI();
+    
+    // Revela a aplicação principal
+    sel.appContainer.classList.remove('hidden');
+    sel.bottomNav.classList.remove('hidden');
+}
+
 
 // ===================================
 // HANDLERS DE SEGURANÇA (CORRIGIDOS)
@@ -27,9 +50,9 @@ export async function handleAtivacaoLicenca(event) {
     await security.ativarLicenca(chave);
     mostrarNotificacao('Aplicação ativada com sucesso!', 'sucesso');
     
-    // **CORREÇÃO: Em vez de recarregar, faz a transição direta para o próximo ecrã.**
     sel.modalAtivacao.classList.add('hidden');
     sel.modalCriarSenha.classList.remove('hidden');
+    sel.inputCriarPin.focus(); // Foco no próximo campo
 }
 
 /**
@@ -49,9 +72,9 @@ export async function handleCriarSenha(event) {
     await security.guardarHashSenha(pin);
     mostrarNotificacao('Senha criada com sucesso!', 'sucesso');
 
-    // **CORREÇÃO: Em vez de recarregar, faz a transição direta para o ecrã de login.**
+    // **CORREÇÃO: Inicia a sessão completa em vez de pedir o login novamente.**
     sel.modalCriarSenha.classList.add('hidden');
-    sel.modalInserirSenha.classList.remove('hidden');
+    _iniciarSessaoAposLogin();
 }
 
 /**
@@ -79,9 +102,8 @@ export async function handleInserirSenha(event) {
     if (senhaCorreta) {
         security.limparTentativas();
         sel.modalInserirSenha.classList.add('hidden');
-        sel.appContainer.classList.remove('hidden');
-        sel.bottomNav.classList.remove('hidden');
-        // A UI principal já foi preparada pelo orquestrador em main.js
+        // **CORREÇÃO: Inicia a sessão completa.**
+        _iniciarSessaoAposLogin();
     } else {
         security.registrarTentativaFalhada();
         const novoBloqueio = security.verificarBloqueio();
@@ -91,6 +113,7 @@ export async function handleInserirSenha(event) {
             sel.inserirSenhaMensagemErro.textContent = 'PIN incorreto. Tente novamente.';
         }
         sel.inputInserirPin.value = '';
+        sel.inputInserirPin.focus();
     }
 }
 

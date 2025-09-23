@@ -2,7 +2,7 @@
 'use strict';
 
 // Importa as funções de cada módulo
-import { carregarEstado, estado, dataAtualCalendario, setProdutoSelecionado } from './state.js';
+import { dataAtualCalendario, setProdutoSelecionado } from './state.js';
 import { navigateToTab, renderizarInventario, renderizarAutocomplete, atualizarTodaUI } from './ui.js';
 import * as modals from './modals.js';
 import * as handlers from './handlers.js';
@@ -16,38 +16,30 @@ import * as security from './security.js';
  */
 async function inicializarApp() {
     // Adiciona os event listeners para toda a aplicação.
-    // Isto é feito primeiro para que os modais de segurança possam reagir.
     setupEventListeners();
+    // Adiciona a gestão de conectividade.
+    setupConnectivityListener();
 
     // ORQUESTRAÇÃO DE SEGURANÇA
+    // A única responsabilidade desta função é decidir qual ecrã de segurança mostrar.
+    // A lógica de iniciar a app principal foi movida para os handlers de segurança.
     const licencaAtiva = await security.verificarLicencaAtiva();
     if (!licencaAtiva) {
         sel.modalAtivacao.classList.remove('hidden');
+        sel.inputChaveLicenca.focus();
         return; // Pára a execução, aguardando a ativação.
     }
 
     const senhaExiste = await security.verificarSeSenhaExiste();
     if (!senhaExiste) {
         sel.modalCriarSenha.classList.remove('hidden');
+        sel.inputCriarPin.focus();
         return; // Pára a execução, aguardando a criação da senha.
     }
 
-    // Se a licença está ativa e a senha existe, a aplicação está pronta para o login.
-    // Mostra o modal de inserção de senha.
+    // Se a licença está ativa e a senha existe, mostra o ecrã de login.
     sel.modalInserirSenha.classList.remove('hidden');
-    
-    // Carrega o estado e prepara a UI principal em background.
-    // A UI só será exibida após o login bem-sucedido no handleInserirSenha.
-    carregarEstado();
-    if (estado.inventario.length === 0) {
-        navigateToTab('tab-inventario');
-    } else {
-        navigateToTab('tab-atendimento');
-    }
-    atualizarTodaUI();
-    
-    // Adiciona a gestão de conectividade.
-    setupConnectivityListener();
+    sel.inputInserirPin.focus();
 }
 
 /**
@@ -61,13 +53,12 @@ function setupEventListeners() {
     sel.btnEsqueciSenha.addEventListener('click', handlers.handleEsqueciSenha);
     
     // LISTENERS DA APLICAÇÃO PRINCIPAL
-    // Navegação Principal
+    // (Todo o código de event listeners existente permanece aqui, sem alterações)
     sel.bottomNav.addEventListener('click', (event) => {
         const target = event.target.closest('.nav-btn');
         if (target) navigateToTab(target.dataset.tab);
     });
 
-    // Aba Atendimento
     sel.seletorCliente.addEventListener('change', () => atualizarTodaUI());
     sel.vistaClienteAtivo.addEventListener('click', (event) => {
         const target = event.target.closest('button');
@@ -83,7 +74,6 @@ function setupEventListeners() {
     });
     sel.btnAbrirConta.addEventListener('click', modals.abrirModalNovaConta);
 
-    // Aba Inventário
     sel.btnAddProduto.addEventListener('click', modals.abrirModalAddProduto);
     sel.inputBuscaInventario.addEventListener('input', renderizarInventario);
     sel.listaInventario.addEventListener('click', (event) => {
@@ -95,7 +85,6 @@ function setupEventListeners() {
         if (target.classList.contains('btn-mover-geleira')) modals.abrirModalMoverStock(produtoId);
     });
 
-    // Aba Fecho / Relatórios
     sel.btnVerFechoDiaAtual.addEventListener('click', modals.abrirModalFechoGlobal);
     sel.btnMesAnterior.addEventListener('click', () => {
         dataAtualCalendario.setMonth(dataAtualCalendario.getMonth() - 1);
@@ -118,7 +107,6 @@ function setupEventListeners() {
         }
     });
 
-    // Gestão de Modais e Formulários
     sel.formNovaConta.addEventListener('submit', handlers.handleCriarNovaConta);
     sel.btnCancelarModal.addEventListener('click', modals.fecharModalNovaConta);
     sel.modalOverlay.addEventListener('click', (event) => { if (event.target === sel.modalOverlay) modals.fecharModalNovaConta(); });
