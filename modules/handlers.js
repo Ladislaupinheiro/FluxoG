@@ -1,340 +1,455 @@
-// /modules/handlers.js - Contém a lógica de negócio e os gestores de eventos.
+// /modules/handlers.js - Contém a lógica de negócio e os gestores de eventos (v3.2)
+'use strict';
 
-import { estado, salvarEstado, carregarEstado, produtoSelecionadoParaPedido, relatorioAtualParaExportar } from './state.js';
-import { atualizarTodaUI, mostrarNotificacao, navigateToTab } from './ui.js';
+import { estado, salvarEstado, produtoSelecionadoParaPedido, setProdutoSelecionado, setDataAtual, relatorioAtualParaExportar } from './state.js';
+import { atualizarTodaUI, mostrarNotificacao } from './ui.js';
 import * as modals from './modals.js';
 import * as sel from './selectors.js';
 import * as security from './security.js';
 
 // ===================================
-// LÓGICA DE SESSÃO CENTRALIZADA
+// HANDLERS DE SEGURANÇA
 // ===================================
 
-/**
- * Helper function que carrega o estado, renderiza a UI e exibe a aplicação principal.
- * Chamada apenas após uma autenticação bem-sucedida.
- */
-function _iniciarSessaoAposLogin() {
-    carregarEstado();
-    if (estado.inventario.length === 0) {
-        navigateToTab('tab-inventario');
-    } else {
-        navigateToTab('tab-atendimento');
-    }
-    atualizarTodaUI();
-    
-    // Revela a aplicação principal
-    sel.appContainer.classList.remove('hidden');
-    sel.bottomNav.classList.remove('hidden');
-}
-
-
-// ===================================
-// HANDLERS DE SEGURANÇA (CORRIGIDOS)
-// ===================================
-
-/**
- * Gere a submissão do formulário de ativação de licença.
- * @param {Event} event O evento de submissão do formulário.
- */
-export async function handleAtivacaoLicenca(event) {
+export async function handleAtivacao(event) {
     event.preventDefault();
-    const chave = sel.inputChaveLicenca.value;
-    sel.ativacaoMensagemErro.textContent = '';
+    const chave = sel.inputChaveLicenca.value.trim().toUpperCase();
+    sel.mensagemErroAtivacao.classList.add('hidden');
 
-    if (!security.validarFormatoChave(chave)) {
-        sel.ativacaoMensagemErro.textContent = 'O formato da chave de licença é inválido.';
+    // Validação de entrada
+    if (!chave) {
+        sel.mensagemErroAtivacao.textContent = 'Por favor, insira uma chave de licença.';
+        sel.mensagemErroAtivacao.classList.remove('hidden');
+        return;
+    }
+    
+    // Simulação de validação de formato (pode ser expandida)
+    const regex = /^GESTORBAR-PROD-[A-Z0-9]{4}-DEMO$/;
+    if (!regex.test(chave)) {
+        sel.mensagemErroAtivacao.textContent = 'O formato da chave de licença é inválido.';
+        sel.mensagemErroAtivacao.classList.remove('hidden');
         return;
     }
 
-    await security.ativarLicenca(chave);
-    mostrarNotificacao('Aplicação ativada com sucesso!', 'sucesso');
-    
-    sel.modalAtivacao.classList.add('hidden');
-    sel.modalCriarSenha.classList.remove('hidden');
-    sel.inputCriarPin.focus(); // Foco no próximo campo
+    try {
+        await security.ativarLicenca(chave);
+        // Transição suave para o próximo passo sem recarregar a página
+        sel.modalAtivacao.classList.add('hidden');
+        sel.modalCriarSenha.classList.remove('hidden');
+        sel.inputCriarPin.focus();
+    } catch (error) {
+        console.error("Erro ao ativar a licença:", error);
+        sel.mensagemErroAtivacao.textContent = 'Ocorreu um erro inesperado. Tente novamente.';
+        sel.mensagemErroAtivacao.classList.remove('hidden');
+    }
 }
 
-/**
- * Gere a submissão do formulário de criação de senha (PIN).
- * @param {Event} event O evento de submissão do formulário.
- */
 export async function handleCriarSenha(event) {
     event.preventDefault();
     const pin = sel.inputCriarPin.value;
-    sel.criarSenhaMensagemErro.textContent = '';
+    const confirmarPin = sel.inputConfirmarPin.value;
+    sel.mensagemErroCriarSenha.classList.add('hidden');
 
-    if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-        sel.criarSenhaMensagemErro.textContent = 'O PIN deve ter exatamente 4 dígitos numéricos.';
+    // Validação de entrada
+    if (pin.length !== 4 || confirmarPin.length !== 4 || !/^\d{4}$/.test(pin)) {
+        sel.mensagemErroCriarSenha.textContent = 'O PIN deve conter exatamente 4 dígitos numéricos.';
+        sel.mensagemErroCriarSenha.classList.remove('hidden');
+        return;
+    }
+    if (pin !== confirmarPin) {
+        sel.mensagemErroCriarSenha.textContent = 'Os PINs não coincidem. Tente novamente.';
+        sel.mensagemErroCriarSenha.classList.remove('hidden');
         return;
     }
 
-    await security.guardarHashSenha(pin);
-    mostrarNotificacao('Senha criada com sucesso!', 'sucesso');
-
-    // **CORREÇÃO: Inicia a sessão completa em vez de pedir o login novamente.**
-    sel.modalCriarSenha.classList.add('hidden');
-    _iniciarSessaoAposLogin();
+    try {
+        await security.guardarHashSenha(pin);
+        iniciarSessao(); // Inicia a sessão diretamente após criar o PIN
+    } catch (error) {
+        console.error("Erro ao guardar o PIN:", error);
+        sel.mensagemErroCriarSenha.textContent = 'Ocorreu um erro ao guardar o PIN. Tente novamente.';
+        sel.mensagemErroCriarSenha.classList.remove('hidden');
+    }
 }
 
-/**
- * Gere a submissão do formulário de inserção de senha (PIN) para login.
- * @param {Event} event O evento de submissão do formulário.
- */
-export async function handleInserirSenha(event) {
+export async function handleVerificarSenha(event) {
     event.preventDefault();
+    if (security.verificarBloqueio()) {
+        const tempoRestante = security.obterTempoBloqueioRestante();
+        sel.mensagemErroInserirSenha.textContent = `Aplicação bloqueada. Tente novamente em ${tempoRestante} segundos.`;
+        sel.mensagemErroInserirSenha.classList.remove('hidden');
+        return;
+    }
+
     const pin = sel.inputInserirPin.value;
-    sel.inserirSenhaMensagemErro.textContent = '';
+    sel.mensagemErroInserirSenha.classList.add('hidden');
 
-    const bloqueio = security.verificarBloqueio();
-    if (bloqueio.bloqueado) {
-        sel.inserirSenhaMensagemErro.textContent = `Muitas tentativas. Tente novamente em ${Math.ceil(bloqueio.tempoRestante)} segundos.`;
-        return;
-    }
-
-    if (pin.length !== 4) {
-        sel.inserirSenhaMensagemErro.textContent = 'O PIN deve ter 4 dígitos.';
-        return;
-    }
-
-    const senhaCorreta = await security.verificarSenha(pin);
-
-    if (senhaCorreta) {
-        security.limparTentativas();
-        sel.modalInserirSenha.classList.add('hidden');
-        // **CORREÇÃO: Inicia a sessão completa.**
-        _iniciarSessaoAposLogin();
-    } else {
-        security.registrarTentativaFalhada();
-        const novoBloqueio = security.verificarBloqueio();
-        if (novoBloqueio.bloqueado) {
-            sel.inserirSenhaMensagemErro.textContent = `PIN incorreto. Acesso bloqueado por ${Math.ceil(novoBloqueio.tempoRestante)}s.`;
+    try {
+        const pinCorreto = await security.verificarSenha(pin);
+        if (pinCorreto) {
+            security.limparTentativasFalhadas();
+            iniciarSessao();
         } else {
-            sel.inserirSenhaMensagemErro.textContent = 'PIN incorreto. Tente novamente.';
+            security.registrarTentativaFalhada();
+            sel.mensagemErroInserirSenha.textContent = 'PIN incorreto. Tente novamente.';
+            sel.mensagemErroInserirSenha.classList.remove('hidden');
         }
-        sel.inputInserirPin.value = '';
-        sel.inputInserirPin.focus();
+    } catch (error) {
+        console.error("Erro ao verificar o PIN:", error);
+        sel.mensagemErroInserirSenha.textContent = 'Ocorreu um erro ao verificar o PIN. Tente novamente.';
+        sel.mensagemErroInserirSenha.classList.remove('hidden');
     }
 }
 
-/**
- * Gere o fluxo "Esqueci-me da senha", que requer reativação.
- */
 export function handleEsqueciSenha() {
     modals.abrirModalConfirmacao(
-        'Esqueceu-se da Senha?',
-        'Isto irá remover a sua senha e desativar a licença neste dispositivo. Terá de inserir novamente a sua chave de licença para continuar.',
+        'Esqueceu-se do PIN?',
+        'Isto irá limpar todos os dados da aplicação, incluindo inventário e contas. Terá de reativar a aplicação com a sua chave de licença original. Deseja continuar?',
         () => {
-            security.invalidarSenha();
-            security.desativarLicenca();
-            mostrarNotificacao('Senha removida. Por favor, reative a aplicação.', 'sucesso');
-            setTimeout(() => location.reload(), 2000); // Aqui o reload é intencional para reiniciar o processo.
+            try {
+                localStorage.clear();
+                window.location.reload();
+            } catch (error) {
+                console.error("Erro ao tentar limpar os dados:", error);
+                mostrarNotificacao("Não foi possível limpar os dados. Por favor, faça-o manualmente nas configurações do browser.", "erro");
+            }
         }
     );
 }
 
+// ===================================
+// FUNÇÃO CENTRAL DE LOGIN E PREPARAÇÃO
+// ===================================
+
+function iniciarSessao() {
+    try {
+        // Esconde todos os modais de segurança
+        sel.modalAtivacao.classList.add('hidden');
+        sel.modalCriarSenha.classList.add('hidden');
+        sel.modalInserirSenha.classList.add('hidden');
+
+        // Mostra a interface principal da aplicação
+        sel.appContainer.classList.remove('hidden');
+        sel.bottomNav.classList.remove('hidden');
+
+        // Carrega os dados e inicializa a UI
+        carregarEstado();
+        ui.navigateToTab('tab-atendimento');
+        ui.atualizarTodaUI();
+    } catch (error) {
+        console.error("Erro crítico ao iniciar a sessão:", error);
+        // Se a inicialização falhar, mostra um erro genérico
+        document.body.innerHTML = `<div style="color: red; text-align: center; padding: 20px;">Ocorreu um erro crítico ao carregar a aplicação.</div>`;
+    }
+}
+
 
 // ===================================
-// HANDLERS DA APLICAÇÃO (EXISTENTES)
+// HANDLERS DA APLICAÇÃO
 // ===================================
 
 export function handleCriarNovaConta(event) {
     event.preventDefault();
-    const nomeConta = sel.inputNomeConta.value.trim();
-    if (!nomeConta) { mostrarNotificacao("O nome da conta não pode estar vazio.", "erro"); return; }
-    if (estado.contasAtivas.some(c => c.status === 'ativa' && c.nome.toLowerCase() === nomeConta.toLowerCase())) {
-        mostrarNotificacao(`Já existe uma conta ativa com o nome "${nomeConta}".`, "erro"); return;
+    try {
+        const nomeConta = sel.inputNomeConta.value.trim();
+        if (!nomeConta) {
+            mostrarNotificacao("O nome da conta não pode estar vazio.", "erro");
+            return;
+        }
+        if (estado.contasAtivas.some(c => c.status === 'ativa' && c.nome.toLowerCase() === nomeConta.toLowerCase())) {
+            mostrarNotificacao(`Já existe uma conta ativa com o nome "${nomeConta}".`, "erro");
+            return;
+        }
+        const maxId = estado.contasAtivas.reduce((max, c) => c.id > max ? c.id : max, 0);
+        estado.contasAtivas.push({ id: maxId + 1, nome: nomeConta, pedidos: [], dataAbertura: new Date(), status: 'ativa' });
+        modals.fecharModalNovaConta();
+        sel.seletorCliente.value = estado.contasAtivas[estado.contasAtivas.length - 1].id;
+        ui.atualizarTodaUI();
+        salvarEstado();
+        mostrarNotificacao(`Conta "${nomeConta}" criada com sucesso!`);
+    } catch (error) {
+        console.error("Erro em handleCriarNovaConta:", error);
+        mostrarNotificacao("Ocorreu um erro ao criar a conta.", "erro");
     }
-    const maxId = estado.contasAtivas.reduce((max, c) => c.id > max ? c.id : max, 0);
-    estado.contasAtivas.push({ id: maxId + 1, nome: nomeConta, pedidos: [], dataAbertura: new Date(), status: 'ativa' });
-    modals.fecharModalNovaConta();
-    sel.seletorCliente.value = estado.contasAtivas[estado.contasAtivas.length - 1].id;
-    atualizarTodaUI();
-    salvarEstado();
-    mostrarNotificacao(`Conta "${nomeConta}" criada com sucesso!`);
 }
 
 export function handleAddPedido(event) {
     event.preventDefault();
-    const idConta = parseInt(sel.hiddenContaId.value), quantidade = parseInt(sel.inputQuantidade.value);
-    if (!produtoSelecionadoParaPedido) { mostrarNotificacao("Por favor, selecione um produto da lista.", "erro"); return; }
-    
-    const idProduto = produtoSelecionadoParaPedido.id;
-    const conta = estado.contasAtivas.find(c => c.id === idConta);
-    const produto = estado.inventario.find(p => p.id === idProduto);
-    if (!conta || !produto || !quantidade || quantidade <= 0) { mostrarNotificacao("Dados de pedido inválidos.", "erro"); return; }
-    if (quantidade > produto.stockGeleira) { mostrarNotificacao(`Stock insuficiente. Apenas ${produto.stockGeleira} disponíveis na geleira.`, "erro"); return; }
+    try {
+        const idConta = parseInt(sel.hiddenContaId.value);
+        const quantidade = parseInt(sel.inputQuantidade.value);
+        if (!produtoSelecionadoParaPedido) {
+            mostrarNotificacao("Por favor, selecione um produto da lista.", "erro");
+            return;
+        }
+        const idProduto = produtoSelecionadoParaPedido.id;
+        const conta = estado.contasAtivas.find(c => c.id === idConta);
+        const produto = estado.inventario.find(p => p.id === idProduto);
+        
+        if (!conta || !produto || isNaN(quantidade) || quantidade <= 0) {
+            mostrarNotificacao("Dados de pedido inválidos.", "erro");
+            return;
+        }
+        if (quantidade > produto.stockGeleira) {
+            mostrarNotificacao(`Stock insuficiente. Apenas ${produto.stockGeleira} disponíveis na geleira.`, "erro");
+            return;
+        }
 
-    produto.stockGeleira -= quantidade;
-    const pedidoExistente = conta.pedidos.find(p => p.produtoId === produto.id);
-    if (pedidoExistente) pedidoExistente.qtd += quantidade;
-    else conta.pedidos.push({ produtoId: produto.id, nome: produto.nome, preco: produto.preco, qtd: quantidade });
-    
-    modals.fecharModalAddPedido();
-    atualizarTodaUI();
-    salvarEstado();
-    mostrarNotificacao(`${quantidade}x ${produto.nome} adicionado(s)!`);
+        produto.stockGeleira -= quantidade;
+        const pedidoExistente = conta.pedidos.find(p => p.produtoId === produto.id);
+        if (pedidoExistente) {
+            pedidoExistente.qtd += quantidade;
+        } else {
+            conta.pedidos.push({ produtoId: produto.id, nome: produto.nome, preco: produto.preco, qtd: quantidade });
+        }
+        
+        modals.fecharModalAddPedido();
+        ui.atualizarTodaUI();
+        salvarEstado();
+        mostrarNotificacao(`${quantidade}x ${produto.nome} adicionado(s)!`);
+    } catch (error) {
+        console.error("Erro em handleAddPedido:", error);
+        mostrarNotificacao("Ocorreu um erro ao adicionar o pedido.", "erro");
+    }
 }
 
 export function handleSalvarNovoNome(event) {
     event.preventDefault();
-    const idConta = parseInt(sel.hiddenEditNomeId.value);
-    const novoNome = sel.inputEditNome.value.trim();
-    const conta = estado.contasAtivas.find(c => c.id === idConta);
-    if (!conta || !novoNome) { mostrarNotificacao("O nome não pode estar vazio.", "erro"); return; }
-    conta.nome = novoNome;
-    modals.fecharModalEditNome();
-    atualizarTodaUI();
-    salvarEstado();
-    mostrarNotificacao(`Conta renomeada para "${novoNome}"!`);
+    try {
+        const idConta = parseInt(sel.hiddenEditNomeId.value);
+        const novoNome = sel.inputEditNome.value.trim();
+        const conta = estado.contasAtivas.find(c => c.id === idConta);
+        if (!conta || !novoNome) {
+            mostrarNotificacao("O nome não pode estar vazio.", "erro");
+            return;
+        }
+        conta.nome = novoNome;
+        modals.fecharModalEditNome();
+        ui.atualizarTodaUI();
+        salvarEstado();
+        mostrarNotificacao(`Conta renomeada para "${novoNome}"!`);
+    } catch (error) {
+        console.error("Erro em handleSalvarNovoNome:", error);
+        mostrarNotificacao("Ocorreu um erro ao renomear a conta.", "erro");
+    }
 }
 
 export function handleFinalizarPagamento() {
-    const idConta = parseInt(sel.pagamentoContaIdInput.value);
-    const metodoBtn = sel.pagamentoMetodosContainer.querySelector('.border-blue-500');
-    if (!metodoBtn) { mostrarNotificacao("Por favor, selecione um método de pagamento.", "erro"); return; }
-    
-    const conta = estado.contasAtivas.find(c => c.id === idConta);
-    if (!conta) return;
-    conta.status = 'fechada';
-    conta.dataFecho = new Date();
-    conta.metodoPagamento = metodoBtn.dataset.metodo;
-    conta.valorFinal = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0);
-    
-    modals.fecharModalPagamento();
-    atualizarTodaUI();
-    salvarEstado();
-    mostrarNotificacao(`Conta "${conta.nome}" finalizada com sucesso!`);
+    try {
+        const idConta = parseInt(sel.pagamentoContaIdInput.value);
+        const metodoBtn = sel.pagamentoMetodosContainer.querySelector('.border-blue-500');
+        if (!metodoBtn) {
+            mostrarNotificacao("Por favor, selecione um método de pagamento.", "erro");
+            return;
+        }
+        const conta = estado.contasAtivas.find(c => c.id === idConta);
+        if (!conta) return;
+        conta.status = 'fechada';
+        conta.dataFecho = new Date();
+        conta.metodoPagamento = metodoBtn.dataset.metodo;
+        conta.valorFinal = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0);
+        
+        modals.fecharModalPagamento();
+        ui.atualizarTodaUI();
+        salvarEstado();
+        mostrarNotificacao(`Conta "${conta.nome}" finalizada com sucesso!`);
+    } catch (error) {
+        console.error("Erro em handleFinalizarPagamento:", error);
+        mostrarNotificacao("Ocorreu um erro ao finalizar o pagamento.", "erro");
+    }
 }
 
 export function handleAddProduto(event) {
     event.preventDefault();
-    const nome = sel.inputProdutoNome.value.trim();
-    const preco = parseFloat(sel.inputProdutoPreco.value);
-    const stock = parseInt(sel.inputProdutoStock.value);
-    const stockMinimo = parseInt(sel.inputProdutoStockMinimo.value);
-    if (!nome || isNaN(preco) || preco <= 0 || isNaN(stock) || stock < 0 || isNaN(stockMinimo) || stockMinimo < 0) {
-        mostrarNotificacao("Dados inválidos. Verifique os valores.", "erro"); return;
+    try {
+        const nome = sel.inputProdutoNome.value.trim();
+        const preco = parseFloat(sel.inputProdutoPreco.value);
+        const stock = parseInt(sel.inputProdutoStock.value);
+        const stockMinimo = parseInt(sel.inputProdutoStockMinimo.value);
+
+        if (!nome || isNaN(preco) || preco < 0 || isNaN(stock) || stock < 0 || isNaN(stockMinimo) || stockMinimo < 0) {
+            mostrarNotificacao("Dados inválidos. Verifique todos os campos.", "erro");
+            return;
+        }
+
+        estado.inventario.push({ id: crypto.randomUUID(), nome, preco, stockArmazem: stock, stockGeleira: 0, stockMinimo });
+        modals.fecharModalAddProduto();
+        ui.atualizarTodaUI();
+        salvarEstado();
+        mostrarNotificacao(`Produto "${nome}" adicionado com sucesso!`);
+    } catch (error) {
+        console.error("Erro em handleAddProduto:", error);
+        mostrarNotificacao("Ocorreu um erro ao adicionar o produto.", "erro");
     }
-    estado.inventario.push({ id: crypto.randomUUID(), nome, preco, stockArmazem: stock, stockGeleira: 0, stockMinimo });
-    modals.fecharModalAddProduto();
-    atualizarTodaUI();
-    salvarEstado();
-    mostrarNotificacao(`Produto "${nome}" adicionado com sucesso!`);
 }
 
 export function handleEditProduto(event) {
     event.preventDefault();
-    const id = sel.hiddenEditProdutoId.value;
-    const produto = estado.inventario.find(p => p.id === id);
-    if (!produto) { mostrarNotificacao("Produto não encontrado.", "erro"); return; }
-
-    const nome = sel.inputEditProdutoNome.value.trim();
-    const preco = parseFloat(sel.inputEditProdutoPreco.value);
-    const stockMinimo = parseInt(sel.inputEditProdutoStockMinimo.value);
-    if (!nome || isNaN(preco) || preco <= 0 || isNaN(stockMinimo) || stockMinimo < 0) {
-        mostrarNotificacao("Dados inválidos. Verifique os valores.", "erro"); return;
+    try {
+        const id = sel.hiddenEditProdutoId.value;
+        const produto = estado.inventario.find(p => p.id === id);
+        if (!produto) {
+            mostrarNotificacao("Produto não encontrado.", "erro");
+            return;
+        }
+        const nome = sel.inputEditProdutoNome.value.trim();
+        const preco = parseFloat(sel.inputEditProdutoPreco.value);
+        const stockMinimo = parseInt(sel.inputEditProdutoStockMinimo.value);
+        if (!nome || isNaN(preco) || preco < 0 || isNaN(stockMinimo) || stockMinimo < 0) {
+            mostrarNotificacao("Dados inválidos. Verifique os valores.", "erro");
+            return;
+        }
+        produto.nome = nome;
+        produto.preco = preco;
+        produto.stockMinimo = stockMinimo;
+        
+        modals.fecharModalEditProduto();
+        ui.atualizarTodaUI();
+        salvarEstado();
+        mostrarNotificacao(`Produto "${nome}" atualizado com sucesso!`);
+    } catch (error) {
+        console.error("Erro em handleEditProduto:", error);
+        mostrarNotificacao("Ocorreu um erro ao editar o produto.", "erro");
     }
-    
-    produto.nome = nome;
-    produto.preco = preco;
-    produto.stockMinimo = stockMinimo;
-    
-    modals.fecharModalEditProduto();
-    atualizarTodaUI();
-    salvarEstado();
-    mostrarNotificacao(`Produto "${nome}" atualizado com sucesso!`);
 }
 
 export function handleAddStock(event) {
     event.preventDefault();
-    const produtoId = sel.hiddenAddStockId.value;
-    const produto = estado.inventario.find(p => p.id === produtoId);
-    if (!produto) return;
-    const quantidade = parseInt(sel.inputAddStockQuantidade.value);
-    if (isNaN(quantidade)) { mostrarNotificacao("Por favor, insira um número válido.", "erro"); return; }
-    if ((produto.stockArmazem + quantidade) < 0) {
-        mostrarNotificacao(`Operação inválida. Stock do armazém não pode ser negativo.`, "erro"); return;
+    try {
+        const produtoId = sel.hiddenAddStockId.value;
+        const produto = estado.inventario.find(p => p.id === produtoId);
+        if (!produto) return;
+        const quantidade = parseInt(sel.inputAddStockQuantidade.value);
+        if (isNaN(quantidade)) {
+            mostrarNotificacao("Por favor, insira um número válido.", "erro");
+            return;
+        }
+        produto.stockArmazem += quantidade;
+        modals.fecharModalAddStock();
+        ui.atualizarTodaUI();
+        salvarEstado();
+        mostrarNotificacao(quantidade >= 0 ? `${quantidade} un. adicionadas ao armazém.` : `${Math.abs(quantidade)} un. removidas do armazém.`);
+    } catch (error) {
+        console.error("Erro em handleAddStock:", error);
+        mostrarNotificacao("Ocorreu um erro ao atualizar o stock.", "erro");
     }
-    produto.stockArmazem += quantidade;
-    modals.fecharModalAddStock();
-    atualizarTodaUI();
-    salvarEstado();
-    mostrarNotificacao(quantidade > 0 ? `${quantidade} un. adicionadas ao armazém.` : `${Math.abs(quantidade)} un. removidas do armazém.`);
-}
-
-export function handleMoverParaGeleira(produtoId, quantidade) {
-    const produto = estado.inventario.find(p => p.id === produtoId);
-    if (!produto || isNaN(quantidade) || quantidade <= 0) {
-        mostrarNotificacao("A quantidade para mover deve ser um número positivo.", "erro"); return false;
-    }
-    if (quantidade > produto.stockArmazem) {
-        mostrarNotificacao(`Apenas ${produto.stockArmazem} un. disponíveis no armazém.`, "erro"); return false;
-    }
-    produto.stockArmazem -= quantidade;
-    produto.stockGeleira += quantidade;
-    atualizarTodaUI();
-    salvarEstado();
-    mostrarNotificacao(`${quantidade} un. de ${produto.nome} movidas para a geleira.`);
-    return true;
 }
 
 export function handleFormMoverStock(event) {
     event.preventDefault();
-    const produtoId = sel.hiddenMoverStockId.value;
-    const quantidade = parseInt(sel.inputMoverStockQuantidade.value);
-    if (handleMoverParaGeleira(produtoId, quantidade)) {
+    try {
+        const produtoId = sel.hiddenMoverStockId.value;
+        const produto = estado.inventario.find(p => p.id === produtoId);
+        const quantidade = parseInt(sel.inputMoverStockQuantidade.value);
+
+        if (!produto || isNaN(quantidade) || quantidade <= 0) {
+            mostrarNotificacao("A quantidade para mover deve ser um número positivo.", "erro");
+            return;
+        }
+        if (quantidade > produto.stockArmazem) {
+            mostrarNotificacao(`Apenas ${produto.stockArmazem} un. disponíveis no armazém.`, "erro");
+            return;
+        }
+
+        produto.stockArmazem -= quantidade;
+        produto.stockGeleira += quantidade;
         modals.fecharModalMoverStock();
+        ui.atualizarTodaUI();
+        salvarEstado();
+        mostrarNotificacao(`${quantidade} un. de ${produto.nome} movidas para a geleira.`);
+    } catch (error) {
+        console.error("Erro em handleFormMoverStock:", error);
+        mostrarNotificacao("Ocorreu um erro ao mover o stock.", "erro");
     }
 }
 
 export function handleRemoverItem(idConta, itemIndex) {
-    const conta = estado.contasAtivas.find(c => c.id === idConta);
-    if (!conta) return;
-    const pedidoRemovido = conta.pedidos.splice(itemIndex, 1)[0];
-    if (!pedidoRemovido) return;
-    const produtoInventario = estado.inventario.find(p => p.id === pedidoRemovido.produtoId);
-    if (produtoInventario) produtoInventario.stockGeleira += pedidoRemovido.qtd;
-    atualizarTodaUI();
-    salvarEstado();
-    mostrarNotificacao("Item removido com sucesso.");
+    try {
+        const conta = estado.contasAtivas.find(c => c.id === idConta);
+        if (!conta) return;
+        const pedidoRemovido = conta.pedidos.splice(itemIndex, 1)[0];
+        if (!pedidoRemovido) return;
+        const produtoInventario = estado.inventario.find(p => p.id === pedidoRemovido.produtoId);
+        if (produtoInventario) {
+            produtoInventario.stockGeleira += pedidoRemovido.qtd;
+        }
+        ui.atualizarTodaUI();
+        salvarEstado();
+        mostrarNotificacao("Item removido com sucesso.");
+    } catch (error) {
+        console.error("Erro em handleRemoverItem:", error);
+        mostrarNotificacao("Ocorreu um erro ao remover o item.", "erro");
+    }
 }
 
 export function handleArquivarDia() {
     modals.abrirModalConfirmacao(
         'Arquivar o Dia?',
-        'O stock restante na geleira será devolvido ao armazém. Esta ação não pode ser desfeita.',
+        'O stock restante na geleira será devolvido ao armazém e as contas ativas serão limpas. Esta ação não pode ser desfeita.',
         () => {
-            const relatorio = modals.calcularRelatorioDia();
-            if (!estado.historicoFechos) estado.historicoFechos = [];
-            estado.historicoFechos.push(relatorio);
-            estado.contasAtivas = []; 
-            estado.inventario.forEach(item => {
-                if (item.stockGeleira > 0) {
-                    item.stockArmazem += item.stockGeleira;
-                    item.stockGeleira = 0;
-                }
-            });
-            modals.fecharModalFechoGlobal();
-            atualizarTodaUI();
-            salvarEstado();
-            mostrarNotificacao("Dia arquivado com sucesso. Pronto para um novo dia!");
+            try {
+                const relatorio = modals.calcularRelatorioDia();
+                if (!estado.historicoFechos) estado.historicoFechos = [];
+                estado.historicoFechos.push(relatorio);
+                estado.contasAtivas = []; 
+                estado.inventario.forEach(item => {
+                    if (item.stockGeleira > 0) {
+                        item.stockArmazem += item.stockGeleira;
+                        item.stockGeleira = 0;
+                    }
+                });
+                modals.fecharModalFechoGlobal();
+                ui.atualizarTodaUI();
+                salvarEstado();
+                mostrarNotificacao("Dia arquivado com sucesso. Pronto para um novo dia!");
+            } catch (error) {
+                console.error("Erro ao arquivar o dia:", error);
+                mostrarNotificacao("Ocorreu um erro grave ao arquivar o dia.", "erro");
+            }
         }
     );
 }
 
+export function handleSelecaoAutocomplete(id, nome) {
+    const produto = estado.inventario.find(p => p.id === id);
+    if (produto) {
+        setProdutoSelecionado(produto);
+    }
+}
+
+export function handleMudarDataCalendario(novaData) {
+    setDataAtual(novaData);
+    ui.renderizarCalendario();
+}
+
 export function handleExportarPdf() {
     if (!relatorioAtualParaExportar) return;
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    // Lógica de criação de PDF...
-    doc.save(`Relatorio.pdf`);
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        // ... Lógica de criação de PDF
+        doc.text("Relatório de Fecho", 10, 10);
+        doc.save(`Relatorio_${new Date(relatorioAtualParaExportar.data).toLocaleDateString('pt-PT')}.pdf`);
+        mostrarNotificacao("PDF exportado com sucesso.");
+    } catch (error) {
+        console.error("Erro ao exportar PDF:", error);
+        mostrarNotificacao("Ocorreu um erro ao exportar o PDF.", "erro");
+    }
 }
 
 export function handleExportarXls() {
-if (!relatorioAtualParaExportar) return;
-    const wb = XLSX.utils.book_new();
-    // Lógica de criação de XLS...
-    XLSX.writeFile(wb, `Relatorio.xlsx`);
+    if (!relatorioAtualParaExportar) return;
+    try {
+        const wb = XLSX.utils.book_new();
+        // ... Lógica de criação de XLS
+        const ws_data = [["Relatório de Fecho"], [new Date(relatorioAtualParaExportar.data).toLocaleDateString('pt-PT')]];
+        const ws = XLSX.utils.aoa_to_sheet(ws_data);
+        XLSX.utils.book_append_sheet(wb, ws, "Relatorio");
+        XLSX.writeFile(wb, `Relatorio_${new Date(relatorioAtualParaExportar.data).toLocaleDateString('pt-PT')}.xlsx`);
+        mostrarNotificacao("XLS exportado com sucesso.");
+    } catch (error) {
+        console.error("Erro ao exportar XLS:", error);
+        mostrarNotificacao("Ocorreu um erro ao exportar o XLS.", "erro");
+    }
 }
 
