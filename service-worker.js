@@ -1,10 +1,10 @@
 // service-worker.js
 
-const CACHE_NAME = 'gestorbar-v5'; // Versão incrementada para forçar a atualização final
+const CACHE_NAME = 'gestorbar-v7'; // Versão incrementada para forçar a atualização
 const URLS_TO_CACHE = [
     './',
     './index.html',
-    './style.css', // CORREÇÃO: Ficheiro style.css re-adicionado à lista de cache.
+    './style.css',
     './manifest.json',
     './modules/main.js',
     './modules/state.js',
@@ -24,21 +24,17 @@ self.addEventListener('install', (event) => {
                 console.log('Cache aberta. A guardar ficheiros essenciais...');
                 return cache.addAll(URLS_TO_CACHE);
             })
-            .catch(error => {
-                console.error('Falha ao adicionar ficheiros à cache. Verifique se todos os caminhos em URLS_TO_CACHE estão corretos.', error);
-            })
     );
     self.skipWaiting();
 });
 
-// Evento 'activate': limpa caches antigas para garantir que usamos os ficheiros novos.
+// Evento 'activate': limpa caches antigas.
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
                     if (cacheName !== CACHE_NAME) {
-                        console.log('A limpar cache antiga:', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
@@ -48,14 +44,28 @@ self.addEventListener('activate', (event) => {
     return self.clients.claim();
 });
 
-// Evento 'fetch': responde aos pedidos com os ficheiros em cache, se disponíveis.
+// ==== INÍCIO DA ALTERAÇÃO: ESTRATÉGIA STALE-WHILE-REVALIDATE ====
 self.addEventListener('fetch', (event) => {
     event.respondWith(
-        caches.match(event.request)
-            .then((response) => {
-                // Se encontrarmos o ficheiro em cache, retornamo-lo.
-                // Se não, fazemos o pedido à rede.
-                return response || fetch(event.request);
-            })
+        caches.open(CACHE_NAME).then((cache) => {
+            return cache.match(event.request).then((cachedResponse) => {
+                // Faz o pedido à rede em paralelo
+                const fetchPromise = fetch(event.request).then((networkResponse) => {
+                    // Se o pedido à rede for bem sucedido, atualiza a cache
+                    if (networkResponse && networkResponse.status === 200) {
+                        cache.put(event.request, networkResponse.clone());
+                    }
+                    return networkResponse;
+                }).catch(error => {
+                    // O fetch falhou, o que é normal em modo offline.
+                    console.log('Fetch falhou; provavelmente offline.', error);
+                });
+
+                // Responde imediatamente com a versão em cache (se existir), 
+                // ou espera pela rede se não houver nada em cache.
+                return cachedResponse || fetchPromise;
+            });
+        })
     );
 });
+// ==== FIM DA ALTERAÇÃO ====
