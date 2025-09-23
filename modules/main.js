@@ -1,4 +1,4 @@
-// main.js - O Ponto de Entrada e Orquestrador da Aplicação (v2.6 com Recuperação Automática)
+// main.js - O Ponto de Entrada e Orquestrador da Aplicação (v2.7 com Recuperação Segura)
 'use strict';
 
 import { carregarEstado, estado } from './state.js';
@@ -9,13 +9,33 @@ import * as sel from './selectors.js';
 import * as security from './security.js';
 
 /**
+ * Mostra uma mensagem de erro final e acionável quando a recuperação automática entra em loop.
+ */
+function handleRecoveryFailure() {
+    console.error("A recuperação automática entrou em loop. A exibir mensagem de erro final.");
+    sessionStorage.removeItem('recoveryInProgress'); // Limpa a flag para permitir futuras tentativas após a correção manual.
+    document.body.innerHTML = `
+        <div style="padding: 20px; text-align: center; font-family: sans-serif; background-color: #fff1f2; color: #b91c1c; border: 1px solid #fecaca; margin: 20px auto; border-radius: 8px; max-width: 600px;">
+            <h1 style="font-size: 1.5em; margin-bottom: 10px;">Erro Crítico na Aplicação</h1>
+            <p>Não foi possível carregar a versão mais recente da aplicação devido a um problema de cache persistente.</p>
+            <p style="margin-top: 15px;"><strong>Por favor, siga estes passos para resolver:</strong></p>
+            <ol style="text-align: left; display: inline-block; margin-top: 10px; padding-left: 20px;">
+                <li style="margin-bottom: 5px;">1. Abra as configurações do seu browser.</li>
+                <li style="margin-bottom: 5px;">2. Vá para "Privacidade e Segurança".</li>
+                <li>3. Encontre "Limpar dados de navegação" e limpe os "Dados do site" ou "Cookies e outros dados do site".</li>
+            </ol>
+            <p style="margin-top: 15px;">Após limpar os dados, recarregue a página.</p>
+        </div>`;
+}
+
+
+/**
  * Tenta recuperar a aplicação de um estado de cache inconsistente.
  * Desregista o service worker, limpa a cache e recarrega a página.
  */
 async function attemptRecovery() {
     console.warn("Inconsistência de cache detetada. A iniciar recuperação automática...");
     try {
-        // Passo 1: Desregistar todos os service workers ativos.
         if ('serviceWorker' in navigator) {
             const registrations = await navigator.serviceWorker.getRegistrations();
             for (const registration of registrations) {
@@ -24,7 +44,6 @@ async function attemptRecovery() {
             }
         }
 
-        // Passo 2: Limpar todas as caches relacionadas com esta aplicação.
         const keys = await caches.keys();
         await Promise.all(keys.map(key => {
             if (key.startsWith('gestorbar-')) {
@@ -34,14 +53,12 @@ async function attemptRecovery() {
             return Promise.resolve();
         }));
 
-        // Passo 3: Recarregar a página para obter os ficheiros mais recentes.
         console.log("Recuperação concluída. A recarregar a página...");
         window.location.reload();
 
     } catch (error) {
         console.error("A recuperação automática falhou:", error);
-        // Mensagem de último recurso se a recuperação falhar.
-        document.body.innerHTML = '<div style="padding: 20px; text-align: center;">Ocorreu um erro crítico. Por favor, limpe os dados de navegação do seu browser para este site e tente novamente.</div>';
+        handleRecoveryFailure(); // Se a própria recuperação falhar, mostra a mensagem de erro.
     }
 }
 
@@ -51,11 +68,24 @@ async function attemptRecovery() {
  * Orquestra o fluxo de verificação de segurança antes de mostrar a app principal.
  */
 async function inicializarApp() {
-    // Verificação de integridade da UI. Se falhar, aciona a recuperação.
+    // PASSO 1: VERIFICAR SE ESTAMOS NUM LOOP DE RECUPERAÇÃO
+    if (sessionStorage.getItem('recoveryInProgress') === 'true') {
+        // Se a flag existe, a recuperação automática anterior falhou. Mostra o erro final.
+        handleRecoveryFailure();
+        return;
+    }
+
+    // PASSO 2: VERIFICAÇÃO DE INTEGRIDADE DA UI
     if (!sel.modalAtivacao || !sel.modalCriarSenha || !sel.modalInserirSenha) {
+        // A UI está desatualizada. Define a flag e inicia a recuperação.
+        sessionStorage.setItem('recoveryInProgress', 'true');
         await attemptRecovery();
         return; // Para a execução para aguardar o recarregamento.
     }
+    
+    // PASSO 3: ARRANQUE BEM-SUCEDIDO
+    // Se chegámos aqui, a integridade está OK. Limpa a flag de recuperação.
+    sessionStorage.removeItem('recoveryInProgress');
 
     // Orquestração de arranque normal
     try {
