@@ -1,7 +1,7 @@
 // service-worker.js
 
 // Versão incrementada para forçar a atualização da cache em todos os browsers
-const CACHE_NAME = 'gestorbar-v8'; 
+const CACHE_NAME = 'gestorbar-v11'; 
 const URLS_TO_CACHE = [
     // URLs essenciais para o funcionamento offline
     './',
@@ -15,11 +15,11 @@ const URLS_TO_CACHE = [
     './modules/handlers.js',
     './modules/modals.js',
     './modules/selectors.js',
-    './modules/security.js', // Módulo de segurança adicionado à cache
+    './modules/security.js',
     // Ícones da aplicação
     './icons/logo-small-192.png',
     './icons/logo-big-512.png',
-    './favicon.png' // Favicon adicionado à cache
+    './favicon.png' // CORRIGIDO: Nome do ícone atualizado na cache
 ];
 
 // Evento 'install': guarda os ficheiros essenciais em cache.
@@ -53,30 +53,16 @@ self.addEventListener('activate', (event) => {
 
 // Evento 'fetch': serve ficheiros da cache primeiro, com fallback para a rede (estratégia Cache-First).
 self.addEventListener('fetch', (event) => {
-    // Apenas aplica a estratégia de cache a pedidos GET
     if (event.request.method !== 'GET') {
         return;
     }
-
     event.respondWith(
         caches.open(CACHE_NAME).then((cache) => {
             return cache.match(event.request).then((cachedResponse) => {
-                // Se o recurso estiver na cache, retorna-o
                 if (cachedResponse) {
                     return cachedResponse;
                 }
-                
-                // Se não estiver na cache, vai à rede
-                return fetch(event.request).then((networkResponse) => {
-                    // Opcional: pode-se adicionar o novo recurso à cache aqui se necessário
-                    // cache.put(event.request, networkResponse.clone());
-                    return networkResponse;
-                }).catch(() => {
-                    // Se a rede falhar, pode-se retornar uma página de fallback offline
-                    // if (event.request.mode === 'navigate') {
-                    //     return caches.match('offline.html');
-                    // }
-                });
+                return fetch(event.request);
             });
         })
     );
