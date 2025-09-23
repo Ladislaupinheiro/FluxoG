@@ -1,9 +1,119 @@
 // /modules/handlers.js - Contém a lógica de negócio e os gestores de eventos.
 
-import { estado, salvarEstado, produtoSelecionadoParaPedido, relatorioAtualParaExportar, setRelatorioAtual } from './state.js';
+import { estado, salvarEstado, produtoSelecionadoParaPedido, relatorioAtualParaExportar } from './state.js';
 import { atualizarTodaUI, mostrarNotificacao } from './ui.js';
 import * as modals from './modals.js';
 import * as sel from './selectors.js';
+import * as security from './security.js';
+
+// ===================================
+// HANDLERS DE SEGURANÇA (CORRIGIDOS)
+// ===================================
+
+/**
+ * Gere a submissão do formulário de ativação de licença.
+ * @param {Event} event O evento de submissão do formulário.
+ */
+export async function handleAtivacaoLicenca(event) {
+    event.preventDefault();
+    const chave = sel.inputChaveLicenca.value;
+    sel.ativacaoMensagemErro.textContent = '';
+
+    if (!security.validarFormatoChave(chave)) {
+        sel.ativacaoMensagemErro.textContent = 'O formato da chave de licença é inválido.';
+        return;
+    }
+
+    await security.ativarLicenca(chave);
+    mostrarNotificacao('Aplicação ativada com sucesso!', 'sucesso');
+    
+    // **CORREÇÃO: Em vez de recarregar, faz a transição direta para o próximo ecrã.**
+    sel.modalAtivacao.classList.add('hidden');
+    sel.modalCriarSenha.classList.remove('hidden');
+}
+
+/**
+ * Gere a submissão do formulário de criação de senha (PIN).
+ * @param {Event} event O evento de submissão do formulário.
+ */
+export async function handleCriarSenha(event) {
+    event.preventDefault();
+    const pin = sel.inputCriarPin.value;
+    sel.criarSenhaMensagemErro.textContent = '';
+
+    if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+        sel.criarSenhaMensagemErro.textContent = 'O PIN deve ter exatamente 4 dígitos numéricos.';
+        return;
+    }
+
+    await security.guardarHashSenha(pin);
+    mostrarNotificacao('Senha criada com sucesso!', 'sucesso');
+
+    // **CORREÇÃO: Em vez de recarregar, faz a transição direta para o ecrã de login.**
+    sel.modalCriarSenha.classList.add('hidden');
+    sel.modalInserirSenha.classList.remove('hidden');
+}
+
+/**
+ * Gere a submissão do formulário de inserção de senha (PIN) para login.
+ * @param {Event} event O evento de submissão do formulário.
+ */
+export async function handleInserirSenha(event) {
+    event.preventDefault();
+    const pin = sel.inputInserirPin.value;
+    sel.inserirSenhaMensagemErro.textContent = '';
+
+    const bloqueio = security.verificarBloqueio();
+    if (bloqueio.bloqueado) {
+        sel.inserirSenhaMensagemErro.textContent = `Muitas tentativas. Tente novamente em ${Math.ceil(bloqueio.tempoRestante)} segundos.`;
+        return;
+    }
+
+    if (pin.length !== 4) {
+        sel.inserirSenhaMensagemErro.textContent = 'O PIN deve ter 4 dígitos.';
+        return;
+    }
+
+    const senhaCorreta = await security.verificarSenha(pin);
+
+    if (senhaCorreta) {
+        security.limparTentativas();
+        sel.modalInserirSenha.classList.add('hidden');
+        sel.appContainer.classList.remove('hidden');
+        sel.bottomNav.classList.remove('hidden');
+        // A UI principal já foi preparada pelo orquestrador em main.js
+    } else {
+        security.registrarTentativaFalhada();
+        const novoBloqueio = security.verificarBloqueio();
+        if (novoBloqueio.bloqueado) {
+            sel.inserirSenhaMensagemErro.textContent = `PIN incorreto. Acesso bloqueado por ${Math.ceil(novoBloqueio.tempoRestante)}s.`;
+        } else {
+            sel.inserirSenhaMensagemErro.textContent = 'PIN incorreto. Tente novamente.';
+        }
+        sel.inputInserirPin.value = '';
+    }
+}
+
+/**
+ * Gere o fluxo "Esqueci-me da senha", que requer reativação.
+ */
+export function handleEsqueciSenha() {
+    modals.abrirModalConfirmacao(
+        'Esqueceu-se da Senha?',
+        'Isto irá remover a sua senha e desativar a licença neste dispositivo. Terá de inserir novamente a sua chave de licença para continuar.',
+        () => {
+            security.invalidarSenha();
+            security.desativarLicenca();
+            mostrarNotificacao('Senha removida. Por favor, reative a aplicação.', 'sucesso');
+            setTimeout(() => location.reload(), 2000); // Aqui o reload é intencional para reiniciar o processo.
+        }
+    );
+}
+
+
+// ===================================
+// HANDLERS DA APLICAÇÃO (EXISTENTES)
+// ===================================
 
 export function handleCriarNovaConta(event) {
     event.preventDefault();
@@ -172,10 +282,10 @@ export function handleArquivarDia() {
         'Arquivar o Dia?',
         'O stock restante na geleira será devolvido ao armazém. Esta ação não pode ser desfeita.',
         () => {
-            const relatorio = modals.calcularRelatorioDia(); // Chama a função agora em modals.js
+            const relatorio = modals.calcularRelatorioDia();
             if (!estado.historicoFechos) estado.historicoFechos = [];
             estado.historicoFechos.push(relatorio);
-            estado.contasAtivas = []; // Limpa todas as contas no fim do dia
+            estado.contasAtivas = []; 
             estado.inventario.forEach(item => {
                 if (item.stockGeleira > 0) {
                     item.stockArmazem += item.stockGeleira;
@@ -199,8 +309,9 @@ export function handleExportarPdf() {
 }
 
 export function handleExportarXls() {
-    if (!relatorioAtualParaExportar) return;
+if (!relatorioAtualParaExportar) return;
     const wb = XLSX.utils.book_new();
     // Lógica de criação de XLS...
     XLSX.writeFile(wb, `Relatorio.xlsx`);
 }
+
