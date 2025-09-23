@@ -1,8 +1,8 @@
-// /modules/handlers.js - Contém a lógica de negócio e os gestores de eventos (v3.2)
+// /modules/handlers.js - Contém a lógica de negócio e os gestores de eventos (v3.3)
 'use strict';
 
 import { estado, salvarEstado, produtoSelecionadoParaPedido, setProdutoSelecionado, setDataAtual, relatorioAtualParaExportar } from './state.js';
-import { atualizarTodaUI, mostrarNotificacao } from './ui.js';
+import { mostrarNotificacao, renderizarDashboard, renderizarSeletorDeClientes, renderizarVistaClienteAtivo, renderizarInventario, verificarAlertasDeStock, navigateToTab, atualizarTodaUI } from './ui.js';
 import * as modals from './modals.js';
 import * as sel from './selectors.js';
 import * as security from './security.js';
@@ -16,14 +16,12 @@ export async function handleAtivacao(event) {
     const chave = sel.inputChaveLicenca.value.trim().toUpperCase();
     sel.mensagemErroAtivacao.classList.add('hidden');
 
-    // Validação de entrada
     if (!chave) {
         sel.mensagemErroAtivacao.textContent = 'Por favor, insira uma chave de licença.';
         sel.mensagemErroAtivacao.classList.remove('hidden');
         return;
     }
     
-    // Simulação de validação de formato (pode ser expandida)
     const regex = /^GESTORBAR-PROD-[A-Z0-9]{4}-DEMO$/;
     if (!regex.test(chave)) {
         sel.mensagemErroAtivacao.textContent = 'O formato da chave de licença é inválido.';
@@ -33,7 +31,6 @@ export async function handleAtivacao(event) {
 
     try {
         await security.ativarLicenca(chave);
-        // Transição suave para o próximo passo sem recarregar a página
         sel.modalAtivacao.classList.add('hidden');
         sel.modalCriarSenha.classList.remove('hidden');
         sel.inputCriarPin.focus();
@@ -50,7 +47,6 @@ export async function handleCriarSenha(event) {
     const confirmarPin = sel.inputConfirmarPin.value;
     sel.mensagemErroCriarSenha.classList.add('hidden');
 
-    // Validação de entrada
     if (pin.length !== 4 || confirmarPin.length !== 4 || !/^\d{4}$/.test(pin)) {
         sel.mensagemErroCriarSenha.textContent = 'O PIN deve conter exatamente 4 dígitos numéricos.';
         sel.mensagemErroCriarSenha.classList.remove('hidden');
@@ -64,7 +60,7 @@ export async function handleCriarSenha(event) {
 
     try {
         await security.guardarHashSenha(pin);
-        iniciarSessao(); // Inicia a sessão diretamente após criar o PIN
+        iniciarSessao();
     } catch (error) {
         console.error("Erro ao guardar o PIN:", error);
         sel.mensagemErroCriarSenha.textContent = 'Ocorreu um erro ao guardar o PIN. Tente novamente.';
@@ -123,22 +119,18 @@ export function handleEsqueciSenha() {
 
 function iniciarSessao() {
     try {
-        // Esconde todos os modais de segurança
         sel.modalAtivacao.classList.add('hidden');
         sel.modalCriarSenha.classList.add('hidden');
         sel.modalInserirSenha.classList.add('hidden');
 
-        // Mostra a interface principal da aplicação
         sel.appContainer.classList.remove('hidden');
         sel.bottomNav.classList.remove('hidden');
 
-        // Carrega os dados e inicializa a UI
         carregarEstado();
-        ui.navigateToTab('tab-atendimento');
-        ui.atualizarTodaUI();
+        navigateToTab('tab-atendimento');
+        atualizarTodaUI();
     } catch (error) {
         console.error("Erro crítico ao iniciar a sessão:", error);
-        // Se a inicialização falhar, mostra um erro genérico
         document.body.innerHTML = `<div style="color: red; text-align: center; padding: 20px;">Ocorreu um erro crítico ao carregar a aplicação.</div>`;
     }
 }
@@ -164,7 +156,12 @@ export function handleCriarNovaConta(event) {
         estado.contasAtivas.push({ id: maxId + 1, nome: nomeConta, pedidos: [], dataAbertura: new Date(), status: 'ativa' });
         modals.fecharModalNovaConta();
         sel.seletorCliente.value = estado.contasAtivas[estado.contasAtivas.length - 1].id;
-        ui.atualizarTodaUI();
+        
+        // Otimização: Renderização específica
+        renderizarDashboard();
+        renderizarSeletorDeClientes();
+        renderizarVistaClienteAtivo();
+
         salvarEstado();
         mostrarNotificacao(`Conta "${nomeConta}" criada com sucesso!`);
     } catch (error) {
@@ -204,7 +201,12 @@ export function handleAddPedido(event) {
         }
         
         modals.fecharModalAddPedido();
-        ui.atualizarTodaUI();
+        
+        // Otimização: Renderização específica
+        renderizarVistaClienteAtivo();
+        verificarAlertasDeStock();
+        renderizarDashboard();
+
         salvarEstado();
         mostrarNotificacao(`${quantidade}x ${produto.nome} adicionado(s)!`);
     } catch (error) {
@@ -225,7 +227,11 @@ export function handleSalvarNovoNome(event) {
         }
         conta.nome = novoNome;
         modals.fecharModalEditNome();
-        ui.atualizarTodaUI();
+        
+        // Otimização: Renderização específica
+        renderizarSeletorDeClientes();
+        renderizarVistaClienteAtivo();
+
         salvarEstado();
         mostrarNotificacao(`Conta renomeada para "${novoNome}"!`);
     } catch (error) {
@@ -250,7 +256,12 @@ export function handleFinalizarPagamento() {
         conta.valorFinal = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0);
         
         modals.fecharModalPagamento();
-        ui.atualizarTodaUI();
+        
+        // Otimização: Renderização específica
+        renderizarDashboard();
+        renderizarSeletorDeClientes();
+        renderizarVistaClienteAtivo();
+
         salvarEstado();
         mostrarNotificacao(`Conta "${conta.nome}" finalizada com sucesso!`);
     } catch (error) {
@@ -274,7 +285,10 @@ export function handleAddProduto(event) {
 
         estado.inventario.push({ id: crypto.randomUUID(), nome, preco, stockArmazem: stock, stockGeleira: 0, stockMinimo });
         modals.fecharModalAddProduto();
-        ui.atualizarTodaUI();
+        
+        // Otimização: Renderização específica
+        renderizarInventario();
+
         salvarEstado();
         mostrarNotificacao(`Produto "${nome}" adicionado com sucesso!`);
     } catch (error) {
@@ -304,7 +318,11 @@ export function handleEditProduto(event) {
         produto.stockMinimo = stockMinimo;
         
         modals.fecharModalEditProduto();
-        ui.atualizarTodaUI();
+        
+        // Otimização: Renderização específica
+        renderizarInventario();
+        renderizarVistaClienteAtivo(); // Para garantir que os preços/nomes são atualizados se o item estiver num carrinho
+
         salvarEstado();
         mostrarNotificacao(`Produto "${nome}" atualizado com sucesso!`);
     } catch (error) {
@@ -326,7 +344,10 @@ export function handleAddStock(event) {
         }
         produto.stockArmazem += quantidade;
         modals.fecharModalAddStock();
-        ui.atualizarTodaUI();
+        
+        // Otimização: Renderização específica
+        renderizarInventario();
+
         salvarEstado();
         mostrarNotificacao(quantidade >= 0 ? `${quantidade} un. adicionadas ao armazém.` : `${Math.abs(quantidade)} un. removidas do armazém.`);
     } catch (error) {
@@ -354,7 +375,12 @@ export function handleFormMoverStock(event) {
         produto.stockArmazem -= quantidade;
         produto.stockGeleira += quantidade;
         modals.fecharModalMoverStock();
-        ui.atualizarTodaUI();
+        
+        // Otimização: Renderização específica
+        renderizarInventario();
+        verificarAlertasDeStock();
+        renderizarDashboard(); // O contador de alertas do dashboard pode mudar
+
         salvarEstado();
         mostrarNotificacao(`${quantidade} un. de ${produto.nome} movidas para a geleira.`);
     } catch (error) {
@@ -373,7 +399,12 @@ export function handleRemoverItem(idConta, itemIndex) {
         if (produtoInventario) {
             produtoInventario.stockGeleira += pedidoRemovido.qtd;
         }
-        ui.atualizarTodaUI();
+        
+        // Otimização: Renderização específica
+        renderizarVistaClienteAtivo();
+        verificarAlertasDeStock(); // O stock voltou, o alerta pode desaparecer
+        renderizarDashboard();
+
         salvarEstado();
         mostrarNotificacao("Item removido com sucesso.");
     } catch (error) {
@@ -399,7 +430,10 @@ export function handleArquivarDia() {
                     }
                 });
                 modals.fecharModalFechoGlobal();
-                ui.atualizarTodaUI();
+                
+                // Aqui, uma atualização completa é apropriada, pois tudo mudou.
+                atualizarTodaUI();
+
                 salvarEstado();
                 mostrarNotificacao("Dia arquivado com sucesso. Pronto para um novo dia!");
             } catch (error) {
