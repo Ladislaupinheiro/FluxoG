@@ -1,10 +1,11 @@
 // service-worker.js
 
-const CACHE_NAME = 'gestorbar-v4'; // Versão incrementada para forçar a atualização final
+const CACHE_NAME = 'gestorbar-v5'; // Versão incrementada para forçar a atualização final
 const URLS_TO_CACHE = [
     './',
     './index.html',
-    // REMOVIDO: A linha './style.css' foi removida pois o ficheiro não existe no repositório.
+    './style.css', // CORREÇÃO: Ficheiro style.css re-adicionado à lista de cache.
+    './manifest.json',
     './modules/main.js',
     './modules/state.js',
     './modules/ui.js',
@@ -47,24 +48,14 @@ self.addEventListener('activate', (event) => {
     return self.clients.claim();
 });
 
-// Evento 'fetch': responde aos pedidos com os ficheiros em cache se disponíveis.
+// Evento 'fetch': responde aos pedidos com os ficheiros em cache, se disponíveis.
 self.addEventListener('fetch', (event) => {
-    // Apenas para pedidos de navegação (ex: abrir a página)
-    if (event.request.mode === 'navigate') {
-        event.respondWith(
-            caches.match(event.request)
-                .then((response) => {
-                    return response || fetch(event.request);
-                })
-        );
-    }
-    // Para outros pedidos (scripts, ícones), a estratégia cache-first continua a ser boa.
-    else {
-        event.respondWith(
-            caches.match(event.request)
-                .then((response) => {
-                    return response || fetch(event.request);
-                })
-        );
-    }
+    event.respondWith(
+        caches.match(event.request)
+            .then((response) => {
+                // Se encontrarmos o ficheiro em cache, retornamo-lo.
+                // Se não, fazemos o pedido à rede.
+                return response || fetch(event.request);
+            })
+    );
 });
