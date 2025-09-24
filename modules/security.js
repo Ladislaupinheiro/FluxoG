@@ -1,21 +1,21 @@
-// /modules/security.js - Módulo para gerir a segurança e licenciamento da aplicação (v3.1)
+// /modules/security.js - Módulo para gerir a segurança e licenciamento da aplicação (v3.8)
 'use strict';
 
-// Chaves para o localStorage
-const LICENSE_KEY = 'gestorbar_license_key_v1';
-const VALIDATION_HASH_KEY = 'gestorbar_validation_hash_v1';
-const PIN_HASH_KEY = 'gestorbar_pin_hash_v1';
-const PIN_SALT_KEY = 'gestorbar_pin_salt_v1'; // NOVO: Chave para o salt do PIN
-const FAILED_ATTEMPTS_KEY = 'gestorbar_failed_attempts_v1';
-const LOCKOUT_TIMESTAMP_KEY = 'gestorbar_lockout_timestamp_v1';
+// As constantes foram movidas de volta para aqui para eliminar a dependência do config.js
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 30 * 1000;
 
-// Constantes de segurança
-const MAX_ATTEMPTS = 5;
-const LOCKOUT_DURATION = 30 * 1000; // 30 segundos
+// Chaves usadas no localStorage
+const LICENSE_KEY = 'app_license_key_v2';
+const VALIDATION_HASH_KEY = 'app_validation_hash_v2';
+const PIN_HASH_KEY = 'app_pin_hash_v2';
+const PIN_SALT_KEY = 'app_pin_salt_v2';
+const FAILED_ATTEMPTS_KEY = 'app_failed_attempts';
+const LOCKOUT_TIMESTAMP_KEY = 'app_lockout_timestamp';
 
-// ===================================
-// FUNÇÕES DE LICENCIAMENTO
-// ===================================
+// Funções de ofuscação simples para a chave de licença
+const obfuscate = (str) => btoa(str);
+const deobfuscate = (str) => atob(str);
 
 /**
  * Gera uma "impressão digital" única para o dispositivo/browser atual.
@@ -30,7 +30,7 @@ async function gerarDeviceId() {
 
 /**
  * Combina uma chave de licença e um ID de dispositivo para criar um hash de validação seguro.
- * @param {string} chave - A chave de licença inserida pelo utilizador.
+ * @param {string} chave - A chave de licença.
  * @param {string} deviceId - O ID do dispositivo gerado.
  * @returns {Promise<string>} O hash de validação final.
  */
@@ -42,36 +42,13 @@ async function gerarHashValidacao(chave, deviceId) {
 }
 
 /**
- * Ofusca a chave de licença para armazenamento local.
- * @param {string} chave - A chave de licença.
- * @returns {string} - A chave ofuscada em Base64.
- */
-function ofuscarChave(chave) {
-    return btoa(chave);
-}
-
-/**
- * Desofusca a chave de licença do armazenamento local.
- * @param {string} chaveOfuscada - A chave ofuscada em Base64.
- * @returns {string} - A chave de licença original.
- */
-function desofuscarChave(chaveOfuscada) {
-    try {
-        return atob(chaveOfuscada);
-    } catch (e) {
-        return null; // Retorna nulo se a string Base64 for inválida.
-    }
-}
-
-/**
- * Ativa a aplicação guardando a chave (ofuscada) e o hash de validação no localStorage.
+ * Ativa a aplicação guardando a chave ofuscada e o hash de validação.
  * @param {string} chave - A chave de licença válida.
  */
 export async function ativarLicenca(chave) {
     const deviceId = await gerarDeviceId();
     const hashValidacao = await gerarHashValidacao(chave, deviceId);
-    
-    localStorage.setItem(LICENSE_KEY, ofuscarChave(chave.trim().toUpperCase()));
+    localStorage.setItem(LICENSE_KEY, obfuscate(chave.trim().toUpperCase()));
     localStorage.setItem(VALIDATION_HASH_KEY, hashValidacao);
 }
 
@@ -82,24 +59,19 @@ export async function ativarLicenca(chave) {
 export async function verificarLicencaAtiva() {
     const chaveOfuscada = localStorage.getItem(LICENSE_KEY);
     const hashGuardado = localStorage.getItem(VALIDATION_HASH_KEY);
-
     if (!chaveOfuscada || !hashGuardado) {
         return false;
     }
-
-    const chave = desofuscarChave(chaveOfuscada);
-    if (!chave) return false;
-
-    const deviceIdAtual = await gerarDeviceId();
-    const hashRecalculado = await gerarHashValidacao(chave, deviceIdAtual);
-
-    return hashRecalculado === hashGuardado;
+    try {
+        const chave = deobfuscate(chaveOfuscada);
+        const deviceId = await gerarDeviceId();
+        const hashAtual = await gerarHashValidacao(chave, deviceId);
+        return hashAtual === hashGuardado;
+    } catch (error) {
+        console.error("Erro ao validar licença:", error);
+        return false;
+    }
 }
-
-
-// ===================================
-// FUNÇÕES DE AUTENTICAÇÃO POR PIN (Refatorado com Salt)
-// ===================================
 
 /**
  * Gera um salt criptograficamente seguro.
@@ -136,9 +108,9 @@ export async function guardarHashSenha(pin) {
 }
 
 /**
- * Verifica se um PIN inserido corresponde ao que está guardado.
+ * Verifica se o PIN inserido corresponde ao hash guardado.
  * @param {string} pin - O PIN inserido pelo utilizador.
- * @returns {Promise<boolean>} - Verdadeiro se o PIN estiver correto, falso caso contrário.
+ * @returns {Promise<boolean>} - Verdadeiro se o PIN for correto.
  */
 export async function verificarSenha(pin) {
     const salt = localStorage.getItem(PIN_SALT_KEY);
@@ -150,64 +122,48 @@ export async function verificarSenha(pin) {
 }
 
 /**
- * Verifica se já existe um hash de PIN guardado.
- * @returns {boolean} - Verdadeiro se existir, falso caso contrário.
+ * Verifica se já existe uma senha (PIN) guardada.
+ * @returns {boolean}
  */
 export function verificarSeSenhaExiste() {
     return !!localStorage.getItem(PIN_HASH_KEY);
 }
 
+// --- Gestão de Bloqueio por Tentativas Falhadas ---
 
-// ===================================
-// FUNÇÕES DE BLOQUEIO (Rate Limiting)
-// ===================================
-
-/**
- * Verifica se a aplicação está atualmente bloqueada por tentativas excessivas.
- * @returns {boolean} - Verdadeiro se estiver bloqueada.
- */
-export function verificarBloqueio() {
-    const lockoutTimestamp = parseInt(localStorage.getItem(LOCKOUT_TIMESTAMP_KEY) || '0');
-    if (lockoutTimestamp > Date.now()) {
-        return true; // Ainda está bloqueado.
-    }
-    // Se o tempo de bloqueio já passou, limpa os contadores.
-    localStorage.removeItem(LOCKOUT_TIMESTAMP_KEY);
-    localStorage.removeItem(FAILED_ATTEMPTS_KEY);
-    return false;
-}
-
-/**
- * Regista uma tentativa de login falhada e bloqueia a aplicação se o limite for atingido.
- */
 export function registrarTentativaFalhada() {
     let tentativas = parseInt(localStorage.getItem(FAILED_ATTEMPTS_KEY) || '0') + 1;
-    
-    if (tentativas >= MAX_ATTEMPTS) {
-        const lockoutEndTime = Date.now() + LOCKOUT_DURATION;
-        localStorage.setItem(LOCKOUT_TIMESTAMP_KEY, lockoutEndTime.toString());
-        localStorage.setItem(FAILED_ATTEMPTS_KEY, tentativas.toString());
-    } else {
-        localStorage.setItem(FAILED_ATTEMPTS_KEY, tentativas.toString());
+    if (tentativas >= MAX_FAILED_ATTEMPTS) {
+        localStorage.setItem(LOCKOUT_TIMESTAMP_KEY, Date.now().toString());
+        tentativas = 0; // Reseta as tentativas após o bloqueio
     }
+    localStorage.setItem(FAILED_ATTEMPTS_KEY, tentativas.toString());
 }
 
-/**
- * Limpa o contador de tentativas falhadas (usado após um login bem-sucedido).
- */
 export function limparTentativasFalhadas() {
     localStorage.removeItem(FAILED_ATTEMPTS_KEY);
     localStorage.removeItem(LOCKOUT_TIMESTAMP_KEY);
 }
 
-/**
- * Obtém o tempo restante de bloqueio em segundos.
- * @returns {number} - O número de segundos restantes.
- */
+export function verificarBloqueio() {
+    const timestampBloqueio = parseInt(localStorage.getItem(LOCKOUT_TIMESTAMP_KEY) || '0');
+    if (!timestampBloqueio) return false;
+
+    const tempoDecorrido = Date.now() - timestampBloqueio;
+    if (tempoDecorrido > LOCKOUT_DURATION_MS) {
+        limparTentativasFalhadas(); // O tempo de bloqueio expirou
+        return false;
+    }
+    return true; // Ainda está bloqueado
+}
+
 export function obterTempoBloqueioRestante() {
-    const lockoutTimestamp = parseInt(localStorage.getItem(LOCKOUT_TIMESTAMP_KEY) || '0');
-    if (lockoutTimestamp <= Date.now()) return 0;
+    const timestampBloqueio = parseInt(localStorage.getItem(LOCKOUT_TIMESTAMP_KEY) || '0');
+    if (!timestampBloqueio) return 0;
     
-    return Math.ceil((lockoutTimestamp - Date.now()) / 1000);
+    const tempoDecorrido = Date.now() - timestampBloqueio;
+    const tempoRestante = LOCKOUT_DURATION_MS - tempoDecorrido;
+    
+    return Math.ceil(tempoRestante / 1000); // Retorna em segundos
 }
 
