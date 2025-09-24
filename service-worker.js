@@ -1,7 +1,8 @@
-// /modules/service-worker.js (v16) - Implementa um recarregamento forçado na ativação para garantir consistência.
+// /modules/service-worker.js (v17) - Garante uma instalação limpa e a estratégia Network-First.
 'use strict';
 
-const CACHE_NAME = 'gestorbar-v16';
+const CACHE_NAME = 'gestorbar-v17';
+// CORREÇÃO: Removido o 'config.js' que não existe.
 const URLS_TO_CACHE = [
     './',
     './index.html',
@@ -20,29 +21,20 @@ const URLS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
-    console.log('[Service Worker] A instalar v16...');
+    console.log('[Service Worker] A instalar v17...');
     event.waitUntil(
         caches.open(CACHE_NAME).then(async (cache) => {
             console.log('[Service Worker] Cache aberta. A guardar ficheiros essenciais...');
-            const promises = URLS_TO_CACHE.map(async (url) => {
-                try {
-                    const response = await fetch(url, { cache: 'reload' });
-                    if (!response.ok) throw new Error(`Status ${response.status}`);
-                    await cache.put(url, response);
-                } catch (error) {
-                    console.error(`[Service Worker] Falha ao guardar em cache '${url}':`, error.message);
-                }
-            });
-            await Promise.all(promises);
+            await cache.addAll(URLS_TO_CACHE);
         }).then(() => {
-            console.log('[Service Worker] Instalação concluída. A forçar ativação...');
+            console.log('[Service Worker] Todos os ficheiros guardados. A forçar ativação...');
             return self.skipWaiting();
         })
     );
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('[Service Worker] A ativar v16...');
+    console.log('[Service Worker] A ativar v17...');
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
@@ -54,23 +46,15 @@ self.addEventListener('activate', (event) => {
                 })
             );
         }).then(() => {
-            console.log('[Service Worker] Caches limpas. A assumir o controlo e a forçar o recarregamento dos clientes...');
-            // Força todas as abas abertas a recarregarem para usar a nova versão da aplicação.
-            return self.clients.claim().then(() => {
-                return self.clients.matchAll({ type: 'window' }).then(clients => {
-                    clients.forEach(client => {
-                        client.navigate(client.url);
-                    });
-                });
-            });
+            console.log('[Service Worker] Caches limpas. A assumir o controlo...');
+            return self.clients.claim();
         })
     );
 });
 
 self.addEventListener('fetch', (event) => {
-    if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
-        return;
-    }
+    if (event.request.method !== 'GET') return;
+
     event.respondWith(
         fetch(event.request)
             .then(networkResponse => {
@@ -80,7 +64,9 @@ self.addEventListener('fetch', (event) => {
                 });
             })
             .catch(() => {
-                return caches.match(event.request);
+                return caches.match(event.request).then(cachedResponse => {
+                    return cachedResponse || Response.error();
+                });
             })
     );
 });
