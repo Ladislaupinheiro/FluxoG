@@ -1,155 +1,140 @@
-// /modules/selectors.js - Centraliza a seleção de todos os elementos do DOM.
+// /modules/selectors.js - Centraliza a seleção de todos os elementos do DOM (v5.0)
+'use strict';
 
-// Aplicação Principal
-export const appContainer = document.getElementById('app-container');
+// Os seletores são declarados com `let` para que possam ser inicializados mais tarde.
+export let appContainer, bottomNav, tabContents, dbVendasTotal, dbVendasNumerario, 
+    dbVendasTpa, dbContasAtivas, dbAlertasStock, dbTopProdutoNome, dbTopProdutoQtd, 
+    seletorCliente, vistaClienteAtivo, btnAbrirConta, alertaStockContainer, 
+    btnAddProduto, listaInventario, inputBuscaInventario, btnVerFechoDiaAtual, 
+    calendarioTitulo, calendarioGridDias, btnMesAnterior, btnMesSeguinte, 
+    modalOverlay, formNovaConta, inputNomeConta, btnCancelarModal, modalAddPedidoOverlay, 
+    modalPedidoNomeConta, formAddPedido, hiddenContaId, inputQuantidade, 
+    btnCancelarPedidoModal, inputBuscaProdutoPedido, autocompleteResults, 
+    modalPagamentoOverlay, pagamentoContaIdInput, pagamentoNomeContaSpan, 
+    pagamentoTotalSpan, pagamentoMetodosContainer, btnCancelarPagamentoModal, 
+    btnConfirmarPagamento, modalAddProdutoOverlay, formAddProduto, inputProdutoNome, 
+    inputProdutoPreco, inputProdutoStock, inputProdutoStockMinimo, 
+    btnCancelarAddProdutoModal, modalEditProdutoOverlay, formEditProduto, 
+    hiddenEditProdutoId, inputEditProdutoNome, inputEditProdutoPreco, 
+    inputEditProdutoStockMinimo, btnCancelarEditProdutoModal, modalEditNomeOverlay, 
+    formEditNome, hiddenEditNomeId, inputEditNome, btnCancelarEditNomeModal, 
+    modalAddStockOverlay, formAddStock, hiddenAddStockId, addStockNomeProduto, 
+    inputAddStockQuantidade, btnCancelarAddStockModal, modalMoverStockOverlay, 
+    formMoverStock, hiddenMoverStockId, moverStockNomeProduto, moverStockArmazemQtd, 
+    moverStockGeleiraQtd, inputMoverStockQuantidade, btnCancelarMoverStockModal, 
+    modalFechoGlobalOverlay, fgDataRelatorio, fgTotalVendido, fgTotalNumerario, 
+    fgTotalTpa, fgContasFechadas, fgMediaPorConta, fgListaProdutos, btnArquivarDia, 
+    btnCancelarFechoGlobalModal, btnExportarPdf, btnExportarXls, 
+    modalConfirmacaoOverlay, modalConfirmacaoTitulo, modalConfirmacaoMensagem, 
+    btnCancelarConfirmacaoModal, btnConfirmarConfirmacaoModal, toastNotificacao, 
+    offlineIndicator, modalAtivacao, formAtivacao, inputChaveLicenca, 
+    mensagemErroAtivacao, modalCriarSenha, formCriarSenha, inputCriarPin, 
+    inputConfirmarPin, mensagemErroCriarSenha, modalInserirSenha, formInserirSenha, 
+    inputInserirPin, mensagemErroInserirSenha, btnEsqueciSenha;
 
-// Navegação e Abas
-export const bottomNav = document.getElementById('bottom-nav');
-export const tabContents = document.querySelectorAll('.tab-content');
+/**
+ * Inicializa todos os seletores do DOM.
+ * Deve ser chamada apenas após o evento 'DOMContentLoaded'.
+ */
+export function inicializarSeletores() {
+    appContainer = document.getElementById('app-container');
+    bottomNav = document.getElementById('bottom-nav');
+    tabContents = document.querySelectorAll('.tab-content');
+    dbVendasTotal = document.getElementById('db-vendas-total');
+    dbVendasNumerario = document.getElementById('db-vendas-numerario');
+    dbVendasTpa = document.getElementById('db-vendas-tpa');
+    dbContasAtivas = document.getElementById('db-contas-ativas');
+    dbAlertasStock = document.getElementById('db-alertas-stock');
+    dbTopProdutoNome = document.getElementById('db-top-produto-nome');
+    dbTopProdutoQtd = document.getElementById('db-top-produto-qtd');
+    seletorCliente = document.getElementById('seletor-cliente');
+    vistaClienteAtivo = document.getElementById('vista-cliente-ativo');
+    btnAbrirConta = document.getElementById('btn-abrir-conta');
+    alertaStockContainer = document.getElementById('alerta-stock-container');
+    btnAddProduto = document.getElementById('btn-add-produto');
+    listaInventario = document.getElementById('lista-inventario');
+    inputBuscaInventario = document.getElementById('input-busca-inventario');
+    btnVerFechoDiaAtual = document.getElementById('btn-ver-fecho-dia-atual');
+    calendarioTitulo = document.getElementById('calendario-titulo');
+    calendarioGridDias = document.getElementById('calendario-grid-dias');
+    btnMesAnterior = document.getElementById('btn-mes-anterior');
+    btnMesSeguinte = document.getElementById('btn-mes-seguinte');
+    modalOverlay = document.getElementById('modal-overlay');
+    formNovaConta = document.getElementById('form-nova-conta');
+    inputNomeConta = document.getElementById('input-nome-conta');
+    modalAddPedidoOverlay = document.getElementById('modal-add-pedido-overlay');
+    modalPedidoNomeConta = document.getElementById('modal-pedido-nome-conta');
+    formAddPedido = document.getElementById('form-add-pedido');
+    hiddenContaId = document.getElementById('hidden-conta-id');
+    inputQuantidade = document.getElementById('input-quantidade');
+    inputBuscaProdutoPedido = document.getElementById('input-busca-produto-pedido');
+    autocompleteResults = document.getElementById('autocomplete-results');
+    modalPagamentoOverlay = document.getElementById('modal-pagamento-overlay');
+    pagamentoContaIdInput = document.getElementById('pagamento-conta-id');
+    pagamentoNomeContaSpan = document.getElementById('pagamento-nome-conta');
+    pagamentoTotalSpan = document.getElementById('pagamento-total');
+    pagamentoMetodosContainer = document.getElementById('pagamento-metodos-container');
+    btnConfirmarPagamento = document.getElementById('btn-confirmar-pagamento');
+    modalAddProdutoOverlay = document.getElementById('modal-add-produto-overlay');
+    formAddProduto = document.getElementById('form-add-produto');
+    inputProdutoNome = document.getElementById('input-produto-nome');
+    inputProdutoPreco = document.getElementById('input-produto-preco');
+    inputProdutoStock = document.getElementById('input-produto-stock');
+    inputProdutoStockMinimo = document.getElementById('input-produto-stock-minimo');
+    modalEditProdutoOverlay = document.getElementById('modal-edit-produto-overlay');
+    formEditProduto = document.getElementById('form-edit-produto');
+    hiddenEditProdutoId = document.getElementById('hidden-edit-produto-id');
+    inputEditProdutoNome = document.getElementById('input-edit-produto-nome');
+    inputEditProdutoPreco = document.getElementById('input-edit-produto-preco');
+    inputEditProdutoStockMinimo = document.getElementById('input-edit-produto-stock-minimo');
+    modalEditNomeOverlay = document.getElementById('modal-edit-nome-overlay');
+    formEditNome = document.getElementById('form-edit-nome');
+    hiddenEditNomeId = document.getElementById('hidden-edit-nome-id');
+    inputEditNome = document.getElementById('input-edit-nome');
+    modalAddStockOverlay = document.getElementById('modal-add-stock-overlay');
+    formAddStock = document.getElementById('form-add-stock');
+    hiddenAddStockId = document.getElementById('hidden-add-stock-id');
+    addStockNomeProduto = document.getElementById('add-stock-nome-produto');
+    inputAddStockQuantidade = document.getElementById('input-add-stock-quantidade');
+    modalMoverStockOverlay = document.getElementById('modal-mover-stock-overlay');
+    formMoverStock = document.getElementById('form-mover-stock');
+    hiddenMoverStockId = document.getElementById('hidden-mover-stock-id');
+    moverStockNomeProduto = document.getElementById('mover-stock-nome-produto');
+    moverStockArmazemQtd = document.getElementById('mover-stock-armazem-qtd');
+    moverStockGeleiraQtd = document.getElementById('mover-stock-geleira-qtd');
+    inputMoverStockQuantidade = document.getElementById('input-mover-stock-quantidade');
+    modalFechoGlobalOverlay = document.getElementById('modal-fecho-global-overlay');
+    fgDataRelatorio = document.getElementById('fg-data-relatorio');
+    fgTotalVendido = document.getElementById('fg-total-vendido');
+    fgTotalNumerario = document.getElementById('fg-total-numerario');
+    fgTotalTpa = document.getElementById('fg-total-tpa');
+    fgContasFechadas = document.getElementById('fg-contas-fechadas');
+    fgMediaPorConta = document.getElementById('fg-media-por-conta');
+    fgListaProdutos = document.getElementById('fg-lista-produtos');
+    btnArquivarDia = document.getElementById('btn-arquivar-dia');
+    btnExportarPdf = document.getElementById('btn-exportar-pdf');
+    btnExportarXls = document.getElementById('btn-exportar-xls');
+    modalConfirmacaoOverlay = document.getElementById('modal-confirmacao-overlay');
+    modalConfirmacaoTitulo = document.getElementById('modal-confirmacao-titulo');
+    modalConfirmacaoMensagem = document.getElementById('modal-confirmacao-mensagem');
+    btnConfirmarConfirmacaoModal = document.getElementById('btn-confirmar-confirmacao-modal');
+    toastNotificacao = document.getElementById('toast-notificacao');
+    offlineIndicator = document.getElementById('offline-indicator');
 
-// Aba Dashboard
-export const dbVendasTotal = document.getElementById('db-vendas-total');
-export const dbVendasNumerario = document.getElementById('db-vendas-numerario');
-export const dbVendasTpa = document.getElementById('db-vendas-tpa');
-export const dbContasAtivas = document.getElementById('db-contas-ativas');
-export const dbAlertasStock = document.getElementById('db-alertas-stock');
-export const dbTopProdutoNome = document.getElementById('db-top-produto-nome');
-export const dbTopProdutoQtd = document.getElementById('db-top-produto-qtd');
-
-// Aba Atendimento
-export const seletorCliente = document.getElementById('seletor-cliente');
-export const vistaClienteAtivo = document.getElementById('vista-cliente-ativo');
-export const btnAbrirConta = document.getElementById('btn-abrir-conta');
-export const alertaStockContainer = document.getElementById('alerta-stock-container');
-
-// Aba Inventário
-export const btnAddProduto = document.getElementById('btn-add-produto');
-export const listaInventario = document.getElementById('lista-inventario');
-export const inputBuscaInventario = document.getElementById('input-busca-inventario');
-
-// Aba Fecho / Relatórios
-export const btnVerFechoDiaAtual = document.getElementById('btn-ver-fecho-dia-atual');
-export const calendarioTitulo = document.getElementById('calendario-titulo');
-export const calendarioGridDias = document.getElementById('calendario-grid-dias');
-export const btnMesAnterior = document.getElementById('btn-mes-anterior');
-export const btnMesSeguinte = document.getElementById('btn-mes-seguinte');
-
-// Modal Nova Conta
-export const modalOverlay = document.getElementById('modal-overlay');
-export const formNovaConta = document.getElementById('form-nova-conta');
-export const inputNomeConta = document.getElementById('input-nome-conta');
-export const btnCancelarModal = document.getElementById('btn-cancelar-modal');
-
-// Modal Adicionar Pedido
-export const modalAddPedidoOverlay = document.getElementById('modal-add-pedido-overlay');
-export const modalPedidoNomeConta = document.getElementById('modal-pedido-nome-conta');
-export const formAddPedido = document.getElementById('form-add-pedido');
-export const hiddenContaId = document.getElementById('hidden-conta-id');
-export const inputQuantidade = document.getElementById('input-quantidade');
-export const btnCancelarPedidoModal = document.getElementById('btn-cancelar-pedido-modal');
-export const inputBuscaProdutoPedido = document.getElementById('input-busca-produto-pedido');
-export const autocompleteResults = document.getElementById('autocomplete-results');
-
-// Modal de Pagamento
-export const modalPagamentoOverlay = document.getElementById('modal-pagamento-overlay');
-export const pagamentoContaIdInput = document.getElementById('pagamento-conta-id');
-export const pagamentoNomeContaSpan = document.getElementById('pagamento-nome-conta');
-export const pagamentoTotalSpan = document.getElementById('pagamento-total');
-export const pagamentoMetodosContainer = document.getElementById('pagamento-metodos-container');
-export const btnCancelarPagamentoModal = document.getElementById('btn-cancelar-pagamento-modal');
-export const btnConfirmarPagamento = document.getElementById('btn-confirmar-pagamento');
-
-// Modal Adicionar Produto
-export const modalAddProdutoOverlay = document.getElementById('modal-add-produto-overlay');
-export const formAddProduto = document.getElementById('form-add-produto');
-export const inputProdutoNome = document.getElementById('input-produto-nome');
-export const inputProdutoPreco = document.getElementById('input-produto-preco');
-export const inputProdutoStock = document.getElementById('input-produto-stock');
-export const inputProdutoStockMinimo = document.getElementById('input-produto-stock-minimo');
-export const btnCancelarAddProdutoModal = document.getElementById('btn-cancelar-add-produto-modal');
-
-// Modal Editar Produto
-export const modalEditProdutoOverlay = document.getElementById('modal-edit-produto-overlay');
-export const formEditProduto = document.getElementById('form-edit-produto');
-export const hiddenEditProdutoId = document.getElementById('hidden-edit-produto-id');
-export const inputEditProdutoNome = document.getElementById('input-edit-produto-nome');
-export const inputEditProdutoPreco = document.getElementById('input-edit-produto-preco');
-export const inputEditProdutoStockMinimo = document.getElementById('input-edit-produto-stock-minimo');
-export const btnCancelarEditProdutoModal = document.getElementById('btn-cancelar-edit-produto-modal');
-
-// Modal Editar Nome da Conta
-export const modalEditNomeOverlay = document.getElementById('modal-edit-nome-overlay');
-export const formEditNome = document.getElementById('form-edit-nome');
-export const hiddenEditNomeId = document.getElementById('hidden-edit-nome-id');
-export const inputEditNome = document.getElementById('input-edit-nome');
-export const btnCancelarEditNomeModal = document.getElementById('btn-cancelar-edit-nome-modal');
-
-// Modal Adicionar Stock
-export const modalAddStockOverlay = document.getElementById('modal-add-stock-overlay');
-export const formAddStock = document.getElementById('form-add-stock');
-export const hiddenAddStockId = document.getElementById('hidden-add-stock-id');
-export const addStockNomeProduto = document.getElementById('add-stock-nome-produto');
-export const inputAddStockQuantidade = document.getElementById('input-add-stock-quantidade');
-export const btnCancelarAddStockModal = document.getElementById('btn-cancelar-add-stock-modal');
-
-// Modal Mover Stock
-export const modalMoverStockOverlay = document.getElementById('modal-mover-stock-overlay');
-export const formMoverStock = document.getElementById('form-mover-stock');
-export const hiddenMoverStockId = document.getElementById('hidden-mover-stock-id');
-export const moverStockNomeProduto = document.getElementById('mover-stock-nome-produto');
-export const moverStockArmazemQtd = document.getElementById('mover-stock-armazem-qtd');
-export const moverStockGeleiraQtd = document.getElementById('mover-stock-geleira-qtd');
-export const inputMoverStockQuantidade = document.getElementById('input-mover-stock-quantidade');
-export const btnCancelarMoverStockModal = document.getElementById('btn-cancelar-mover-stock-modal');
-
-// Modal Fecho Global
-export const modalFechoGlobalOverlay = document.getElementById('modal-fecho-global-overlay');
-export const fgDataRelatorio = document.getElementById('fg-data-relatorio');
-export const fgTotalVendido = document.getElementById('fg-total-vendido');
-export const fgTotalNumerario = document.getElementById('fg-total-numerario');
-export const fgTotalTpa = document.getElementById('fg-total-tpa');
-export const fgContasFechadas = document.getElementById('fg-contas-fechadas');
-export const fgMediaPorConta = document.getElementById('fg-media-por-conta');
-export const fgListaProdutos = document.getElementById('fg-lista-produtos');
-export const btnArquivarDia = document.getElementById('btn-arquivar-dia');
-export const btnCancelarFechoGlobalModal = document.getElementById('btn-cancelar-fecho-global-modal');
-export const btnExportarPdf = document.getElementById('btn-exportar-pdf');
-export const btnExportarXls = document.getElementById('btn-exportar-xls');
-
-// Modal de Confirmação
-export const modalConfirmacaoOverlay = document.getElementById('modal-confirmacao-overlay');
-export const modalConfirmacaoTitulo = document.getElementById('modal-confirmacao-titulo');
-export const modalConfirmacaoMensagem = document.getElementById('modal-confirmacao-mensagem');
-export const btnCancelarConfirmacaoModal = document.getElementById('btn-cancelar-confirmacao-modal');
-export const btnConfirmarConfirmacaoModal = document.getElementById('btn-confirmar-confirmacao-modal');
-
-// Notificação Toast
-export const toastNotificacao = document.getElementById('toast-notificacao');
-
-// Indicador de Conectividade
-export const offlineIndicator = document.getElementById('offline-indicator');
-
-
-// ===================================
-// SELETORES DE SEGURANÇA (NOVOS)
-// ===================================
-
-// Modal de Ativação
-export const modalAtivacao = document.getElementById('modal-ativacao-licenca');
-export const formAtivacao = document.getElementById('form-ativacao');
-export const inputChaveLicenca = document.getElementById('input-chave-licenca');
-export const ativacaoMensagemErro = document.getElementById('ativacao-mensagem-erro');
-
-// Modal Criar Senha
-export const modalCriarSenha = document.getElementById('modal-criar-senha');
-export const formCriarSenha = document.getElementById('form-criar-senha');
-export const inputCriarPin = document.getElementById('input-criar-pin');
-export const criarSenhaMensagemErro = document.getElementById('criar-senha-mensagem-erro');
-
-// Modal Inserir Senha
-export const modalInserirSenha = document.getElementById('modal-inserir-senha');
-export const formInserirSenha = document.getElementById('form-inserir-senha');
-export const inputInserirPin = document.getElementById('input-inserir-pin');
-export const inserirSenhaMensagemErro = document.getElementById('inserir-senha-mensagem-erro');
-export const btnEsqueciSenha = document.getElementById('btn-esqueci-senha');
+    // Seletores de Segurança
+    modalAtivacao = document.getElementById('modal-ativacao-licenca');
+    formAtivacao = document.getElementById('form-ativacao');
+    inputChaveLicenca = document.getElementById('input-chave-licenca');
+    mensagemErroAtivacao = document.getElementById('ativacao-mensagem-erro');
+    modalCriarSenha = document.getElementById('modal-criar-senha');
+    formCriarSenha = document.getElementById('form-criar-senha');
+    inputCriarPin = document.getElementById('input-criar-pin');
+    inputConfirmarPin = document.getElementById('input-confirmar-pin');
+    mensagemErroCriarSenha = document.getElementById('criar-senha-mensagem-erro');
+    modalInserirSenha = document.getElementById('modal-inserir-senha');
+    formInserirSenha = document.getElementById('form-inserir-senha');
+    inputInserirPin = document.getElementById('input-inserir-pin');
+    mensagemErroInserirSenha = document.getElementById('inserir-senha-mensagem-erro');
+    btnEsqueciSenha = document.getElementById('btn-esqueci-senha');
+}
 
