@@ -1,8 +1,11 @@
-// /modules/ui.js - Responsável por todas as manipulações do DOM e renderizações da interface (v3.5)
+// /modules/ui.js - Responsável por todas as manipulações do DOM e renderizações da interface (v3.8)
 'use strict';
 
 import { estado, dataAtualCalendario } from './state.js';
 import * as sel from './selectors.js';
+
+// A constante foi movida de volta para aqui para eliminar a dependência do config.js
+const NOTIFICATION_QUEUE_LIMIT = 5;
 
 let filaDeNotificacoes = [];
 let notificacaoAtiva = false;
@@ -17,7 +20,7 @@ let notificacaoAtiva = false;
  * @param {object} options - Opções para o elemento.
  * @param {string[]} [options.classes=[]] - Lista de classes CSS.
  * @param {string} [options.text=''] - Conteúdo de texto.
- * @param {object} [options.attrs={}] - Atributos (ex: { 'data-id': 1 }).
+ * @param {object} [options.attrs={}] - Atributos (ex: { 'data-id': 1, 'aria-label': 'Descrição' }).
  * @param {HTMLElement[]} [options.children=[]] - Elementos filhos a serem anexados.
  * @returns {HTMLElement} - O elemento HTML criado.
  */
@@ -61,6 +64,9 @@ function processarFilaDeNotificacoes() {
 }
 
 export function mostrarNotificacao(mensagem, tipo = 'sucesso') {
+    if (filaDeNotificacoes.length >= NOTIFICATION_QUEUE_LIMIT) {
+        return;
+    }
     filaDeNotificacoes.push({ mensagem, tipo });
     processarFilaDeNotificacoes();
 }
@@ -113,7 +119,7 @@ export function renderizarDashboard() {
 export function renderizarSeletorDeClientes() {
     const contasAtivas = estado.contasAtivas.filter(c => c.status === 'ativa');
     const clienteSelecionadoAnteriormente = sel.seletorCliente.value;
-    sel.seletorCliente.innerHTML = ''; // Limpa antes de preencher
+    sel.seletorCliente.innerHTML = ''; 
     
     sel.seletorCliente.appendChild(criarElemento('option', { text: 'Nenhum cliente ativo', attrs: { value: '' } }));
 
@@ -129,7 +135,7 @@ export function renderizarSeletorDeClientes() {
 export function renderizarVistaClienteAtivo() {
     const idContaSelecionada = parseInt(sel.seletorCliente.value);
     const conta = estado.contasAtivas.find(c => c.id === idContaSelecionada);
-    sel.vistaClienteAtivo.innerHTML = ''; // Limpa a vista anterior
+    sel.vistaClienteAtivo.innerHTML = '';
 
     if (!conta) {
         sel.vistaClienteAtivo.appendChild(criarElemento('p', { text: 'Selecione ou crie um cliente para iniciar o atendimento.', classes: ['text-center', 'text-gray-500', 'py-8'] }));
@@ -143,9 +149,18 @@ export function renderizarVistaClienteAtivo() {
                 criarElemento('span', { text: `${pedido.qtd}x ${pedido.nome}` }),
                 criarElemento('div', { classes: ['flex', 'items-center', 'gap-4'], children: [
                     criarElemento('span', { text: (pedido.preco * pedido.qtd).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' }), classes: ['font-semibold'] }),
-                    criarElemento('button', { classes: ['btn-icon', 'btn-remover-item', 'text-red-500', 'hover:text-red-700'], attrs: { 'data-index': index, 'data-id': conta.id, title: 'Remover Item' }, children: [
-                        criarElemento('i', { classes: ['fas', 'fa-trash-alt'] })
-                    ]})
+                    criarElemento('button', { 
+                        classes: ['btn-icon', 'btn-remover-item', 'text-red-500', 'hover:text-red-700'], 
+                        attrs: { 
+                            'data-index': index, 
+                            'data-id': conta.id, 
+                            title: 'Remover Item',
+                            'aria-label': `Remover ${pedido.qtd}x ${pedido.nome} do pedido`
+                        }, 
+                        children: [
+                            criarElemento('i', { classes: ['fas', 'fa-trash-alt'] })
+                        ]
+                    })
                 ]})
             ]})
         );
@@ -161,9 +176,13 @@ export function renderizarVistaClienteAtivo() {
         criarElemento('div', { classes: ['cartao-header', 'flex', 'justify-between', 'items-center', 'border-b', 'pb-2', 'mb-4'], children: [
             criarElemento('div', { classes: ['cartao-titulo', 'flex', 'items-center', 'gap-2'], children: [
                 criarElemento('h3', { text: conta.nome, classes: ['text-xl', 'font-bold'] }),
-                criarElemento('button', { classes: ['btn-icon', 'btn-editar-nome', 'text-lg', 'text-gray-500', 'hover:text-blue-500'], attrs: { 'data-id': conta.id, title: 'Editar Nome' }, children: [
-                    criarElemento('i', { classes: ['fas', 'fa-pencil-alt'] })
-                ]})
+                criarElemento('button', { 
+                    classes: ['btn-icon', 'btn-editar-nome', 'text-lg', 'text-gray-500', 'hover:text-blue-500'], 
+                    attrs: { 'data-id': conta.id, title: 'Editar Nome', 'aria-label': `Editar nome da conta ${conta.nome}` }, 
+                    children: [
+                        criarElemento('i', { classes: ['fas', 'fa-pencil-alt'] })
+                    ]
+                })
             ]})
         ]}),
         pedidosContainer,
@@ -205,12 +224,16 @@ export function renderizarInventario() {
                     criarElemento('p', { text: item.nome, classes: ['font-bold', 'text-lg'] }),
                     criarElemento('p', { text: `Preço: ${item.preco.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}`, classes: ['text-sm', 'text-gray-600'] })
                 ]}),
-                criarElemento('button', { classes: ['btn-icon', 'btn-editar-produto', 'text-xl', 'text-gray-500', 'hover:text-blue-500'], attrs: { 'data-id': item.id, title: 'Editar Produto' }, children: [
-                    criarElemento('i', { classes: ['fas', 'fa-pencil-alt'] })
-                ]})
+                criarElemento('button', { 
+                    classes: ['btn-icon', 'btn-editar-produto', 'text-xl', 'text-gray-500', 'hover:text-blue-500'], 
+                    attrs: { 'data-id': item.id, title: 'Editar Produto', 'aria-label': `Editar produto ${item.nome}` }, 
+                    children: [
+                        criarElemento('i', { classes: ['fas', 'fa-pencil-alt'] })
+                    ]
+                })
             ]}),
             criarElemento('div', { classes: ['grid', 'grid-cols-2', 'gap-4', 'text-center', 'border-t', 'border-b', 'py-2', 'my-2'], children: [
-                criarElemento('div', { children: [
+                 criarElemento('div', { children: [
                     criarElemento('p', { text: 'ARMAZÉM', classes: ['text-xs', 'text-gray-500'] }),
                     criarElemento('p', { text: item.stockArmazem, classes: ['font-bold', 'text-2xl'] })
                 ]}),
@@ -220,12 +243,20 @@ export function renderizarInventario() {
                 ]})
             ]}),
             criarElemento('div', { classes: ['flex', 'justify-end', 'items-center', 'gap-4', 'mt-2'], children: [
-                criarElemento('button', { classes: ['btn-icon', 'btn-adicionar-armazem', 'text-2xl', 'text-green-500', 'hover:text-green-700'], attrs: { 'data-id': item.id, title: 'Adicionar ao Armazém' }, children: [
-                    criarElemento('i', { classes: ['fas', 'fa-box'] })
-                ]}),
-                criarElemento('button', { classes: ['btn-icon', 'btn-mover-geleira', 'text-2xl', 'text-blue-500', 'hover:text-blue-700'], attrs: { 'data-id': item.id, title: 'Mover para Geleira' }, children: [
-                    criarElemento('i', { classes: ['fas', 'fa-arrow-right'] })
-                ]})
+                criarElemento('button', { 
+                    classes: ['btn-icon', 'btn-adicionar-armazem', 'text-2xl', 'text-green-500', 'hover:text-green-700'], 
+                    attrs: { 'data-id': item.id, title: 'Adicionar ao Armazém', 'aria-label': `Adicionar stock de ${item.nome} ao armazém` }, 
+                    children: [
+                        criarElemento('i', { classes: ['fas', 'fa-box'] })
+                    ]
+                }),
+                criarElemento('button', { 
+                    classes: ['btn-icon', 'btn-mover-geleira', 'text-2xl', 'text-blue-500', 'hover:text-blue-700'], 
+                    attrs: { 'data-id': item.id, title: 'Mover para Geleira', 'aria-label': `Mover stock de ${item.nome} para a geleira` }, 
+                    children: [
+                        criarElemento('i', { classes: ['fas', 'fa-arrow-right'] })
+                    ]
+                })
             ]})
         ]});
     });
@@ -241,7 +272,7 @@ export function renderizarCalendario() {
     sel.calendarioTitulo.textContent = new Date(ano, mes).toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase());
     sel.calendarioGridDias.innerHTML = '';
 
-    const primeiroDiaDoMes = (new Date(ano, mes, 1).getDay() + 6) % 7; // Ajusta para segunda-feira ser o primeiro dia
+    const primeiroDiaDoMes = (new Date(ano, mes, 1).getDay() + 6) % 7; 
     const diasNoMes = new Date(ano, mes + 1, 0).getDate();
     const diasComRelatorio = new Set(
         (estado.historicoFechos || []).map(relatorio => {
@@ -330,3 +361,4 @@ export function atualizarTodaUI() {
     renderizarCalendario();
     verificarAlertasDeStock();
 }
+
