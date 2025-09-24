@@ -1,7 +1,7 @@
-// /modules/service-worker.js (v12) - Implementa a estratégia Network-First para máxima fiabilidade.
+// /modules/service-worker.js (v13) - Implementa uma instalação de cache resiliente e a estratégia Network-First.
 'use strict';
 
-const CACHE_NAME = 'gestorbar-v12';
+const CACHE_NAME = 'gestorbar-v13';
 const URLS_TO_CACHE = [
     './',
     './index.html',
@@ -16,27 +16,45 @@ const URLS_TO_CACHE = [
     './modules/selectors.js',
     './modules/security.js',
     './modules/config.js',
-    // Adicionar aqui os ícones principais para uma melhor experiência offline
     './icons/logo-small-192.png',
     './icons/logo-big-512.png'
 ];
 
-// Evento 'install': guarda os ficheiros essenciais em cache.
+/**
+ * Evento 'install': guarda os ficheiros essenciais em cache de forma resiliente,
+ * um a um, para evitar que uma falha única quebre toda a instalação.
+ */
 self.addEventListener('install', (event) => {
-    console.log('[Service Worker] A instalar...');
+    console.log('[Service Worker] A instalar v13...');
     event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then((cache) => {
-                console.log('[Service Worker] Cache aberta. A guardar ficheiros essenciais...');
-                return cache.addAll(URLS_TO_CACHE);
-            })
-            .then(() => self.skipWaiting()) // Força a ativação do novo SW
+        caches.open(CACHE_NAME).then(async (cache) => {
+            console.log('[Service Worker] Cache aberta. A guardar ficheiros essenciais...');
+            for (const url of URLS_TO_CACHE) {
+                try {
+                    // Faz o pedido para cada URL individualmente.
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        // Se a resposta não for bem-sucedida (ex: 404), lança um erro para este item.
+                        throw new Error(`Status ${response.status}`);
+                    }
+                    // Guarda a resposta bem-sucedida na cache.
+                    await cache.put(url, response);
+                } catch (error) {
+                    // Regista o erro para o URL específico, mas continua o loop para os outros ficheiros.
+                    console.error(`[Service Worker] Falha ao guardar em cache '${url}':`, error.message);
+                }
+            }
+        }).then(() => {
+            console.log('[Service Worker] Instalação concluída. A forçar ativação...');
+            return self.skipWaiting(); // Força a ativação do novo SW
+        })
     );
 });
 
+
 // Evento 'activate': limpa caches antigas para garantir que usamos a nova.
 self.addEventListener('activate', (event) => {
-    console.log('[Service Worker] A ativar...');
+    console.log('[Service Worker] A ativar v13...');
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
@@ -53,30 +71,22 @@ self.addEventListener('activate', (event) => {
 
 // Evento 'fetch': implementa a estratégia "Network-First, falling back to Cache".
 self.addEventListener('fetch', (event) => {
-    // Ignora pedidos que não sejam GET (ex: POST, PUT)
-    if (event.request.method !== 'GET') {
-        return;
-    }
+    if (event.request.method !== 'GET') return;
 
     event.respondWith(
-        // 1. Tenta ir à rede primeiro.
         fetch(event.request)
             .then(networkResponse => {
-                // 2. Se a rede responder com sucesso...
-                console.log(`[Service Worker] A servir da rede: ${event.request.url}`);
-                // ...abre a cache para guardar a nova versão.
                 return caches.open(CACHE_NAME).then(cache => {
-                    // Guarda uma cópia da resposta da rede na cache.
                     cache.put(event.request, networkResponse.clone());
-                    // Retorna a resposta da rede para a aplicação.
                     return networkResponse;
                 });
             })
             .catch(() => {
-                // 3. Se a rede falhar...
-                console.log(`[Service Worker] Rede falhou. A servir da cache: ${event.request.url}`);
-                // ...tenta encontrar o recurso na cache.
-                return caches.match(event.request);
+                return caches.match(event.request).then(cachedResponse => {
+                    // Retorna a resposta da cache ou uma resposta de fallback se não estiver em cache
+                    return cachedResponse || Response.error();
+                });
             })
     );
 });
+
