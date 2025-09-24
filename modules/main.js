@@ -1,4 +1,4 @@
-// main.js - O Ponto de Entrada e Orquestrador da Aplicação (v4.0)
+// main.js - O Ponto de Entrada e Orquestrador da Aplicação (v4.1)
 'use strict';
 
 import { carregarEstado, estado, dataAtualCalendario, setProdutoSelecionado } from './state.js';
@@ -26,26 +26,8 @@ function debounce(func, delay = 250) {
 // LÓGICA DE INICIALIZAÇÃO
 // ===================================
 
-/**
- * Função de arranque principal da aplicação.
- * É chamada apenas quando o DOM está completamente carregado.
- */
 async function inicializarApp() {
     try {
-        // Verificação de integridade: Garante que os elementos de segurança existem no HTML.
-        if (!document.getElementById('security-container')) {
-            // Este erro só deve acontecer em caso de falha grave do Service Worker.
-            // A nova arquitetura do SW torna isto extremamente improvável.
-            console.error("Erro Crítico: A estrutura HTML de segurança não foi encontrada.");
-            document.body.innerHTML = `
-                <div class="fixed inset-0 bg-red-800 text-white flex flex-col justify-center items-center p-4 text-center">
-                    <h1 class="text-2xl font-bold mb-4">Erro Crítico de Cache</h1>
-                    <p class="mb-4">A aplicação não conseguiu carregar a sua interface. Por favor, limpe os dados de navegação para este site nas configurações do seu browser e tente novamente.</p>
-                </div>
-            `;
-            return;
-        }
-
         const licencaAtiva = await security.verificarLicencaAtiva();
         if (!licencaAtiva) {
             sel.modalAtivacao.classList.remove('hidden');
@@ -79,8 +61,6 @@ async function inicializarApp() {
 // EVENT LISTENERS
 // ===================================
 
-// Garante que o JavaScript só é executado após o HTML estar completamente pronto.
-// Esta é a correção central para o bug da tela branca.
 document.addEventListener('DOMContentLoaded', () => {
     
     inicializarApp();
