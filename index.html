@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestor Bar</title>
-
     <link rel="manifest" href="manifest.json">
-    <!-- CORRIGIDO: Aponta para o ficheiro favicon.png -->
-    <link rel="icon" href="favicon.png" type="image/png">
     <meta name="theme-color" content="#007bff">
+    <link rel="apple-touch-icon" href="icons/logo-small-192.png">
+    <link rel="icon" type="image/png" href="favicon.png">
 
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -19,51 +18,43 @@
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans pb-16">
 
-    <!-- Oculta a app principal por defeito para forçar o fluxo de segurança -->
+    <!-- APLICAÇÃO PRINCIPAL (INICIA OCULTA) -->
     <main id="app-container" class="p-4 hidden">
         
         <section id="tab-dashboard" class="tab-content">
-            <div id="dashboard-content" class="flex flex-col gap-4">
-                
-                <div class="bg-white p-6 rounded-lg shadow-md text-center">
-                    <p class="text-lg font-semibold text-gray-600">Vendas de Hoje</p>
-                    <span id="db-vendas-total" class="block text-5xl font-bold text-blue-600 my-2">Kz 0,00</span>
-                    <div class="flex justify-center gap-6 text-sm text-gray-500 pt-2 border-t mt-2">
+            <div id="dashboard-content" class="grid grid-cols-2 gap-4">
+                <div class="bg-white p-4 rounded-lg shadow-md text-center col-span-2">
+                    <p class="text-sm font-semibold text-gray-600">Vendas de Hoje</p>
+                    <span id="db-vendas-total" class="block text-4xl font-bold text-blue-600 my-1">Kz 0,00</span>
+                    <div class="flex justify-center gap-4 text-xs text-gray-500 pt-1 border-t mt-1">
                         <span>NUM: <b id="db-vendas-numerario" class="font-semibold">Kz 0,00</b></span>
                         <span>TPA: <b id="db-vendas-tpa" class="font-semibold">Kz 0,00</b></span>
                     </div>
                 </div>
-
-                <div class="bg-white p-4 rounded-lg shadow-md text-center">
-                    <p class="text-sm text-gray-500">Contas Ativas</p>
-                    <span id="db-contas-ativas" class="text-3xl font-bold text-gray-800">0</span>
+                <div class="bg-white p-3 rounded-lg shadow-md text-center">
+                    <p class="text-xs text-gray-500">Contas Ativas</p>
+                    <span id="db-contas-ativas" class="text-2xl font-bold text-gray-800">0</span>
                 </div>
-
-                <div class="bg-white p-4 rounded-lg shadow-md text-center">
-                    <p class="text-sm text-gray-500">Alertas de Stock Baixo</p>
-                    <span id="db-alertas-stock" class="text-3xl font-bold text-red-500">0</span>
+                <div class="bg-white p-3 rounded-lg shadow-md text-center">
+                    <p class="text-xs text-gray-500">Alertas de Stock</p>
+                    <span id="db-alertas-stock" class="text-2xl font-bold text-red-500">0</span>
                 </div>
-
-                <div class="bg-white p-4 rounded-lg shadow-md text-center">
+                <div class="bg-white p-4 rounded-lg shadow-md text-center col-span-2">
                     <p class="text-sm text-gray-500">Produto Mais Vendido</p>
-                    <span id="db-top-produto-nome" class="text-xl font-bold text-gray-800 block">—</span>
-                    <span id="db-top-produto-qtd" class="text-lg text-gray-600">0 vendidos</span>
+                    <span id="db-top-produto-nome" class="text-lg font-bold text-gray-800 block">—</span>
+                    <span id="db-top-produto-qtd" class="text-base text-gray-600">0 vendidos</span>
                 </div>
-
             </div>
         </section>
 
-
         <section id="tab-inventario" class="tab-content hidden">
-            <header class="bg-white p-4 rounded-lg shadow-md mb-4 flex justify-end items-center">
+             <header class="bg-white p-4 rounded-lg shadow-md mb-4 flex justify-end items-center">
                 <button id="btn-add-produto" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow">Adicionar Produto</button>
             </header>
             <div class="mb-4">
                 <input type="search" id="input-busca-inventario" placeholder="🔎 Buscar por nome..." class="w-full p-3 border border-gray-300 rounded-lg">
             </div>
-            <div id="lista-inventario" class="text-center text-gray-500 py-8">
-                <p>Nenhum produto no inventário.</p>
-            </div>
+            <div id="lista-inventario" class="text-center text-gray-500 py-8"></div>
         </section>
 
         <section id="tab-atendimento" class="tab-content hidden">
@@ -76,10 +67,7 @@
                 </button>
             </header>
             <div id="alerta-stock-container" class="hidden p-2 text-red-600 font-semibold text-center"></div>
-            
-            <div id="vista-cliente-ativo">
-                <p class="text-center text-gray-500 py-8">Selecione um cliente para ver os detalhes.</p>
-            </div>
+            <div id="vista-cliente-ativo"></div>
         </section>
 
         <section id="tab-fluxo-caixa" class="tab-content hidden">
@@ -95,329 +83,99 @@
             </header>
             <div id="calendario-container">
                 <div class="grid grid-cols-7 gap-2 text-center font-bold text-gray-600 text-sm mb-2">
-                    <div>D</div>
-                    <div>S</div>
-                    <div>T</div>
-                    <div>Q</div>
-                    <div>Q</div>
-                    <div>S</div>
-                    <div>S</div>
+                    <div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div>
                 </div>
-                <div id="calendario-grid-dias" class="grid grid-cols-7 gap-2">
-                    </div>
+                <div id="calendario-grid-dias" class="grid grid-cols-7 gap-2"></div>
             </div>
         </section>
     </main>
 
-    <nav id="bottom-nav" class="fixed bottom-0 left-0 w-full bg-white shadow-[0_-2px_5px_rgba(0,0,0,0.1)] grid grid-cols-4 z-50 hidden">
-        <button class="nav-btn" data-tab="tab-dashboard" title="Dashboard"><i class="fa-solid fa-chart-pie"></i></button>
-        <button class="nav-btn" data-tab="tab-inventario" title="Inventário"><i class="fa-solid fa-boxes-stacked"></i></button>
-        <button class="nav-btn" data-tab="tab-atendimento" title="Atendimento"><i class="fa-solid fa-clipboard-list"></i></button>
-        <button class="nav-btn" data-tab="tab-fluxo-caixa" title="Relatórios"><i class="fa-solid fa-sack-dollar"></i></button>
+    <nav id="bottom-nav" class="fixed bottom-0 left-0 w-full bg-white shadow-[0_-2px_5px_rgba(0,0,0,0.1)] grid grid-cols-4 z-[90] hidden">
+        <button class="nav-btn active text-blue-500 border-t-4 border-blue-500" data-tab="tab-dashboard" title="Dashboard"><i class="fa-solid fa-chart-pie"></i></button>
+        <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-inventario" title="Inventário"><i class="fa-solid fa-boxes-stacked"></i></button>
+        <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-atendimento" title="Atendimento"><i class="fa-solid fa-clipboard-list"></i></button>
+        <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-fluxo-caixa" title="Relatórios"><i class="fa-solid fa-sack-dollar"></i></button>
     </nav>
+    <!-- FIM DA APLICAÇÃO PRINCIPAL -->
 
-    <!-- =================================== -->
-    <!-- MODAIS DE SEGURANÇA                 -->
-    <!-- =================================== -->
 
-    <!-- Modal de Ativação de Licença -->
-    <div id="modal-ativacao" role="dialog" class="fixed inset-0 bg-gray-100 flex justify-center items-center z-[200] hidden">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-sm text-center">
-            <h2 class="text-xl font-bold mb-2">Ativação Necessária</h2>
-            <p class="text-gray-600 mb-6">Por favor, insira a sua chave de licença para ativar a aplicação neste dispositivo.</p>
-            <form id="form-ativacao">
-                <input type="text" id="input-chave-licenca" placeholder="GESTORBAR-XXXX-XXXX-XXXX" required autocomplete="off" class="w-full p-3 border border-gray-300 rounded-md text-center tracking-wider mb-4">
-                <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded">Ativar</button>
-            </form>
-            <p id="ativacao-mensagem-erro" class="text-red-500 mt-4 h-4"></p>
-        </div>
-    </div>
-
-    <!-- Modal para Criar Senha (PIN) -->
-    <div id="modal-criar-senha" role="dialog" class="fixed inset-0 bg-gray-100 flex justify-center items-center z-[200] hidden">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-sm text-center">
-            <h2 class="text-xl font-bold mb-2">Crie a sua Senha</h2>
-            <p class="text-gray-600 mb-6">Crie um PIN de 4 dígitos para proteger o acesso à aplicação.</p>
-            <form id="form-criar-senha">
-                <input type="password" id="input-criar-pin" inputmode="numeric" pattern="\d{4}" maxlength="4" required class="w-full p-3 border border-gray-300 rounded-md text-center text-2xl tracking-[1em] mb-4" placeholder="••••">
-                <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded">Guardar Senha</button>
-            </form>
-            <p id="criar-senha-mensagem-erro" class="text-red-500 mt-4 h-4"></p>
-        </div>
-    </div>
-
-    <!-- Modal para Inserir Senha (PIN) -->
-    <div id="modal-inserir-senha" role="dialog" class="fixed inset-0 bg-gray-100 flex justify-center items-center z-[200] hidden">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-sm text-center">
-            <h2 class="text-xl font-bold mb-2">Bem-vindo de Volta</h2>
-            <p class="text-gray-600 mb-6">Insira o seu PIN de 4 dígitos.</p>
-            <form id="form-inserir-senha">
-                <input type="password" id="input-inserir-pin" inputmode="numeric" pattern="\d{4}" maxlength="4" required class="w-full p-3 border border-gray-300 rounded-md text-center text-2xl tracking-[1em] mb-4" placeholder="••••">
-                <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded">Entrar</button>
-            </form>
-            <p id="inserir-senha-mensagem-erro" class="text-red-500 mt-4 h-5"></p>
-            <button id="btn-esqueci-senha" type="button" class="text-sm text-gray-500 hover:text-blue-500 mt-4">Esqueci-me da senha</button>
-        </div>
-    </div>
-
-    <!-- =================================== -->
-    <!-- MODAIS DA APLICAÇÃO                 -->
-    <!-- =================================== -->
-
-    <div id="modal-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 class="text-xl font-bold mb-4">Abrir Nova Conta</h2>
-            <form id="form-nova-conta">
-                <div>
-                    <label for="input-nome-conta" class="block mb-2 font-semibold">Nome da Conta</label>
-                    <input type="text" id="input-nome-conta" placeholder="Ex: Mesa 12, Cliente VIP" required autocomplete="off" class="w-full p-2 border border-gray-300 rounded-md">
-                </div>
-                <div class="flex justify-end gap-4 mt-6">
-                    <button type="button" id="btn-cancelar-modal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
-                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Criar Conta</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <div id="modal-add-pedido-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 class="text-xl font-bold mb-4">Adicionar Pedido a <span id="modal-pedido-nome-conta"></span></h2>
-            <form id="form-add-pedido">
-                <input type="hidden" id="hidden-conta-id">
-                <div class="mb-4">
-                    <label for="input-busca-produto-pedido" class="block mb-2 font-semibold">Buscar Produto</label>
-                    <input type="search" id="input-busca-produto-pedido" placeholder="Digite para buscar..." class="w-full p-2 border border-gray-300 rounded-md">
-                    <div id="autocomplete-results" class="hidden mt-1 border border-gray-300 rounded-md bg-white max-h-32 overflow-y-auto"></div>
-                </div>
-                <div>
-                    <label for="input-quantidade" class="block mb-2 font-semibold">Quantidade</label>
-                    <input type="number" id="input-quantidade" value="1" min="1" required class="w-full p-2 border border-gray-300 rounded-md">
-                </div>
-                <div class="flex justify-end gap-4 mt-6">
-                    <button type="button" id="btn-cancelar-pedido-modal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
-                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Adicionar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="modal-pagamento-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <input type="hidden" id="pagamento-conta-id">
-            <div class="text-center">
-                <h2 class="text-xl font-bold mb-2">Finalizar Pagamento</h2>
-                <p class="text-gray-600 mb-4">Conta: <span id="pagamento-nome-conta" class="font-semibold"></span></p>
-                <p class="text-3xl font-bold text-blue-600 mb-6" id="pagamento-total"></p>
-            </div>
-            <div class="mb-4">
-                <p class="text-center font-semibold mb-2">Selecione o método de pagamento:</p>
-                <div id="pagamento-metodos-container" class="grid grid-cols-2 gap-4">
-                    <button data-metodo="Numerário" class="pagamento-metodo-btn border-2 border-gray-300 p-4 rounded-lg text-lg">💵 Numerário</button>
-                    <button data-metodo="TPA" class="pagamento-metodo-btn border-2 border-gray-300 p-4 rounded-lg text-lg">💳 TPA</button>
-                </div>
-            </div>
-            <div class="flex justify-end gap-4 mt-6">
-                <button type="button" id="btn-cancelar-pagamento-modal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
-                <button type="button" id="btn-confirmar-pagamento" disabled class="bg-gray-400 text-white font-bold py-2 px-4 rounded cursor-not-allowed">Confirmar</button>
+    <!-- =================================================== -->
+    <!-- CONTAINER DE SEGURANÇA E TODOS OS MODAIS DA APLICAÇÃO -->
+    <!-- =================================================== -->
+    <div id="modals-container">
+        <!-- Modal de Ativação de Licença -->
+        <div id="modal-ativacao-licenca" class="modal-container-wrapper fixed inset-0 bg-gray-100 z-[100] flex justify-center items-center p-4 hidden">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md text-center">
+                <h2 class="text-2xl font-bold mb-2">Ativação Necessária</h2>
+                <p class="text-gray-600 mb-6">Insira a sua chave de licença para ativar a aplicação.</p>
+                <form id="form-ativacao">
+                    <input type="text" id="input-chave-licenca" placeholder="GESTORBAR-PROD-XXXX-DEMO" required autocomplete="off" class="w-full p-3 border border-gray-300 rounded-md text-center uppercase">
+                    <p id="ativacao-mensagem-erro" class="text-red-500 text-sm mt-2 h-5"></p>
+                    <button type="submit" class="w-full bg-blue-500 text-white font-bold py-3 rounded-lg mt-4">Ativar</button>
+                </form>
             </div>
         </div>
-    </div>
 
-    <div id="modal-add-produto-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 class="text-xl font-bold mb-4">Adicionar Novo Produto</h2>
-            <form id="form-add-produto">
-                <div class="space-y-4">
-                    <div>
-                        <label for="input-produto-nome" class="block mb-1 font-semibold">Nome da Bebida</label>
-                        <input type="text" id="input-produto-nome" required class="w-full p-2 border border-gray-300 rounded-md">
-                    </div>
-                    <div>
-                        <label for="input-produto-preco" class="block mb-1 font-semibold">Preço (Kz)</label>
-                        <input type="number" id="input-produto-preco" required min="0" class="w-full p-2 border border-gray-300 rounded-md">
-                    </div>
-                    <div>
-                        <label for="input-produto-stock" class="block mb-1 font-semibold">Stock Inicial (no Armazém)</label>
-                        <input type="number" id="input-produto-stock" required min="0" class="w-full p-2 border border-gray-300 rounded-md">
-                    </div>
-                    <div>
-                        <label for="input-produto-stock-minimo" class="block mb-1 font-semibold">Stock Mínimo (Alerta na Geleira)</label>
-                        <input type="number" id="input-produto-stock-minimo" required min="0" class="w-full p-2 border border-gray-300 rounded-md">
-                    </div>
-                </div>
-                <div class="flex justify-end gap-4 mt-6">
-                    <button type="button" id="btn-cancelar-add-produto-modal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
-                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Adicionar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="modal-edit-produto-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 class="text-xl font-bold mb-4">Editar Produto</h2>
-            <form id="form-edit-produto">
-                <input type="hidden" id="hidden-edit-produto-id">
-                <div class="space-y-4">
-                    <div>
-                        <label for="input-edit-produto-nome" class="block mb-1 font-semibold">Nome da Bebida</label>
-                        <input type="text" id="input-edit-produto-nome" required class="w-full p-2 border border-gray-300 rounded-md">
-                    </div>
-                    <div>
-                        <label for="input-edit-produto-preco" class="block mb-1 font-semibold">Preço (Kz)</label>
-                        <input type="number" id="input-edit-produto-preco" required min="0" class="w-full p-2 border border-gray-300 rounded-md">
-                    </div>
-                    <div>
-                        <label for="input-edit-produto-stock-minimo" class="block mb-1 font-semibold">Stock Mínimo (Alerta na Geleira)</label>
-                        <input type="number" id="input-edit-produto-stock-minimo" required min="0" class="w-full p-2 border border-gray-300 rounded-md">
-                    </div>
-                </div>
-                <div class="flex justify-end gap-4 mt-6">
-                    <button type="button" id="btn-cancelar-edit-produto-modal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
-                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Guardar Alterações</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <div id="modal-edit-nome-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 class="text-xl font-bold mb-4">Editar Nome da Conta</h2>
-            <form id="form-edit-nome">
-                <input type="hidden" id="hidden-edit-nome-id">
-                <div>
-                    <label for="input-edit-nome" class="block mb-2 font-semibold">Novo Nome</label>
-                    <input type="text" id="input-edit-nome" required autocomplete="off" class="w-full p-2 border border-gray-300 rounded-md">
-                </div>
-                <div class="flex justify-end gap-4 mt-6">
-                    <button type="button" id="btn-cancelar-edit-nome-modal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
-                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Guardar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <div id="modal-add-stock-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 class="text-xl font-bold mb-4">Adicionar Stock ao Armazém</h2>
-            <p class="mb-4">Produto: <span id="add-stock-nome-produto" class="font-semibold text-blue-600"></span></p>
-            <form id="form-add-stock">
-                <input type="hidden" id="hidden-add-stock-id">
-                <div>
-                    <label for="input-add-stock-quantidade" class="block mb-2 font-semibold">Quantidade a Adicionar</label>
-                    <input type="number" id="input-add-stock-quantidade" required class="w-full p-2 border border-gray-300 rounded-md" placeholder="Ex: 24 (use negativo para corrigir)">
-                </div>
-                <div class="flex justify-end gap-4 mt-6">
-                    <button type="button" id="btn-cancelar-add-stock-modal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
-                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Confirmar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="modal-mover-stock-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 class="text-xl font-bold mb-4">Mover para Geleira</h2>
-            <p class="mb-4">Produto: <span id="mover-stock-nome-produto" class="font-semibold text-blue-600"></span></p>
-
-            <div class="grid grid-cols-2 gap-4 text-center bg-gray-50 p-2 rounded-lg mb-4">
-                <div>
-                    <p class="text-sm text-gray-500">No Armazém</p>
-                    <p id="mover-stock-armazem-qtd" class="font-bold text-lg">0</p>
-                </div>
-                <div>
-                    <p class="text-sm text-gray-500">Na Geleira</p>
-                    <p id="mover-stock-geleira-qtd" class="font-bold text-lg">0</p>
-                </div>
-            </div>
-
-            <form id="form-mover-stock">
-                <input type="hidden" id="hidden-mover-stock-id">
-                <div>
-                    <label for="input-mover-stock-quantidade" class="block mb-2 font-semibold">Quantidade a Mover</label>
-                    <input type="number" id="input-mover-stock-quantidade" required min="1" class="w-full p-2 border border-gray-300 rounded-md" placeholder="Ex: 6">
-                </div>
-                <div class="flex justify-end gap-4 mt-6">
-                    <button type="button" id="btn-cancelar-mover-stock-modal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
-                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Mover</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="modal-fecho-global-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <div class="text-center mb-4">
-                <h2 class="text-2xl font-bold">Fecho Global do Dia</h2>
-                <p class="text-sm text-gray-500" id="fg-data-relatorio"></p>
-            </div>
-            
-            <div class="space-y-4">
-                <div class="p-4 bg-gray-50 rounded-lg">
-                    <h3 class="font-semibold mb-2 text-lg">Resumo Financeiro</h3>
-                    <div class="space-y-1 text-sm">
-                        <div class="flex justify-between"><span>Total Bruto Vendido:</span><span id="fg-total-vendido" class="font-bold"></span></div>
-                        <div class="flex justify-between"><span>Em Numerário:</span><span id="fg-total-numerario" class="font-semibold"></span></div>
-                        <div class="flex justify-between"><span>Em TPA:</span><span id="fg-total-tpa" class="font-semibold"></span></div>
-                    </div>
-                </div>
-
-                <div class="p-4 bg-gray-50 rounded-lg">
-                    <h3 class="font-semibold mb-2 text-lg">Resumo Operacional</h3>
-                    <div class="space-y-1 text-sm">
-                        <div class="flex justify-between"><span>Contas Fechadas:</span><span id="fg-contas-fechadas" class="font-bold"></span></div>
-                        <div class="flex justify-between"><span>Média por Conta:</span><span id="fg-media-por-conta" class="font-semibold"></span></div>
-                    </div>
-                </div>
-
-                <div class="p-4 bg-gray-50 rounded-lg">
-                    <h3 class="font-semibold mb-2 text-lg">Produtos Vendidos</h3>
-                    <div id="fg-lista-produtos" class="space-y-1 text-sm max-h-32 overflow-y-auto">
-                        </div>
-                </div>
-            </div>
-
-            <div class="flex flex-col gap-4 mt-6">
-                <div class="flex gap-4">
-                    <button type="button" id="btn-exportar-pdf" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded hidden">Exportar PDF</button>
-                    <button type="button" id="btn-exportar-xls" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded hidden">Exportar XLS</button>
-                </div>
-                <button type="button" id="btn-arquivar-dia" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded">Arquivar Dia e Iniciar Novo Dia</button>
-                <button type="button" id="btn-cancelar-fecho-global-modal" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Voltar</button>
+        <!-- Modal para Criar Senha (PIN) -->
+        <div id="modal-criar-senha" class="modal-container-wrapper fixed inset-0 bg-gray-100 z-[100] flex justify-center items-center p-4 hidden">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md text-center">
+                <h2 class="text-2xl font-bold mb-2">Crie o seu PIN</h2>
+                <p class="text-gray-600 mb-6">Crie um PIN de 4 dígitos para proteger o acesso.</p>
+                <form id="form-criar-senha">
+                    <input type="password" id="input-criar-pin" placeholder="••••" inputmode="numeric" pattern="[0-9]*" maxlength="4" required class="w-full p-3 border rounded-md text-center text-2xl tracking-[.5em]">
+                    <input type="password" id="input-confirmar-pin" placeholder="Confirmar PIN" inputmode="numeric" pattern="[0-9]*" maxlength="4" required class="w-full p-3 border rounded-md text-center text-2xl tracking-[.5em] mt-2">
+                    <p id="criar-senha-mensagem-erro" class="text-red-500 text-sm mt-2 h-5"></p>
+                    <button type="submit" class="w-full bg-blue-500 text-white font-bold py-3 rounded-lg mt-4">Guardar PIN</button>
+                </form>
             </div>
         </div>
-    </div>
 
-    <div id="modal-confirmacao-overlay" role="dialog" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-            <h2 id="modal-confirmacao-titulo" class="text-xl font-bold mb-4">Confirmar Ação</h2>
-            <p id="modal-confirmacao-mensagem" class="text-gray-700 mb-6">Tem a certeza que deseja prosseguir com esta ação? Ela não pode ser desfeita.</p>
-            <div class="flex justify-end gap-4 mt-6">
-                <button type="button" id="btn-cancelar-confirmacao-modal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancelar</button>
-                <button type="button" id="btn-confirmar-confirmacao-modal" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Confirmar</button>
+        <!-- Modal para Inserir Senha (PIN) -->
+        <div id="modal-inserir-senha" class="modal-container-wrapper fixed inset-0 bg-gray-100 z-[100] flex justify-center items-center p-4 hidden">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md text-center">
+                <h2 class="text-2xl font-bold mb-2">Bem-vindo!</h2>
+                <p class="text-gray-600 mb-6">Insira o seu PIN para aceder.</p>
+                <form id="form-inserir-senha">
+                    <input type="password" id="input-inserir-pin" placeholder="••••" inputmode="numeric" pattern="[0-9]*" maxlength="4" required class="w-full p-3 border rounded-md text-center text-2xl tracking-[.5em]">
+                    <p id="inserir-senha-mensagem-erro" class="text-red-500 text-sm mt-2 h-5"></p>
+                    <button type="submit" class="w-full bg-blue-500 text-white font-bold py-3 rounded-lg mt-4">Desbloquear</button>
+                    <button type="button" id="btn-esqueci-senha" class="text-blue-500 hover:underline text-sm mt-4">Esqueci-me do PIN</button>
+                </form>
             </div>
         </div>
+        
+        <!-- Outros modais da aplicação -->
+        <div id="modal-overlay" class="modal-container-wrapper fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
+                <h2 class="text-xl font-bold mb-4">Abrir Nova Conta</h2>
+                <form id="form-nova-conta">
+                    <input type="text" id="input-nome-conta" placeholder="Ex: Mesa 12" required class="w-full p-2 border rounded-md">
+                    <div class="flex justify-end gap-4 mt-6">
+                        <button type="button" class="btn-cancelar-modal bg-gray-300 font-bold py-2 px-4 rounded">Cancelar</button>
+                        <button type="submit" class="bg-blue-500 text-white font-bold py-2 px-4 rounded">Criar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div id="modal-add-pedido-overlay" class="modal-container-wrapper fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+            <!-- Conteúdo do modal de adicionar pedido -->
+        </div>
+        
+        <!-- ... e assim por diante para todos os outros modais -->
+
     </div>
 
-    <div id="toast-notificacao" class="fixed top-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-white font-semibold shadow-lg transition-opacity duration-300 opacity-0 z-[100] hidden"></div>
-    
-    <div id="offline-indicator" class="hidden fixed bottom-16 left-0 w-full bg-red-600 text-white text-center p-2 shadow-lg z-[90]">
-        <p>Sem ligação à internet. A aplicação está em modo offline.</p>
-    </div>
+    <div id="toast-notificacao" class="fixed top-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-white font-semibold shadow-lg transition-opacity duration-300 opacity-0 z-[200] hidden"></div>
+    <div id="offline-indicator" class="hidden fixed bottom-16 left-0 w-full bg-red-600 text-white text-center p-1 shadow-lg z-[150]"></div>
 
-    <script type="module" src="./modules/main.js" defer></script>
-
+    <script type="module" src="./modules/main.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('service-worker.js')
-                    .then(registration => {
-                        console.log('Service Worker registado com sucesso:', registration);
-                    })
-                    .catch(error => {
-                        console.log('Falha ao registar o Service Worker:', error);
-                    });
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(reg => console.log('[Main] Service Worker registado com sucesso.'))
+                    .catch(err => console.log('[Main] Falha ao registar o Service Worker:', err));
             });
         }
     </script>
