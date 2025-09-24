@@ -1,7 +1,7 @@
-// /modules/service-worker.js (v15) - Implementa um ciclo de vida agressivo para atualizações rápidas.
+// /modules/service-worker.js (v16) - Implementa um recarregamento forçado na ativação para garantir consistência.
 'use strict';
 
-const CACHE_NAME = 'gestorbar-v15';
+const CACHE_NAME = 'gestorbar-v16';
 const URLS_TO_CACHE = [
     './',
     './index.html',
@@ -19,17 +19,14 @@ const URLS_TO_CACHE = [
     './icons/logo-big-512.png'
 ];
 
-/**
- * Evento 'install': Guarda os ficheiros essenciais e força a ativação do novo Service Worker.
- */
 self.addEventListener('install', (event) => {
-    console.log('[Service Worker] A instalar v15...');
+    console.log('[Service Worker] A instalar v16...');
     event.waitUntil(
         caches.open(CACHE_NAME).then(async (cache) => {
             console.log('[Service Worker] Cache aberta. A guardar ficheiros essenciais...');
             const promises = URLS_TO_CACHE.map(async (url) => {
                 try {
-                    const response = await fetch(url, { cache: 'reload' }); // Busca uma versão fresca da rede
+                    const response = await fetch(url, { cache: 'reload' });
                     if (!response.ok) throw new Error(`Status ${response.status}`);
                     await cache.put(url, response);
                 } catch (error) {
@@ -38,18 +35,14 @@ self.addEventListener('install', (event) => {
             });
             await Promise.all(promises);
         }).then(() => {
-            console.log('[Service Worker] Todos os ficheiros guardados. A forçar ativação...');
-            // self.skipWaiting() força a passagem do estado 'waiting' para 'activating'.
+            console.log('[Service Worker] Instalação concluída. A forçar ativação...');
             return self.skipWaiting();
         })
     );
 });
 
-/**
- * Evento 'activate': Limpa caches antigas e assume o controlo da página imediatamente.
- */
 self.addEventListener('activate', (event) => {
-    console.log('[Service Worker] A ativar v15...');
+    console.log('[Service Worker] A ativar v16...');
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
@@ -61,35 +54,33 @@ self.addEventListener('activate', (event) => {
                 })
             );
         }).then(() => {
-            console.log('[Service Worker] Caches limpas. A assumir o controlo...');
-            // self.clients.claim() permite que o SW ativado controle os clientes imediatamente.
-            return self.clients.claim();
+            console.log('[Service Worker] Caches limpas. A assumir o controlo e a forçar o recarregamento dos clientes...');
+            // Força todas as abas abertas a recarregarem para usar a nova versão da aplicação.
+            return self.clients.claim().then(() => {
+                return self.clients.matchAll({ type: 'window' }).then(clients => {
+                    clients.forEach(client => {
+                        client.navigate(client.url);
+                    });
+                });
+            });
         })
     );
 });
 
-/**
- * Evento 'fetch': Implementa a estratégia "Network-First, falling back to Cache".
- */
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
         return;
     }
-
     event.respondWith(
         fetch(event.request)
             .then(networkResponse => {
-                // Se a resposta da rede for bem-sucedida, atualiza a cache e retorna a resposta.
                 return caches.open(CACHE_NAME).then(cache => {
                     cache.put(event.request, networkResponse.clone());
                     return networkResponse;
                 });
             })
             .catch(() => {
-                // Se a rede falhar, tenta obter a resposta da cache.
-                return caches.match(event.request).then(cachedResponse => {
-                    return cachedResponse;
-                });
+                return caches.match(event.request);
             })
     );
 });
