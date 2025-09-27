@@ -1,10 +1,13 @@
-// /modules/state.js - Responsável por toda a gestão de estado da aplicação (v3.4)
+// /modules/state.js - (v7.0 - Integração com IndexedDB)
 'use strict';
 
-// Define a versão atual do esquema de dados. Incrementar ao fazer alterações incompatíveis.
-const SCHEMA_VERSION = 2;
+import * as db from './database.js';
 
-// Estado principal da aplicação
+// Define a versão do esquema de dados.
+const SCHEMA_VERSION = 3; // Versão incrementada devido à mudança de persistência
+
+// O estado principal da aplicação agora funciona como um cache em memória.
+// Ele será populado no arranque com os dados vindos do IndexedDB.
 export const estado = {
     schema_version: SCHEMA_VERSION,
     contasAtivas: [],
@@ -13,7 +16,7 @@ export const estado = {
     config: {}
 };
 
-// Variáveis de estado globais
+// Variáveis de estado globais (não persistentes)
 export let relatorioAtualParaExportar = null;
 export let dataAtualCalendario = new Date();
 export let produtoSelecionadoParaPedido = null;
@@ -30,110 +33,37 @@ export function setRelatorioAtual(relatorio) {
 }
 
 // ===================================
-// PERSISTÊNCIA E INTEGRIDADE DO ESTADO
+// SINCRONIZAÇÃO COM A BASE DE DADOS
 // ===================================
 
 /**
- * Salva o estado atual da aplicação no localStorage.
+ * Carrega o estado inicial da aplicação a partir do IndexedDB.
+ * Esta função é o novo ponto de entrada para o carregamento de dados.
  */
-export function salvarEstado() {
+export async function carregarEstadoInicial() {
     try {
-        // Garante que a versão está sempre atualizada ao salvar
-        estado.schema_version = SCHEMA_VERSION;
-        localStorage.setItem('gestorBarEstado', JSON.stringify(estado));
-    } catch (error) {
-        console.error('Erro crítico ao salvar o estado no localStorage:', error);
-        // Em futuras implementações, poderíamos notificar o utilizador sobre a falha.
-    }
-}
+        await db.initDB(); // Garante que a base de dados está pronta
 
-/**
- * Carrega o estado da aplicação do localStorage, aplicando migrações e validações.
- */
-export function carregarEstado() {
-    try {
-        const estadoSalvoJSON = localStorage.getItem('gestorBarEstado');
-        if (!estadoSalvoJSON) {
-            return; // Nenhum estado salvo, usa o estado inicial.
-        }
-
-        let estadoCarregado = JSON.parse(estadoSalvoJSON);
-
-        // Migra o estado se for de uma versão antiga
-        estadoCarregado = migrarEstado(estadoCarregado);
-
-        // Valida a integridade dos dados após a migração
-        if (!validarIntegridadeEstado(estadoCarregado)) {
-            console.error("Validação de integridade do estado falhou. A carregar estado inicial para evitar corrupção.");
-            // Futuramente, podemos tentar uma recuperação mais granular.
-            return;
-        }
+        // Carrega todos os dados das stores em paralelo para maior eficiência
+        const [inventarioDB, contasDB, historicoDB] = await Promise.all([
+            db.carregarTodos('inventario'),
+            db.carregarTodos('contas'),
+            db.carregarTodos('historico')
+        ]);
         
-        Object.assign(estado, estadoCarregado);
+        // Popula o objeto de estado em memória com os dados da DB
+        estado.inventario = inventarioDB;
+        estado.contasAtivas = contasDB; // Assumimos que as contas guardadas são as ativas do dia
+        estado.historicoFechos = historicoDB;
+
+        console.log('Estado carregado a partir do IndexedDB com sucesso.', estado);
 
     } catch (error) {
-        console.error('Erro ao carregar ou processar o estado do localStorage:', error);
-        // Em caso de erro de parsing ou outro, carrega o estado limpo para evitar crashes.
+        console.error('Erro crítico ao carregar o estado do IndexedDB:', error);
+        // Lançamos o erro para que a função inicializarApp possa apanhá-lo e mostrar uma mensagem de erro ao utilizador.
+        throw new Error('Não foi possível carregar os dados da aplicação.');
     }
 }
 
-/**
- * Executa migrações sequenciais no objeto de estado para atualizá-lo para a versão mais recente.
- * @param {object} estadoCarregado - O objeto de estado carregado do localStorage.
- * @returns {object} - O objeto de estado migrado para a versão atual.
- */
-function migrarEstado(estadoCarregado) {
-    const versaoAtual = estadoCarregado.schema_version || 1;
-
-    if (versaoAtual < 2) {
-        // Migração da v1 para a v2: Garante que todos os itens têm IDs e a estrutura correta.
-        console.log("A migrar estado da v1 para a v2...");
-        
-        if (estadoCarregado.inventario && Array.isArray(estadoCarregado.inventario)) {
-            estadoCarregado.inventario.forEach(produto => {
-                if (!produto.id) produto.id = crypto.randomUUID();
-                if (typeof produto.stockArmazem === 'undefined') produto.stockArmazem = produto.stockAtual || 0;
-                if (typeof produto.stockGeleira === 'undefined') produto.stockGeleira = 0;
-                if (typeof produto.stockMinimo === 'undefined') produto.stockMinimo = 1;
-                // Limpar propriedades obsoletas
-                delete produto.stockAtual;
-                delete produto.stockInicial;
-                delete produto.entradas;
-            });
-        }
-    }
-
-    // Adicionar futuros blocos 'if (versaoAtual < 3)' aqui para migrações futuras.
-
-    estadoCarregado.schema_version = SCHEMA_VERSION;
-    return estadoCarregado;
-}
-
-/**
- * Valida a integridade do objeto de estado, verificando IDs duplicados.
- * @param {object} estadoParaValidar - O objeto de estado a ser validado.
- * @returns {boolean} - Verdadeiro se o estado for válido, falso caso contrário.
- */
-function validarIntegridadeEstado(estadoParaValidar) {
-    // 1. Validar IDs únicos no inventário
-    if (estadoParaValidar.inventario && Array.isArray(estadoParaValidar.inventario)) {
-        const idsInventario = estadoParaValidar.inventario.map(p => p.id).filter(id => id); // Filtra IDs nulos/undefined
-        if (new Set(idsInventario).size !== idsInventario.length) {
-            console.error("Erro de integridade: IDs de produto duplicados encontrados no inventário.");
-            return false;
-        }
-    }
-
-    // 2. Validar IDs únicos nas contas ativas
-    if (estadoParaValidar.contasAtivas && Array.isArray(estadoParaValidar.contasAtivas)) {
-        const idsContas = estadoParaValidar.contasAtivas.map(c => c.id).filter(id => id);
-        if (new Set(idsContas).size !== idsContas.length) {
-            console.error("Erro de integridade: IDs de conta duplicados encontrados.");
-            return false;
-        }
-    }
-
-    // Adicionar mais validações conforme necessário (ex: verificar se stock não é negativo, etc.)
-
-    return true; // Se todas as verificações passarem
-}
+// As funções salvarEstado() e carregarEstado() baseadas no localStorage foram REMOVIDAS.
+// A persistência agora será gerida diretamente no handlers.js através de chamadas ao database.js.

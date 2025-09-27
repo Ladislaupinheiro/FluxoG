@@ -1,12 +1,11 @@
-// main.js - O Ponto de Entrada e Orquestrador da Aplicação (v5.0)
+// main.js - O Ponto de Entrada e Orquestrador da Aplicação (v6.1 - Integração com State/DB)
 'use strict';
 
-import { carregarEstado, estado, dataAtualCalendario } from './state.js';
+import { estado, carregarEstadoInicial, dataAtualCalendario } from './state.js';
 import * as ui from './ui.js';
 import * as modals from './modals.js';
 import * as handlers from './handlers.js';
 import * as sel from './selectors.js';
-import * as security from './security.js';
 
 /**
  * Função de debounce para limitar a frequência de execução de uma função.
@@ -23,26 +22,30 @@ function debounce(func, delay = 300) {
 }
 
 /**
- * Função de arranque principal da aplicação. Verifica o estado de segurança e mostra o ecrã apropriado.
+ * Função de arranque principal da aplicação, agora simplificada.
  */
 async function inicializarApp() {
     try {
-        const licencaAtiva = await security.verificarLicencaAtiva();
-        if (!licencaAtiva) {
-            sel.modalAtivacao.classList.remove('hidden');
-            sel.inputChaveLicenca.focus();
-            return;
-        }
+        // A lógica de verificação de licença e PIN foi removida.
+        // A aplicação agora carrega o estado e inicia diretamente.
+        await carregarEstadoInicial(); 
 
-        const senhaExiste = security.verificarSeSenhaExiste();
-        if (!senhaExiste) {
-            sel.modalCriarSenha.classList.remove('hidden');
-            sel.inputCriarPin.focus();
-            return;
+        // Mostra a interface principal da aplicação
+        sel.appContainer.classList.remove('hidden');
+        sel.bottomNav.classList.remove('hidden');
+        
+        // Decide qual a melhor aba para mostrar no arranque
+        if (estado.inventario.length === 0) {
+            ui.navigateToTab('tab-inventario');
+        } else {
+            const contasAtivas = estado.contasAtivas.filter(c => c.status === 'ativa');
+            if (contasAtivas.length > 0) {
+                 ui.navigateToTab('tab-atendimento');
+            } else {
+                 ui.navigateToTab('tab-dashboard');
+            }
         }
-
-        sel.modalInserirSenha.classList.remove('hidden');
-        sel.inputInserirPin.focus();
+        ui.atualizarTodaUI();
 
     } catch (error) {
         console.error("Erro crítico durante a inicialização:", error);
@@ -52,7 +55,6 @@ async function inicializarApp() {
 
 /**
  * Regista todos os event listeners da aplicação.
- * É chamada apenas uma vez, após a inicialização dos seletores.
  */
 function configurarEventListeners() {
     // Navegação Principal
@@ -100,21 +102,16 @@ function configurarEventListeners() {
         ui.renderizarCalendario();
     });
     sel.calendarioGridDias.addEventListener('click', (event) => {
-        const target = event.target.closest('[data-dia]');
-        if (!target) return;
-        const dia = parseInt(target.dataset.dia);
-        const ano = dataAtualCalendario.getFullYear();
-        const mes = dataAtualCalendario.getMonth();
-        const dataClicadaStr = new Date(ano, mes, dia).toDateString();
-        const relatorio = estado.historicoFechos.find(rel => new Date(rel.data).toDateString() === dataClicadaStr);
-        if (relatorio) modals.abrirModalFechoGlobalHistorico(relatorio);
+        const diaEl = event.target.closest('[data-dia]');
+        if (diaEl) {
+            const dia = parseInt(diaEl.dataset.dia, 10);
+            const dataProcurada = new Date(dataAtualCalendario.getFullYear(), dataAtualCalendario.getMonth(), dia);
+            const relatorioIndex = estado.historicoFechos.findIndex(rel => new Date(rel.data).toDateString() === dataProcurada.toDateString());
+            if (relatorioIndex !== -1) {
+                modals.abrirModalFechoGlobalHistorico(relatorioIndex);
+            }
+        }
     });
-
-    // Segurança
-    sel.formAtivacao.addEventListener('submit', handlers.handleAtivacao);
-    sel.formCriarSenha.addEventListener('submit', handlers.handleCriarSenha);
-    sel.formInserirSenha.addEventListener('submit', handlers.handleVerificarSenha);
-    sel.btnEsqueciSenha.addEventListener('click', handlers.handleEsqueciSenha);
 
     // Formulários e Modais
     sel.formNovaConta.addEventListener('submit', handlers.handleCriarNovaConta);
@@ -132,9 +129,14 @@ function configurarEventListeners() {
     sel.pagamentoMetodosContainer.addEventListener('click', (event) => {
         const target = event.target.closest('.pagamento-metodo-btn');
         if (!target) return;
-        sel.pagamentoMetodosContainer.querySelectorAll('.pagamento-metodo-btn').forEach(btn => btn.classList.remove('border-blue-500', 'bg-blue-100'));
-        target.classList.add('border-blue-500', 'bg-blue-100');
+        sel.pagamentoMetodosContainer.querySelectorAll('.pagamento-metodo-btn').forEach(btn => {
+            btn.classList.remove('border-blue-500', 'bg-blue-100', 'font-bold');
+            btn.classList.add('border-gray-300');
+        });
+        target.classList.add('border-blue-500', 'bg-blue-100', 'font-bold');
         sel.btnConfirmarPagamento.disabled = false;
+        sel.btnConfirmarPagamento.classList.remove('bg-gray-400', 'cursor-not-allowed');
+        sel.btnConfirmarPagamento.classList.add('bg-blue-500', 'hover:bg-blue-600');
     });
     sel.btnConfirmarPagamento.addEventListener('click', handlers.handleFinalizarPagamento);
     sel.formAddProduto.addEventListener('submit', handlers.handleAddProduto);
@@ -146,17 +148,25 @@ function configurarEventListeners() {
     sel.btnExportarPdf.addEventListener('click', handlers.handleExportarPdf);
     sel.btnExportarXls.addEventListener('click', handlers.handleExportarXls);
     sel.btnConfirmarConfirmacaoModal.addEventListener('click', () => {
-        if (typeof modals.onConfirmCallback === 'function') modals.onConfirmCallback();
+        if (typeof modals.onConfirmCallback === 'function') {
+            modals.onConfirmCallback();
+        }
         modals.fecharModalConfirmacao();
     });
 
     // Gestão genérica de fecho de modais
     document.addEventListener('click', (event) => {
-        if (event.target.matches('.modal-container-wrapper')) {
-            event.target.classList.add('hidden');
+        const modal = event.target.closest('.modal-container-wrapper');
+        if (event.target.matches('.modal-container-wrapper') || event.target.matches('.btn-cancelar-modal')) {
+             if (modal) modal.classList.add('hidden');
         }
-        if (event.target.matches('.btn-cancelar-modal')) {
-            event.target.closest('.modal-container-wrapper').classList.add('hidden');
+    });
+    
+     document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            document.querySelectorAll('.modal-container-wrapper:not(.hidden)').forEach(modal => {
+                modal.classList.add('hidden');
+            });
         }
     });
 }
@@ -164,13 +174,7 @@ function configurarEventListeners() {
 
 // Ponto de entrada da aplicação
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Inicializa os seletores PRIMEIRO, garantindo que o DOM está pronto.
     sel.inicializarSeletores();
-    
-    // 2. Regista todos os event listeners para a aplicação.
     configurarEventListeners();
-
-    // 3. Inicia a lógica de arranque da aplicação.
     inicializarApp();
 });
-

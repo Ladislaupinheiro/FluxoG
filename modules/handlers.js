@@ -1,124 +1,14 @@
-// /modules/handlers.js - Contém a lógica de negócio e os gestores de eventos (v5.0)
+// /modules/handlers.js - (v7.3 - Relatórios Profissionais)
 'use strict';
 
-import { estado, salvarEstado, carregarEstado, produtoSelecionadoParaPedido, setProdutoSelecionado, setDataAtual, relatorioAtualParaExportar } from './state.js';
+import { estado, produtoSelecionadoParaPedido, setProdutoSelecionado, relatorioAtualParaExportar } from './state.js';
 import * as ui from './ui.js';
 import * as modals from './modals.js';
 import * as sel from './selectors.js';
-import * as security from './security.js';
+import * as db from './database.js';
 
-
-/**
- * Função auxiliar que inicia a sessão do utilizador após uma autenticação bem-sucedida.
- */
-function iniciarSessao() {
-    carregarEstado();
-    
-    // Mostra a interface principal da aplicação
-    sel.appContainer.classList.remove('hidden');
-    sel.bottomNav.classList.remove('hidden');
-
-    if (estado.inventario.length === 0) {
-        ui.navigateToTab('tab-inventario');
-    } else {
-        ui.navigateToTab('tab-atendimento');
-    }
-    ui.atualizarTodaUI();
-}
-
-
-// ===================================
-// HANDLERS DE SEGURANÇA
-// ===================================
-
-export async function handleAtivacao(event) {
-    event.preventDefault();
-    const chave = sel.inputChaveLicenca.value.trim().toUpperCase();
-    sel.mensagemErroAtivacao.textContent = '';
-
-    if (!security.validarFormatoChave(chave)) {
-        sel.mensagemErroAtivacao.textContent = 'O formato da chave de licença é inválido.';
-        return;
-    }
-
-    await security.ativarLicenca(chave);
-    ui.mostrarNotificacao('Aplicação ativada com sucesso!', 'sucesso');
-    
-    sel.modalAtivacao.classList.add('hidden');
-    sel.modalCriarSenha.classList.remove('hidden');
-    sel.inputCriarPin.focus();
-}
-
-export async function handleCriarSenha(event) {
-    event.preventDefault();
-    const pin = sel.inputCriarPin.value;
-    const confirmarPin = sel.inputConfirmarPin.value;
-    sel.mensagemErroCriarSenha.textContent = '';
-
-    if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-        sel.mensagemErroCriarSenha.textContent = 'O PIN deve ter exatamente 4 dígitos.';
-        return;
-    }
-
-    if (pin !== confirmarPin) {
-        sel.mensagemErroCriarSenha.textContent = 'Os PINs não coincidem.';
-        return;
-    }
-
-    await security.guardarHashSenha(pin);
-    ui.mostrarNotificacao('PIN criado com sucesso!', 'sucesso');
-
-    sel.modalCriarSenha.classList.add('hidden');
-    iniciarSessao();
-}
-
-export async function handleVerificarSenha(event) {
-    event.preventDefault();
-    const pin = sel.inputInserirPin.value;
-    sel.mensagemErroInserirSenha.textContent = '';
-
-    const bloqueio = security.verificarBloqueio();
-    if (bloqueio.bloqueado) {
-        sel.mensagemErroInserirSenha.textContent = `Muitas tentativas. Tente novamente em ${Math.ceil(bloqueio.tempoRestante)}s.`;
-        return;
-    }
-
-    const senhaCorreta = await security.verificarSenha(pin);
-
-    if (senhaCorreta) {
-        security.limparTentativas();
-        sel.modalInserirSenha.classList.add('hidden');
-        iniciarSessao();
-    } else {
-        security.registrarTentativaFalhada();
-        const novoBloqueio = security.verificarBloqueio();
-        if (novoBloqueio.bloqueado) {
-            sel.mensagemErroInserirSenha.textContent = `PIN incorreto. Acesso bloqueado por ${Math.ceil(novoBloqueio.tempoRestante)}s.`;
-        } else {
-            sel.mensagemErroInserirSenha.textContent = 'PIN incorreto. Tente novamente.';
-        }
-        sel.inputInserirPin.value = '';
-        sel.inputInserirPin.focus();
-    }
-}
-
-export function handleEsqueciSenha() {
-    modals.abrirModalConfirmacao(
-        'Esqueceu-se do PIN?',
-        'Isto irá limpar todos os dados da aplicação e desativar a licença. Terá de reativar com a sua chave original.',
-        () => {
-            localStorage.clear();
-            ui.mostrarNotificacao('Dados limpos. A aplicação será recarregada.');
-            setTimeout(() => window.location.reload(), 2000);
-        }
-    );
-}
-
-// ===================================
-// HANDLERS DA APLICAÇÃO
-// ===================================
-
-export function handleCriarNovaConta(event) {
+// ... (todas as outras funções de handlers, como handleCriarNovaConta, etc., permanecem inalteradas) ...
+export async function handleCriarNovaConta(event) {
     event.preventDefault();
     const nomeConta = sel.inputNomeConta.value.trim();
     if (!nomeConta) { ui.mostrarNotificacao("O nome da conta não pode estar vazio.", "erro"); return; }
@@ -126,69 +16,70 @@ export function handleCriarNovaConta(event) {
         ui.mostrarNotificacao(`Já existe uma conta ativa com o nome "${nomeConta}".`, "erro"); return;
     }
     const maxId = estado.contasAtivas.reduce((max, c) => c.id > max ? c.id : max, 0);
-    estado.contasAtivas.push({ id: maxId + 1, nome: nomeConta, pedidos: [], dataAbertura: new Date(), status: 'ativa' });
+    const novaContaObj = { id: maxId + 1, nome: nomeConta, pedidos: [], dataAbertura: new Date().toISOString(), status: 'ativa' };
+    estado.contasAtivas.push(novaContaObj);
+    await db.salvarItem('contas', novaContaObj);
     modals.fecharModalNovaConta();
-    sel.seletorCliente.value = estado.contasAtivas[estado.contasAtivas.length - 1].id;
-    ui.atualizarTodaUI();
-    salvarEstado();
+    ui.renderizarSeletorDeClientes();
+    sel.seletorCliente.value = novaContaObj.id;
+    ui.renderizarVistaClienteAtivo();
     ui.mostrarNotificacao(`Conta "${nomeConta}" criada com sucesso!`);
 }
 
-export function handleAddPedido(event) {
+export async function handleAddPedido(event) {
     event.preventDefault();
     const idConta = parseInt(sel.hiddenContaId.value);
     const quantidade = parseInt(sel.inputQuantidade.value);
     if (!produtoSelecionadoParaPedido) { ui.mostrarNotificacao("Selecione um produto.", "erro"); return; }
-    
     const idProduto = produtoSelecionadoParaPedido.id;
     const conta = estado.contasAtivas.find(c => c.id === idConta);
     const produto = estado.inventario.find(p => p.id === idProduto);
     if (!conta || !produto || !quantidade || quantidade <= 0) { ui.mostrarNotificacao("Dados de pedido inválidos.", "erro"); return; }
     if (quantidade > produto.stockGeleira) { ui.mostrarNotificacao(`Stock insuficiente: ${produto.stockGeleira} disp.`, "erro"); return; }
-
     produto.stockGeleira -= quantidade;
     const pedidoExistente = conta.pedidos.find(p => p.produtoId === produto.id);
-    if (pedidoExistente) pedidoExistente.qtd += quantidade;
-    else conta.pedidos.push({ produtoId: produto.id, nome: produto.nome, preco: produto.preco, qtd: quantidade });
-    
+    if (pedidoExistente) {
+        pedidoExistente.qtd += quantidade;
+    } else {
+        conta.pedidos.push({ produtoId: produto.id, nome: produto.nome, preco: produto.preco, qtd: quantidade });
+    }
+    await db.salvarItem('contas', conta);
+    await db.salvarItem('inventario', produto);
     modals.fecharModalAddPedido();
     ui.atualizarTodaUI();
-    salvarEstado();
     ui.mostrarNotificacao(`${quantidade}x ${produto.nome} adicionado(s)!`);
 }
 
-export function handleSalvarNovoNome(event) {
+export async function handleSalvarNovoNome(event) {
     event.preventDefault();
     const idConta = parseInt(sel.hiddenEditNomeId.value);
     const novoNome = sel.inputEditNome.value.trim();
     const conta = estado.contasAtivas.find(c => c.id === idConta);
     if (!conta || !novoNome) { ui.mostrarNotificacao("O nome não pode estar vazio.", "erro"); return; }
     conta.nome = novoNome;
+    await db.salvarItem('contas', conta);
     modals.fecharModalEditNome();
     ui.atualizarTodaUI();
-    salvarEstado();
     ui.mostrarNotificacao(`Conta renomeada para "${novoNome}"!`);
 }
 
-export function handleFinalizarPagamento() {
+export async function handleFinalizarPagamento() {
     const idConta = parseInt(sel.pagamentoContaIdInput.value);
     const metodoBtn = sel.pagamentoMetodosContainer.querySelector('.border-blue-500');
     if (!metodoBtn) { ui.mostrarNotificacao("Selecione um método de pagamento.", "erro"); return; }
-    
     const conta = estado.contasAtivas.find(c => c.id === idConta);
     if (!conta) return;
     conta.status = 'fechada';
-    conta.dataFecho = new Date();
+    conta.dataFecho = new Date().toISOString();
     conta.metodoPagamento = metodoBtn.dataset.metodo;
     conta.valorFinal = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0);
-    
+    await db.salvarItem('contas', conta);
     modals.fecharModalPagamento();
     ui.atualizarTodaUI();
-    salvarEstado();
     ui.mostrarNotificacao(`Conta "${conta.nome}" finalizada com sucesso!`);
 }
 
-export function handleAddProduto(event) {
+export async function handleAddProduto(event) {
     event.preventDefault();
     const nome = sel.inputProdutoNome.value.trim();
     const preco = parseFloat(sel.inputProdutoPreco.value);
@@ -197,59 +88,50 @@ export function handleAddProduto(event) {
     if (!nome || isNaN(preco) || preco <= 0 || isNaN(stock) || stock < 0 || isNaN(stockMinimo) || stockMinimo < 0) {
         ui.mostrarNotificacao("Dados inválidos. Verifique os valores.", "erro"); return;
     }
-    estado.inventario.push({ id: crypto.randomUUID(), nome, preco, stockArmazem: stock, stockGeleira: 0, stockMinimo });
+    const novoProduto = { id: crypto.randomUUID(), nome, preco, stockArmazem: stock, stockGeleira: 0, stockMinimo };
+    estado.inventario.push(novoProduto);
+    await db.salvarItem('inventario', novoProduto);
     modals.fecharModalAddProduto();
     ui.atualizarTodaUI();
-    salvarEstado();
     ui.mostrarNotificacao(`Produto "${nome}" adicionado!`);
 }
 
-export function handleEditProduto(event) {
+export async function handleEditProduto(event) {
     event.preventDefault();
     const id = sel.hiddenEditProdutoId.value;
     const produto = estado.inventario.find(p => p.id === id);
     if (!produto) { ui.mostrarNotificacao("Produto não encontrado.", "erro"); return; }
-
-    const nome = sel.inputEditProdutoNome.value.trim();
-    const preco = parseFloat(sel.inputEditProdutoPreco.value);
-    const stockMinimo = parseInt(sel.inputEditProdutoStockMinimo.value);
-    if (!nome || isNaN(preco) || preco <= 0 || isNaN(stockMinimo) || stockMinimo < 0) {
-        ui.mostrarNotificacao("Dados inválidos. Verifique os valores.", "erro"); return;
-    }
-    
-    produto.nome = nome;
-    produto.preco = preco;
-    produto.stockMinimo = stockMinimo;
-    
+    produto.nome = sel.inputEditProdutoNome.value.trim();
+    produto.preco = parseFloat(sel.inputEditProdutoPreco.value);
+    produto.stockMinimo = parseInt(sel.inputEditProdutoStockMinimo.value);
+    await db.salvarItem('inventario', produto);
     modals.fecharModalEditProduto();
     ui.atualizarTodaUI();
-    salvarEstado();
-    ui.mostrarNotificacao(`Produto "${nome}" atualizado!`);
+    ui.mostrarNotificacao(`Produto "${produto.nome}" atualizado!`);
 }
 
-export function handleAddStock(event) {
+export async function handleAddStock(event) {
     event.preventDefault();
     const produtoId = sel.hiddenAddStockId.value;
     const produto = estado.inventario.find(p => p.id === produtoId);
     if (!produto) return;
     const quantidade = parseInt(sel.inputAddStockQuantidade.value);
-    if (isNaN(quantidade)) { ui.mostrarNotificacao("Insira um número válido.", "erro"); return; }
+    if (isNaN(quantidade) || quantidade === 0) { ui.mostrarNotificacao("Insira um número válido diferente de zero.", "erro"); return; }
     if ((produto.stockArmazem + quantidade) < 0) {
         ui.mostrarNotificacao(`Stock do armazém não pode ser negativo.`, "erro"); return;
     }
     produto.stockArmazem += quantidade;
+    await db.salvarItem('inventario', produto);
     modals.fecharModalAddStock();
     ui.atualizarTodaUI();
-    salvarEstado();
     ui.mostrarNotificacao(quantidade > 0 ? `${quantidade} un. adicionadas.` : `${Math.abs(quantidade)} un. removidas.`);
 }
 
-export function handleFormMoverStock(event) {
+export async function handleFormMoverStock(event) {
     event.preventDefault();
     const produtoId = sel.hiddenMoverStockId.value;
     const produto = estado.inventario.find(p => p.id === produtoId);
     const quantidade = parseInt(sel.inputMoverStockQuantidade.value);
-
     if (!produto || isNaN(quantidade) || quantidade <= 0) {
         ui.mostrarNotificacao("A quantidade deve ser um número positivo.", "erro"); return;
     }
@@ -258,43 +140,73 @@ export function handleFormMoverStock(event) {
     }
     produto.stockArmazem -= quantidade;
     produto.stockGeleira += quantidade;
+    await db.salvarItem('inventario', produto);
     modals.fecharModalMoverStock();
     ui.atualizarTodaUI();
-    salvarEstado();
     ui.mostrarNotificacao(`${quantidade} un. de ${produto.nome} movidas para a geleira.`);
 }
 
-export function handleRemoverItem(idConta, itemIndex) {
+export async function handleRemoverItem(idConta, itemIndex) {
     const conta = estado.contasAtivas.find(c => c.id === idConta);
     if (!conta) return;
     const pedidoRemovido = conta.pedidos.splice(itemIndex, 1)[0];
     if (!pedidoRemovido) return;
+    await db.salvarItem('contas', conta);
     const produtoInventario = estado.inventario.find(p => p.id === pedidoRemovido.produtoId);
-    if (produtoInventario) produtoInventario.stockGeleira += pedidoRemovido.qtd;
+    if (produtoInventario) {
+        produtoInventario.stockGeleira += pedidoRemovido.qtd;
+        await db.salvarItem('inventario', produtoInventario);
+    }
     ui.atualizarTodaUI();
-    salvarEstado();
     ui.mostrarNotificacao("Item removido.");
 }
 
 export function handleArquivarDia() {
+    const hojeStr = new Date().toDateString();
+    const fechoDeHojeExiste = estado.historicoFechos.some(rel => new Date(rel.data).toDateString() === hojeStr);
+    if (fechoDeHojeExiste) {
+        ui.mostrarNotificacao("O dia de hoje já foi fechado e arquivado.", "erro");
+        return;
+    }
+    const contasFechadas = estado.contasAtivas.filter(c => c.status === 'fechada');
+    if (contasFechadas.length === 0) {
+        ui.mostrarNotificacao("Não existem vendas fechadas para arquivar. Não é possível fechar o dia.", "erro");
+        return;
+    }
+    const contasAbertas = estado.contasAtivas.filter(c => c.status === 'ativa');
+    if (contasAbertas.length > 0) {
+        const nomesContas = contasAbertas.map(c => c.nome).join(', ');
+        ui.mostrarNotificacao(`Feche as seguintes contas antes de arquivar: ${nomesContas}`, 'erro');
+        return;
+    }
     modals.abrirModalConfirmacao(
         'Arquivar o Dia?',
-        'O stock da geleira será devolvido ao armazém. Esta ação não pode ser desfeita.',
-        () => {
-            const relatorio = modals.calcularRelatorioDia();
-            if (!estado.historicoFechos) estado.historicoFechos = [];
-            estado.historicoFechos.push(relatorio);
-            estado.contasAtivas = []; 
-            estado.inventario.forEach(item => {
-                if (item.stockGeleira > 0) {
-                    item.stockArmazem += item.stockGeleira;
-                    item.stockGeleira = 0;
-                }
-            });
-            modals.fecharModalFechoGlobal();
-            ui.atualizarTodaUI();
-            salvarEstado();
-            ui.mostrarNotificacao("Dia arquivado com sucesso!");
+        'Todas as contas fechadas serão arquivadas e o dia será reiniciado. Esta ação não pode ser desfeita.',
+        async () => {
+            try {
+                const relatorio = modals.calcularRelatorioDia();
+                relatorio.data = new Date().toISOString();
+                await db.salvarItem('historico', relatorio);
+                const promessasApagar = estado.contasAtivas.map(c => db.apagarItem('contas', c.id));
+                await Promise.all(promessasApagar);
+                const promessasAtualizar = [];
+                estado.inventario.forEach(item => {
+                    if (item.stockGeleira > 0) {
+                        item.stockArmazem += item.stockGeleira;
+                        item.stockGeleira = 0;
+                        promessasAtualizar.push(db.salvarItem('inventario', item));
+                    }
+                });
+                await Promise.all(promessasAtualizar);
+                estado.contasAtivas = [];
+                estado.historicoFechos.push(relatorio);
+                modals.fecharModalFechoGlobal();
+                ui.atualizarTodaUI();
+                ui.mostrarNotificacao("Dia arquivado com sucesso!");
+            } catch (error) {
+                console.error("Erro ao arquivar o dia:", error);
+                ui.mostrarNotificacao("Ocorreu um erro ao arquivar o dia.", "erro");
+            }
         }
     );
 }
@@ -304,22 +216,142 @@ export function handleSelecaoAutocomplete(id, nome) {
     if (produto) setProdutoSelecionado(produto);
 }
 
+
+// ===================================
+// FUNÇÕES DE EXPORTAÇÃO REFATORADAS
+// ===================================
+
 export function handleExportarPdf() {
     if (!relatorioAtualParaExportar) return;
+    
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    // Lógica de criação de PDF...
-    doc.text("Relatório de Fecho", 10, 10);
-    doc.save(`Relatorio_${new Date(relatorioAtualParaExportar.data).toLocaleDateString('pt-PT')}.pdf`);
+    const rel = relatorioAtualParaExportar;
+    const dataStr = new Date(rel.data).toLocaleDateString('pt-PT', { dateStyle: 'full' });
+    const MARGEM = 14;
+    const LARGURA_PAGINA = doc.internal.pageSize.getWidth();
+    let y = 20;
+
+    // --- Cabeçalho ---
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('GestorBar Pro', LARGURA_PAGINA / 2, y, { align: 'center' });
+    y += 8;
+    doc.setFontSize(12);
+    doc.text('Relatório de Fecho do Dia', LARGURA_PAGINA / 2, y, { align: 'center' });
+    y += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(dataStr, LARGURA_PAGINA / 2, y, { align: 'center' });
+    y += 10;
+    doc.line(MARGEM, y, LARGURA_PAGINA - MARGEM, y);
+    y += 12;
+
+    // --- Resumo Financeiro ---
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('Resumo Financeiro', MARGEM, y);
+    y += 8;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    const resumoX1 = MARGEM + 5;
+    const resumoX2 = MARGEM + 60;
+    doc.text('Total Vendido:', resumoX1, y);
+    doc.text(rel.totalVendido.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' }), resumoX2, y);
+    y += 7;
+    doc.text('Total em Numerário:', resumoX1, y);
+    doc.text(rel.totalNumerario.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' }), resumoX2, y);
+    y += 7;
+    doc.text('Total em TPA:', resumoX1, y);
+    doc.text(rel.totalTpa.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' }), resumoX2, y);
+    y += 9;
+    doc.text('Nº de Contas:', resumoX1, y);
+    doc.text(String(rel.numContasFechadas), resumoX2, y);
+    y += 7;
+    doc.text('Média por Conta:', resumoX1, y);
+    doc.text(rel.mediaPorConta.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' }), resumoX2, y);
+    y += 15;
+    
+    // --- Tabela de Produtos Vendidos ---
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('Produtos Vendidos', MARGEM, y);
+    y += 8;
+
+    if (Object.keys(rel.produtosVendidos).length > 0) {
+        const tableHead = [['Qtd', 'Produto']];
+        const tableBody = Object.entries(rel.produtosVendidos).map(([nome, qtd]) => [`${qtd}x`, nome]);
+        
+        doc.autoTable({
+            startY: y,
+            head: tableHead,
+            body: tableBody,
+            theme: 'grid',
+            headStyles: { fillColor: [22, 160, 133] },
+            margin: { left: MARGEM, right: MARGEM }
+        });
+        y = doc.lastAutoTable.finalY + 10;
+    } else {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(11);
+        doc.text('Nenhum produto vendido.', MARGEM, y);
+        y += 7;
+    }
+    
+    // --- Rodapé ---
+    const pageCount = doc.internal.getNumberOfPages();
+    for(let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`Gerado pelo GestorBar Pro em ${new Date().toLocaleDateString('pt-PT')}`, MARGEM, doc.internal.pageSize.getHeight() - 10);
+        doc.text(`Pág ${i}/${pageCount}`, LARGURA_PAGINA - MARGEM, doc.internal.pageSize.getHeight() - 10, { align: 'right' });
+    }
+    
+    doc.save(`Relatorio_${new Date(rel.data).toISOString().split('T')[0]}.pdf`);
 }
 
 export function handleExportarXls() {
     if (!relatorioAtualParaExportar) return;
-    const wb = XLSX.utils.book_new();
-    // Lógica de criação de XLS...
-    const ws_data = [["Relatório"]];
-    const ws = XLSX.utils.aoa_to_sheet(ws_data);
-    XLSX.utils.book_append_sheet(wb, ws, "Relatorio");
-    XLSX.writeFile(wb, `Relatorio_${new Date(relatorioAtualParaExportar.data).toLocaleDateString('pt-PT')}.xlsx`);
-}
+    
+    const rel = relatorioAtualParaExportar;
+    const dataStr = new Date(rel.data).toLocaleDateString('pt-PT');
+    
+    // --- Aba de Resumo ---
+    const resumo_data = [
+        ["Relatório de Fecho do Dia", dataStr], [],
+        ["Métrica", "Valor"],
+        ["Total Vendido (AOA)", rel.totalVendido],
+        ["Total em Numerário (AOA)", rel.totalNumerario],
+        ["Total em TPA (AOA)", rel.totalTpa],
+        ["Número de Contas Fechadas", rel.numContasFechadas],
+        ["Média por Conta (AOA)", Number(rel.mediaPorConta.toFixed(2))]
+    ];
+    const ws_resumo = XLSX.utils.aoa_to_sheet(resumo_data);
+    ws_resumo['!cols'] = [{ wch: 25 }, { wch: 20 }];
+    // Formatar células de moeda
+    ws_resumo['B4'].z = '#,##0.00 "AOA"';
+    ws_resumo['B5'].z = '#,##0.00 "AOA"';
+    ws_resumo['B6'].z = '#,##0.00 "AOA"';
+    ws_resumo['B8'].z = '#,##0.00 "AOA"';
 
+
+    // --- Aba de Produtos ---
+    const produtos_data = [["Quantidade", "Produto"]];
+    if (Object.keys(rel.produtosVendidos).length > 0) {
+        Object.entries(rel.produtosVendidos).forEach(([nome, qtd]) => {
+            produtos_data.push([qtd, nome]);
+        });
+    } else {
+        produtos_data.push(["-", "Nenhum produto vendido"]);
+    }
+    const ws_produtos = XLSX.utils.aoa_to_sheet(produtos_data);
+    ws_produtos['!cols'] = [{ wch: 15 }, { wch: 40 }];
+    
+    // --- Criar o Workbook ---
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws_resumo, "Resumo");
+    XLSX.utils.book_append_sheet(wb, ws_produtos, "Produtos Vendidos");
+    
+    XLSX.writeFile(wb, `Relatorio_${new Date(rel.data).toISOString().split('T')[0]}.xlsx`);
+}

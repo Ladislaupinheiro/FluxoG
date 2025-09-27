@@ -1,7 +1,7 @@
 // /modules/service-worker.js (v17) - Garante uma instalação limpa e a estratégia Network-First.
 'use strict';
 
-const CACHE_NAME = 'gestorbar-v17';
+const CACHE_NAME = 'gestorbar-v18';
 // CORREÇÃO: Removido o 'config.js' que não existe.
 const URLS_TO_CACHE = [
     './',
@@ -15,13 +15,13 @@ const URLS_TO_CACHE = [
     './modules/handlers.js',
     './modules/modals.js',
     './modules/selectors.js',
-    './modules/security.js',
+    './modules/database.js',
     './icons/logo-small-192.png',
     './icons/logo-big-512.png'
 ];
 
 self.addEventListener('install', (event) => {
-    console.log('[Service Worker] A instalar v17...');
+    console.log('[Service Worker] A instalar v18...');
     event.waitUntil(
         caches.open(CACHE_NAME).then(async (cache) => {
             console.log('[Service Worker] Cache aberta. A guardar ficheiros essenciais...');
@@ -34,7 +34,7 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('[Service Worker] A ativar v17...');
+    console.log('[Service Worker] A ativar v18...');
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
