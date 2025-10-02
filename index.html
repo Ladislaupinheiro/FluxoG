@@ -9,9 +9,10 @@
     <link rel="apple-touch-icon" href="icons/logo-small-192.png">
     <link rel="icon" type="image/png" href="favicon.png">
 
+    <link href="https://cdn.lineicons.com/4.0/lineicons.css" rel="stylesheet" />
+
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -49,26 +50,35 @@
         </section>
 
         <section id="tab-inventario" class="tab-content hidden">
-             <header class="bg-white p-4 rounded-lg shadow-md mb-4 flex justify-end items-center">
-                <button id="btn-add-produto" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow">Adicionar Produto</button>
-            </header>
-            <div class="mb-4">
+            <div id="inventario-header" class="mb-4">
                 <input type="search" id="input-busca-inventario" placeholder="🔎 Buscar por nome..." class="w-full p-3 border border-gray-300 rounded-lg">
             </div>
-            <div id="lista-inventario" class="text-center text-gray-500 py-8"></div>
+            <div id="lista-inventario" class="space-y-4">
+                </div>
+            <div id="inventario-empty-state" class="hidden text-center text-gray-500 py-16 px-4 flex flex-col items-center justify-center h-full">
+                <i class="lni lni-dropbox text-6xl text-gray-300"></i>
+                <h2 class="text-xl font-semibold mt-4">Sem Produtos no Inventário</h2>
+                <p class="mt-2 max-w-xs">Toque no botão '+' para adicionar o seu primeiro produto.</p>
+            </div>
+            <button id="btn-fab-add-produto" class="fab hidden">
+                <i class="lni lni-plus"></i>
+            </button>
         </section>
 
         <section id="tab-atendimento" class="tab-content hidden">
-            <header class="bg-white p-3 rounded-lg shadow-md mb-4 flex justify-between items-center gap-4">
-                <div class="flex-grow">
-                    <select id="seletor-cliente" class="w-full p-2 border border-gray-300 rounded-md bg-white text-base"></select>
-                </div>
-                <button id="btn-abrir-conta" class="flex-shrink-0 text-2xl p-2" title="Abrir Nova Conta">
-                    <i class="fa-solid fa-plus text-blue-500"></i>
-                </button>
-            </header>
-            <div id="alerta-stock-container" class="hidden p-2 text-red-600 font-semibold text-center"></div>
-            <div id="vista-cliente-ativo"></div>
+            <div id="atendimento-header" class="mb-4">
+                 <select id="seletor-cliente" class="w-full p-3 border border-gray-300 rounded-lg bg-white text-base"></select>
+            </div>
+            <div id="atendimento-empty-state" class="hidden text-center text-gray-500 py-16 px-4 flex flex-col items-center justify-center h-full">
+                <i class="lni lni-clipboard text-6xl text-gray-300"></i>
+                <h2 class="text-xl font-semibold mt-4">Nenhuma Conta Ativa</h2>
+                <p class="mt-2 max-w-xs">Toque no botão '+' para iniciar um novo atendimento.</p>
+            </div>
+            <div id="vista-cliente-ativo">
+                 </div>
+             <button id="btn-fab-add-conta" class="fab hidden">
+                <i class="lni lni-plus"></i>
+            </button>
         </section>
 
         <section id="tab-fluxo-caixa" class="tab-content hidden">
@@ -77,9 +87,9 @@
                     <button id="btn-ver-fecho-dia-atual" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow">Fechar o Dia</button>
                 </div>
                 <div id="calendario-nav" class="flex justify-between items-center pt-2 border-t">
-                    <button id="btn-mes-anterior" class="p-2 text-lg"><i class="fa-solid fa-chevron-left"></i></button>
-                    <h2 id="calendario-titulo" class="text-xl font-bold">Setembro 2025</h2>
-                    <button id="btn-mes-seguinte" class="p-2 text-lg"><i class="fa-solid fa-chevron-right"></i></button>
+                    <button id="btn-mes-anterior" class="p-2 text-lg"><i class="lni lni-chevron-left"></i></button>
+                    <h2 id="calendario-titulo" class="text-xl font-bold">Outubro 2025</h2>
+                    <button id="btn-mes-seguinte" class="p-2 text-lg"><i class="lni lni-chevron-right"></i></button>
                 </div>
             </header>
             <div id="calendario-container">
@@ -89,17 +99,45 @@
                 <div id="calendario-grid-dias" class="grid grid-cols-7 gap-2"></div>
             </div>
         </section>
+        
+        <section id="tab-clientes" class="tab-content hidden">
+            <div id="clientes-header" class="mb-4">
+                 <input type="search" id="input-busca-clientes" placeholder="🔎 Buscar por nome..." class="w-full p-3 border border-gray-300 rounded-lg">
+            </div>
+            <div id="clientes-empty-state" class="hidden text-center text-gray-500 py-16 px-4 flex flex-col items-center justify-center h-full">
+                <i class="lni lni-users text-6xl text-gray-300"></i>
+                <h2 class="text-xl font-semibold mt-4">Sem Clientes Registados</h2>
+                <p class="mt-2 max-w-xs">Toque no botão '+' para adicionar o seu primeiro cliente.</p>
+            </div>
+            <div id="lista-clientes" class="space-y-4">
+                 </div>
+             <button id="btn-fab-add-cliente" class="fab hidden">
+                <i class="lni lni-plus"></i>
+            </button>
+        </section>
     </main>
 
     <nav id="bottom-nav" class="fixed bottom-0 left-0 w-full bg-white shadow-[0_-2px_5px_rgba(0,0,0,0.1)] grid grid-cols-4 z-[90] hidden">
-        <button class="nav-btn active text-blue-500 border-t-4 border-blue-500" data-tab="tab-dashboard" title="Dashboard"><i class="fa-solid fa-chart-pie"></i></button>
-        <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-inventario" title="Inventário"><i class="fa-solid fa-boxes-stacked"></i></button>
-        <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-atendimento" title="Atendimento"><i class="fa-solid fa-clipboard-list"></i></button>
-        <button class="nav-btn text-gray-500 border-t-4 border-transparent" data-tab="tab-fluxo-caixa" title="Relatórios"><i class="fa-solid fa-sack-dollar"></i></button>
+        <button class="nav-btn" data-tab="tab-dashboard" title="Dashboard">
+            <i class="lni lni-grid-alt"></i>
+            <span class="nav-text">Dashboard</span>
+        </button>
+        <button class="nav-btn" data-tab="tab-inventario" title="Inventário">
+            <i class="lni lni-dropbox"></i>
+            <span class="nav-text">Inventário</span>
+        </button>
+        <button class="nav-btn" data-tab="tab-atendimento" title="Atendimento">
+            <i class="lni lni-clipboard"></i>
+            <span class="nav-text">Atendimento</span>
+        </button>
+        <button class="nav-btn" data-tab="tab-clientes" title="Clientes">
+            <i class="lni lni-users"></i>
+            <span class="nav-text">Clientes</span>
+        </button>
     </nav>
 
     <div id="modals-container">
-        <div id="modal-overlay" class="modal-container-wrapper fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+        <div id="modal-nova-conta-overlay" class="modal-container-wrapper fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
             <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
                 <h2 class="text-xl font-bold mb-4">Abrir Nova Conta</h2>
                 <form id="form-nova-conta">
@@ -140,11 +178,11 @@
                     <p class="mb-2 font-semibold">Método de Pagamento:</p>
                     <div id="pagamento-metodos-container" class="grid grid-cols-2 gap-2">
                         <button type="button" class="pagamento-metodo-btn border-2 border-gray-300 p-3 rounded-lg text-center hover:bg-gray-50" data-metodo="Numerário">
-                            <i class="fa-solid fa-money-bills text-green-600 mb-1"></i>
+                            <i class="lni lni-money-location text-green-600 mb-1 text-2xl"></i>
                             <div class="text-sm font-semibold">Numerário</div>
                         </button>
                         <button type="button" class="pagamento-metodo-btn border-2 border-gray-300 p-3 rounded-lg text-center hover:bg-gray-50" data-metodo="TPA">
-                            <i class="fa-solid fa-credit-card text-blue-600 mb-1"></i>
+                            <i class="lni lni-credit-cards text-blue-600 mb-1 text-2xl"></i>
                             <div class="text-sm font-semibold">TPA</div>
                         </button>
                     </div>
@@ -167,6 +205,21 @@
                     <div class="flex justify-end gap-4">
                         <button type="button" class="btn-cancelar-modal bg-gray-300 font-bold py-2 px-4 rounded">Cancelar</button>
                         <button type="submit" class="bg-blue-500 text-white font-bold py-2 px-4 rounded">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="modal-add-cliente-overlay" class="modal-container-wrapper fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
+                <h2 class="text-xl font-bold mb-4">Adicionar Novo Cliente</h2>
+                <form id="form-add-cliente">
+                    <input type="text" id="input-cliente-nome" placeholder="Nome do cliente" required class="w-full p-3 border rounded-md mb-4">
+                    <input type="text" id="input-cliente-contacto" placeholder="Contacto (opcional)" class="w-full p-3 border rounded-md mb-4">
+                    <input type="text" id="input-cliente-categoria" placeholder="Categoria (ex: Segurança, opcional)" class="w-full p-3 border rounded-md mb-4">
+                    <div class="flex justify-end gap-4 mt-6">
+                        <button type="button" class="btn-cancelar-modal bg-gray-300 font-bold py-2 px-4 rounded">Cancelar</button>
+                        <button type="submit" class="bg-blue-500 text-white font-bold py-2 px-4 rounded">Guardar Cliente</button>
                     </div>
                 </form>
             </div>
@@ -303,7 +356,7 @@
     <div id="toast-notificacao" class="fixed top-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-white font-semibold shadow-lg transition-opacity duration-300 opacity-0 z-[200] hidden"></div>
     <div id="offline-indicator" class="hidden fixed bottom-16 left-0 w-full bg-red-600 text-white text-center p-1 shadow-lg z-[150]"></div>
 
-    <script type="module" src="./modules/main.js"></script>
+    <script type="module" src="./modules/app.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
