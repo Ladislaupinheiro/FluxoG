@@ -63,6 +63,16 @@
                         <span id="db-top-produto-qtd" class="text-base font-semibold text-blue-600 bg-blue-100 px-3 py-1 rounded-full">0 vendidos</span>
                     </div>
                 </div>
+
+                <div class="bg-white p-4 rounded-lg shadow-md flex items-center gap-4">
+                    <div class="text-blue-500 text-3xl">
+                        <i class="lni lni-bulb"></i>
+                    </div>
+                    <div class="flex-grow">
+                        <h3 class="font-bold text-gray-800">Dica de Gestão</h3>
+                        <p id="btn-ver-dica" class="text-sm text-blue-600 hover:underline cursor-pointer">Ver a dica do dia</p>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -149,6 +159,52 @@
             <div>
                 <h3 class="text-lg font-semibold mb-2 border-b pb-1">Histórico de Transações</h3>
                 <div id="detalhes-cliente-historico" class="space-y-2"></div>
+            </div>
+        </section>
+
+        <section id="view-settings" class="tab-content hidden">
+            <div class="space-y-6">
+
+                <div>
+                    <h2 class="text-lg font-semibold mb-3 border-b pb-2">Perfil do Estabelecimento</h2>
+                    <div class="bg-white p-4 rounded-lg shadow-md flex items-center gap-4">
+                        <div class="relative">
+                            <img id="settings-profile-pic" src="icons/logo-small-192.png" alt="Logo do Estabelecimento" class="w-20 h-20 rounded-full object-cover bg-gray-200 cursor-pointer hover:opacity-90">
+                            <input type="file" id="input-change-pic" class="hidden" accept="image/*">
+                        </div>
+                        <div class="flex-grow">
+                            <label for="settings-business-name-input" class="block text-sm font-medium text-gray-700">Nome do Estabelecimento</label>
+                            <div class="mt-1">
+                                <span id="settings-business-name-display" class="text-lg font-semibold p-2 block cursor-pointer">O Meu Bar</span>
+                                <input type="text" id="settings-business-name-input" placeholder="O Meu Bar" class="w-full p-2 border border-gray-300 rounded-md hidden">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 class="text-lg font-semibold mb-3 border-b pb-2">Aparência</h2>
+                    <div class="bg-white p-4 rounded-lg shadow-md">
+                        <label for="theme-selector" class="block text-sm font-medium text-gray-700 mb-2">Tema da Aplicação</label>
+                        <select id="theme-selector" class="w-full p-2 border border-gray-300 rounded-md">
+                            <option value="light">Claro (Padrão)</option>
+                            <option value="dark">Escuro</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 class="text-lg font-semibold mb-3 border-b pb-2">Gestão de Dados</h2>
+                    <div class="bg-white p-4 rounded-lg shadow-md space-y-3">
+                        <button id="btn-backup" class="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow">
+                            <i class="lni lni-download"></i> Backup e Restauro
+                        </button>
+                        <button id="btn-clear-data" class="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg shadow">
+                            <i class="lni lni-warning"></i> Limpar Todos os Dados
+                        </button>
+                    </div>
+                </div>
+
             </div>
         </section>
 
@@ -426,6 +482,56 @@
                         <button type="submit" class="bg-green-500 text-white font-bold py-2 px-4 rounded">Registar Pagamento</button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <div id="modal-backup-restore-overlay" class="modal-container-wrapper fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
+                <h2 class="text-xl font-bold mb-2">Backup e Restauro</h2>
+                <p class="text-sm text-gray-600 mb-6">Crie uma cópia de segurança de todos os seus dados ou restaure a aplicação a partir de um ficheiro de backup previamente guardado.</p>
+                
+                <div class="space-y-4">
+                    <button id="btn-create-backup" class="w-full flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow">
+                        <i class="lni lni-download"></i> Criar Backup (.json)
+                    </button>
+                    <button id="btn-trigger-restore" class="w-full flex items-center justify-center gap-2 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg shadow">
+                        <i class="lni lni-upload"></i> Restaurar a partir de Ficheiro...
+                    </button>
+                    <input type="file" id="input-restore-file" class="hidden" accept=".json">
+                </div>
+
+                <div class="flex justify-end gap-4 mt-8">
+                    <button type="button" class="btn-cancelar-modal bg-gray-300 font-bold py-2 px-4 rounded">Fechar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-limpar-dados-overlay" class="modal-container-wrapper fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
+                <h2 class="text-xl font-bold text-red-600 mb-2">Ação Irreversível</h2>
+                <p class="text-sm text-gray-600 mb-4">Tem a certeza absoluta de que deseja apagar todos os dados da aplicação? <strong>Toda a informação de inventário, vendas, clientes e configurações será perdida permanentemente.</strong></p>
+                
+                <div class="bg-red-50 border border-red-200 p-3 rounded-md">
+                    <label for="input-confirmar-limpeza" class="block text-sm font-medium text-red-700">Para confirmar, por favor, digite <strong>APAGAR</strong> no campo abaixo:</label>
+                    <input type="text" id="input-confirmar-limpeza" class="mt-2 w-full p-2 border border-red-300 rounded-md" autocomplete="off">
+                </div>
+
+                <div class="flex justify-end gap-4 mt-8">
+                    <button type="button" class="btn-cancelar-modal bg-gray-300 font-bold py-2 px-4 rounded">Cancelar</button>
+                    <button type="button" id="btn-confirmar-limpeza-final" class="bg-gray-400 cursor-not-allowed text-white font-bold py-2 px-4 rounded" disabled>Apagar Tudo</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-dica-overlay" class="modal-container-wrapper fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md relative">
+                <button type="button" class="btn-cancelar-modal absolute top-2 right-2 text-3xl text-gray-400 hover:text-gray-700">&times;</button>
+                
+                <div class="mb-4">
+                    <span id="dica-categoria" class="text-xs font-semibold uppercase px-2 py-1 bg-blue-100 text-blue-800 rounded-full">Categoria</span>
+                </div>
+                <h2 id="dica-titulo" class="text-2xl font-bold mb-4">Título da Dica</h2>
+                <p id="dica-conteudo" class="text-gray-700 leading-relaxed">Conteúdo da dica será carregado aqui...</p>
             </div>
         </div>
 
