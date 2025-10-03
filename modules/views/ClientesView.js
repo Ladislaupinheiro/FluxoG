@@ -1,13 +1,15 @@
-// /modules/views/ClientesView.js - A Nova View de Clientes (v7.0 - Final)
+// /modules/views/ClientesView.js - A View de Clientes (v7.4 - Navegação para Detalhes)
 'use strict';
 
 import store from '../services/Store.js';
 import * as Modals from '../components/Modals.js';
 import * as Toast from '../components/Toast.js';
+import ClienteDetalhesView from './ClienteDetalhesView.js';
 
 const sel = {};
 
 function querySelectors() {
+    sel.clientesView = document.getElementById('tab-clientes');
     sel.clientesEmptyState = document.getElementById('clientes-empty-state');
     sel.listaClientes = document.getElementById('lista-clientes');
     sel.inputBuscaClientes = document.getElementById('input-busca-clientes');
@@ -26,30 +28,33 @@ function render() {
     const { clientes } = state;
     const termoBusca = sel.inputBuscaClientes.value.toLowerCase().trim();
 
-    const clientesFiltrados = clientes.filter(cliente => 
-        cliente.nome.toLowerCase().includes(termoBusca)
-    );
-
-    // LÓGICA DO ESTADO VAZIO
+    // LÓGICA DO ESTADO VAZIO (MAIS ROBUSTA)
     if (clientes.length === 0) {
         sel.clientesEmptyState.classList.remove('hidden');
-        sel.listaClientes.innerHTML = '';
+        sel.listaClientes.classList.add('hidden');
         sel.inputBuscaClientes.classList.add('hidden');
         return;
     }
 
     // LÓGICA DA VISTA PREENCHIDA
     sel.clientesEmptyState.classList.add('hidden');
+    sel.listaClientes.classList.remove('hidden');
     sel.inputBuscaClientes.classList.remove('hidden');
     sel.listaClientes.innerHTML = '';
+
+    const clientesFiltrados = clientes.filter(cliente => 
+        cliente.nome.toLowerCase().includes(termoBusca)
+    );
 
     if (clientesFiltrados.length === 0) {
         sel.listaClientes.innerHTML = `<p class="text-center text-gray-500">Nenhum cliente encontrado para "${termoBusca}".</p>`;
         return;
     }
 
-    // Renderiza um cartão simples para cada cliente
     clientesFiltrados.forEach(cliente => {
+        const dividaTotal = cliente.dividas.reduce((total, divida) => total + divida.valor, 0);
+        const corDivida = dividaTotal > 0 ? 'text-red-500' : 'text-green-500';
+
         const card = document.createElement('div');
         card.className = 'bg-white p-4 rounded-lg shadow-md flex justify-between items-center cursor-pointer hover:bg-gray-50';
         card.dataset.clienteId = cliente.id;
@@ -58,9 +63,10 @@ function render() {
                 <p class="font-bold text-lg">${cliente.nome}</p>
                 <p class="text-sm text-gray-500">${cliente.contacto || 'Sem contacto'}</p>
             </div>
-            <button class="text-gray-400 hover:text-blue-500">
-                <i class="lni lni-chevron-right text-2xl"></i>
-            </button>
+            <div class="text-right">
+                <span class="font-semibold text-lg ${corDivida}">${dividaTotal.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</span>
+                <p class="text-xs text-gray-400">Dívida</p>
+            </div>
         `;
         sel.listaClientes.appendChild(card);
     });
@@ -86,7 +92,8 @@ function handleAddCliente(event) {
         contacto,
         categoria,
         dataRegisto: new Date().toISOString(),
-        dividas: []
+        dividas: [],
+        vasilhames: []
     };
 
     store.dispatch({ type: 'ADD_CLIENT', payload: novoCliente });
@@ -94,6 +101,24 @@ function handleAddCliente(event) {
     Modals.fecharModalAddCliente();
     Toast.mostrarNotificacao(`Cliente "${nome}" adicionado com sucesso.`);
 }
+
+/**
+ * Esconde a view da lista de clientes e o FAB correspondente.
+ */
+function hide() {
+    sel.clientesView.classList.add('hidden');
+    sel.btnFabAddCliente.classList.add('hidden');
+}
+
+/**
+ * Mostra a view da lista de clientes e o FAB correspondente.
+ */
+function show() {
+    sel.clientesView.classList.remove('hidden');
+    sel.btnFabAddCliente.classList.remove('hidden');
+    render(); // Garante que a lista está atualizada ao voltar
+}
+
 
 /**
  * Função de inicialização da View.
@@ -106,17 +131,16 @@ function init() {
     sel.formAddCliente.addEventListener('submit', handleAddCliente);
     sel.inputBuscaClientes.addEventListener('input', render);
 
-    // Adicionar listener para clicar num cliente e ver detalhes (a ser implementado)
     sel.listaClientes.addEventListener('click', (event) => {
         const card = event.target.closest('[data-cliente-id]');
         if (card) {
             const clienteId = card.dataset.clienteId;
-            console.log(`Abrir detalhes para o cliente ID: ${clienteId}`);
-            // Futuramente, esta ação irá navegar para uma view de detalhes do cliente.
+            hide(); // Esconde a view atual
+            ClienteDetalhesView.show(clienteId); // Mostra e renderiza a view de detalhes
         }
     });
 
     render();
 }
 
-export default { init };
+export default { init, show, hide };

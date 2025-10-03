@@ -1,4 +1,4 @@
-// /modules/components/Modals.js - Componente para Gestão de Modais (v7.0)
+// /modules/components/Modals.js - Componente para Gestão de Modais (v7.4 - Gestão de Dívidas)
 'use strict';
 
 import store from '../services/Store.js';
@@ -7,9 +7,6 @@ import * as Toast from './Toast.js';
 const sel = {};
 let onConfirmCallback = null;
 
-/**
- * Guarda as referências a todos os elementos de modais.
- */
 function querySelectors() {
     // Modal Nova Conta
     sel.modalNovaContaOverlay = document.getElementById('modal-nova-conta-overlay');
@@ -32,15 +29,46 @@ function querySelectors() {
     sel.pagamentoMetodosContainer = document.getElementById('pagamento-metodos-container');
     sel.btnConfirmarPagamento = document.getElementById('btn-confirmar-pagamento');
 
-    // Modal Adicionar Produto
+    // Modal Adicionar/Editar Produto
     sel.modalAddProdutoOverlay = document.getElementById('modal-add-produto-overlay');
     sel.formAddProduto = document.getElementById('form-add-produto');
     sel.inputProdutoNome = document.getElementById('input-produto-nome');
+    sel.modalEditProdutoOverlay = document.getElementById('modal-edit-produto-overlay');
+    sel.formEditProduto = document.getElementById('form-edit-produto');
+    sel.hiddenEditProdutoId = document.getElementById('hidden-edit-produto-id');
+    sel.inputEditProdutoNome = document.getElementById('input-edit-produto-nome');
+    sel.inputEditProdutoPreco = document.getElementById('input-edit-produto-preco');
+    sel.inputEditProdutoStockMinimo = document.getElementById('input-edit-produto-stock-minimo');
 
     // Modal Adicionar Cliente
     sel.modalAddClienteOverlay = document.getElementById('modal-add-cliente-overlay');
     sel.formAddCliente = document.getElementById('form-add-cliente');
     sel.inputClienteNome = document.getElementById('input-cliente-nome');
+
+    // Modais de Stock
+    sel.modalAddStockOverlay = document.getElementById('modal-add-stock-overlay');
+    sel.formAddStock = document.getElementById('form-add-stock');
+    sel.hiddenAddStockId = document.getElementById('hidden-add-stock-id');
+    sel.addStockNomeProduto = document.getElementById('add-stock-nome-produto');
+    sel.modalMoverStockOverlay = document.getElementById('modal-mover-stock-overlay');
+    sel.formMoverStock = document.getElementById('form-mover-stock');
+    sel.hiddenMoverStockId = document.getElementById('hidden-mover-stock-id');
+    sel.moverStockNomeProduto = document.getElementById('mover-stock-nome-produto');
+    sel.moverStockArmazemQtd = document.getElementById('mover-stock-armazem-qtd');
+    sel.inputMoverStockQuantidade = document.getElementById('input-mover-stock-quantidade');
+    
+    // MODAIS DE DÍVIDAS
+    sel.modalAddDividaOverlay = document.getElementById('modal-add-divida-overlay');
+    sel.formAddDivida = document.getElementById('form-add-divida');
+    sel.modalDividaClienteNome = document.getElementById('modal-divida-cliente-nome');
+    sel.inputDividaValor = document.getElementById('input-divida-valor');
+    sel.inputDividaDescricao = document.getElementById('input-divida-descricao');
+    
+    sel.modalLiquidarDividaOverlay = document.getElementById('modal-liquidar-divida-overlay');
+    sel.formLiquidarDivida = document.getElementById('form-liquidar-divida');
+    sel.modalLiquidarClienteNome = document.getElementById('modal-liquidar-cliente-nome');
+    sel.modalLiquidarDividaAtual = document.getElementById('modal-liquidar-divida-atual');
+    sel.inputLiquidarValor = document.getElementById('input-liquidar-valor');
 
     // Modal Fecho Global
     sel.modalFechoGlobalOverlay = document.getElementById('modal-fecho-global-overlay');
@@ -64,7 +92,6 @@ function querySelectors() {
 
 export function init() {
     querySelectors();
-    // Adiciona o listener para o botão de confirmação geral
     if (sel.btnConfirmarConfirmacaoModal) {
         sel.btnConfirmarConfirmacaoModal.addEventListener('click', () => {
             if (typeof onConfirmCallback === 'function') {
@@ -75,9 +102,7 @@ export function init() {
     }
 }
 
-
 // --- Funções de Controlo de Modais ---
-
 export function abrirModalNovaConta() {
     sel.modalNovaContaOverlay.classList.remove('hidden');
     sel.inputNomeConta.focus();
@@ -93,14 +118,34 @@ export function abrirModalAddPedido(contaId) {
     if (!conta) return;
     sel.modalPedidoNomeConta.textContent = conta.nome;
     sel.hiddenContaId.value = contaId;
-    sel.inputBuscaProdutoPedido.value = '';
-    sel.autocompleteResults.classList.add('hidden');
     sel.modalAddPedidoOverlay.classList.remove('hidden');
     sel.inputBuscaProdutoPedido.focus();
 }
+
 export function fecharModalAddPedido() {
     sel.modalAddPedidoOverlay.classList.add('hidden');
     sel.formAddPedido.reset();
+}
+
+export function abrirModalPagamento(conta) {
+    if (!conta) return;
+    const subtotal = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0);
+    sel.pagamentoContaIdInput.value = conta.id;
+    sel.pagamentoNomeContaSpan.textContent = conta.nome;
+    sel.pagamentoTotalSpan.textContent = subtotal.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
+    sel.modalPagamentoOverlay.classList.remove('hidden');
+}
+
+export function fecharModalPagamento() {
+    sel.modalPagamentoOverlay.classList.add('hidden');
+    // Reset buttons
+    sel.btnConfirmarPagamento.disabled = true;
+    sel.btnConfirmarPagamento.classList.add('bg-gray-400', 'cursor-not-allowed');
+    sel.btnConfirmarPagamento.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+    sel.pagamentoMetodosContainer.querySelectorAll('.pagamento-metodo-btn').forEach(btn => {
+        btn.classList.remove('border-blue-500', 'bg-blue-100', 'font-bold');
+        btn.classList.add('border-gray-300');
+    });
 }
 
 export function abrirModalAddProduto() {
@@ -112,6 +157,20 @@ export function fecharModalAddProduto() {
     sel.formAddProduto.reset();
 }
 
+export function abrirModalEditProduto(produto) {
+    if (!produto) return;
+    sel.hiddenEditProdutoId.value = produto.id;
+    sel.inputEditProdutoNome.value = produto.nome;
+    sel.inputEditProdutoPreco.value = produto.preco;
+    sel.inputEditProdutoStockMinimo.value = produto.stockMinimo;
+    sel.modalEditProdutoOverlay.classList.remove('hidden');
+    sel.inputEditProdutoNome.focus();
+}
+export function fecharModalEditProduto() {
+    sel.modalEditProdutoOverlay.classList.add('hidden');
+    sel.formEditProduto.reset();
+}
+
 export function abrirModalAddCliente() {
     sel.modalAddClienteOverlay.classList.remove('hidden');
     sel.inputClienteNome.focus();
@@ -121,29 +180,56 @@ export function fecharModalAddCliente() {
     sel.formAddCliente.reset();
 }
 
-export function abrirModalPagamento(conta) {
-    if (!conta) return;
-    const totalPagar = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0);
-    sel.pagamentoContaIdInput.value = conta.id;
-    sel.pagamentoNomeContaSpan.textContent = conta.nome;
-    sel.pagamentoTotalSpan.textContent = totalPagar.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
-    sel.modalPagamentoOverlay.classList.remove('hidden');
+export function abrirModalAddStock(produto) {
+    if(!produto) return;
+    sel.hiddenAddStockId.value = produto.id;
+    sel.addStockNomeProduto.textContent = produto.nome;
+    sel.modalAddStockOverlay.classList.remove('hidden');
 }
-export function fecharModalPagamento() {
-    sel.modalPagamentoOverlay.classList.add('hidden');
-    sel.pagamentoMetodosContainer.querySelectorAll('.pagamento-metodo-btn').forEach(btn => {
-        btn.classList.remove('border-blue-500', 'bg-blue-100', 'font-bold');
-        btn.classList.add('border-gray-300');
-    });
-    sel.btnConfirmarPagamento.disabled = true;
-    sel.btnConfirmarPagamento.classList.remove('bg-blue-500', 'hover:bg-blue-600');
-    sel.btnConfirmarPagamento.classList.add('bg-gray-400', 'cursor-not-allowed');
+export function fecharModalAddStock() {
+    sel.modalAddStockOverlay.classList.add('hidden');
+    sel.formAddStock.reset();
 }
 
-export function abrirModalConfirmacao(titulo, mensagem, onConfirm) {
+export function abrirModalMoverStock(produto) {
+    if(!produto) return;
+    sel.hiddenMoverStockId.value = produto.id;
+    sel.moverStockNomeProduto.textContent = produto.nome;
+    sel.moverStockArmazemQtd.textContent = produto.stockArmazem;
+    sel.inputMoverStockQuantidade.max = produto.stockArmazem;
+    sel.modalMoverStockOverlay.classList.remove('hidden');
+}
+export function fecharModalMoverStock() {
+    sel.modalMoverStockOverlay.classList.add('hidden');
+    sel.formMoverStock.reset();
+}
+
+export function abrirModalFechoGlobal(relatorio) {
+    sel.fgDataRelatorio.textContent = new Date(relatorio.data).toLocaleDateString('pt-PT', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    sel.fgTotalVendido.textContent = relatorio.totalVendido.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
+    sel.fgTotalNumerario.textContent = relatorio.totalNumerario.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
+    sel.fgTotalTpa.textContent = relatorio.totalTpa.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
+    sel.fgContasFechadas.textContent = relatorio.numContasFechadas;
+    sel.fgMediaPorConta.textContent = relatorio.mediaPorConta.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
+    
+    sel.fgListaProdutos.innerHTML = Object.entries(relatorio.produtosVendidos).map(([nome, qtd]) => `<div class="flex justify-between text-sm"><span class="font-semibold">${qtd}x</span><span>${nome}</span></div>`).join('');
+    
+    sel.btnArquivarDia.classList.remove('hidden');
+    sel.modalFechoGlobalOverlay.classList.remove('hidden');
+}
+export function fecharModalFechoGlobal() {
+    sel.modalFechoGlobalOverlay.classList.add('hidden');
+}
+
+export function abrirModalFechoGlobalHistorico(relatorio) {
+    abrirModalFechoGlobal(relatorio);
+    sel.btnArquivarDia.classList.add('hidden');
+}
+
+export function abrirModalConfirmacao(titulo, mensagem, callback) {
     sel.modalConfirmacaoTitulo.textContent = titulo;
     sel.modalConfirmacaoMensagem.textContent = mensagem;
-    onConfirmCallback = onConfirm;
+    onConfirmCallback = callback;
     sel.modalConfirmacaoOverlay.classList.remove('hidden');
 }
 export function fecharModalConfirmacao() {
@@ -151,71 +237,28 @@ export function fecharModalConfirmacao() {
     onConfirmCallback = null;
 }
 
-// Lógica de cálculo do relatório do dia
-function calcularRelatorioDia() {
-    const state = store.getState();
-    const contasFechadasHoje = state.contasAtivas.filter(c => c.status === 'fechada');
-    const totalVendido = contasFechadasHoje.reduce((sum, conta) => sum + conta.valorFinal, 0);
-    const totalNumerario = contasFechadasHoje.filter(c => c.metodoPagamento === 'Numerário').reduce((sum, c) => sum + c.valorFinal, 0);
-    const totalTpa = contasFechadasHoje.filter(c => c.metodoPagamento === 'TPA').reduce((sum, c) => sum + c.valorFinal, 0);
-    const numContasFechadas = contasFechadasHoje.length;
-    const mediaPorConta = numContasFechadas > 0 ? totalVendido / numContasFechadas : 0;
-    const produtosVendidos = {};
-    contasFechadasHoje.forEach(conta => {
-        conta.pedidos.forEach(pedido => {
-            produtosVendidos[pedido.nome] = (produtosVendidos[pedido.nome] || 0) + pedido.qtd;
-        });
-    });
-    return { data: new Date(), totalVendido, totalNumerario, totalTpa, numContasFechadas, mediaPorConta, produtosVendidos };
+// --- FUNÇÕES PARA MODAIS DE DÍVIDAS ---
+
+export function abrirModalAddDivida(cliente) {
+    if (!cliente) return;
+    sel.modalDividaClienteNome.textContent = cliente.nome;
+    sel.modalAddDividaOverlay.classList.remove('hidden');
+    sel.inputDividaValor.focus();
+}
+export function fecharModalAddDivida() {
+    sel.modalAddDividaOverlay.classList.add('hidden');
+    sel.formAddDivida.reset();
 }
 
-function renderizarRelatorioNoModal(relatorio) {
-    sel.fgDataRelatorio.textContent = new Date(relatorio.data).toLocaleDateString('pt-PT', { dateStyle: 'full' });
-    sel.fgTotalVendido.textContent = relatorio.totalVendido.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
-    sel.fgTotalNumerario.textContent = relatorio.totalNumerario.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
-    sel.fgTotalTpa.textContent = relatorio.totalTpa.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
-    sel.fgContasFechadas.textContent = relatorio.numContasFechadas;
-    sel.fgMediaPorConta.textContent = relatorio.mediaPorConta.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
-    sel.fgListaProdutos.innerHTML = '';
-
-    if (Object.keys(relatorio.produtosVendidos).length > 0) {
-        Object.entries(relatorio.produtosVendidos).map(([nome, qtd]) => {
-            const el = document.createElement('div');
-            el.className = 'flex justify-between';
-            el.innerHTML = `<span class="font-semibold">${qtd}x</span><span>${nome}</span>`;
-            sel.fgListaProdutos.appendChild(el);
-        });
-    } else {
-        sel.fgListaProdutos.textContent = 'Nenhum produto vendido hoje.';
-    }
+export function abrirModalLiquidarDivida(cliente) {
+    if (!cliente) return;
+    const dividaTotal = cliente.dividas.reduce((total, divida) => total + divida.valor, 0);
+    sel.modalLiquidarClienteNome.textContent = cliente.nome;
+    sel.modalLiquidarDividaAtual.textContent = dividaTotal.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
+    sel.modalLiquidarDividaOverlay.classList.remove('hidden');
+    sel.inputLiquidarValor.focus();
 }
-
-export function abrirModalFechoGlobal() {
-    const state = store.getState();
-    const contasAbertas = state.contasAtivas.filter(c => c.status === 'ativa');
-    if (contasAbertas.length > 0) {
-        const nomesContas = contasAbertas.map(c => c.nome).join(', ');
-        Toast.mostrarNotificacao(`Feche as seguintes contas antes de arquivar: ${nomesContas}`, 'erro');
-        return;
-    }
-
-    const relatorio = calcularRelatorioDia();
-    // setRelatorioAtual(relatorio); // Lógica a ser refatorada para o store, se necessário
-    renderizarRelatorioNoModal(relatorio);
-    sel.btnArquivarDia.classList.remove('hidden');
-    sel.btnExportarPdf.classList.add('hidden');
-    sel.btnExportarXls.classList.add('hidden');
-    sel.modalFechoGlobalOverlay.classList.remove('hidden');
-}
-export function fecharModalFechoGlobal() {
-    sel.modalFechoGlobalOverlay.classList.add('hidden');
-}
-export function abrirModalFechoGlobalHistorico(relatorio) {
-    if (!relatorio) return;
-    // setRelatorioAtual(relatorio); // Lógica a ser refatorada para o store, se necessário
-    renderizarRelatorioNoModal(relatorio);
-    sel.btnArquivarDia.classList.add('hidden');
-    sel.btnExportarPdf.classList.remove('hidden');
-    sel.btnExportarXls.classList.remove('hidden');
-    sel.modalFechoGlobalOverlay.classList.remove('hidden');
+export function fecharModalLiquidarDivida() {
+    sel.modalLiquidarDividaOverlay.classList.add('hidden');
+    sel.formLiquidarDivida.reset();
 }

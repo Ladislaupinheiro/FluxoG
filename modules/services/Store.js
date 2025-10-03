@@ -1,4 +1,4 @@
-// /modules/services/Store.js - O Coração da Arquitetura State-Driven (v7.0 - Final)
+// /modules/services/Store.js - O Coração da Arquitetura State-Driven (v7.6 - Correção Final de Pagamento)
 'use strict';
 import * as Storage from './Storage.js';
 
@@ -41,6 +41,14 @@ function reducer(state = initialState, action) {
                     p.id === produtoAtualizado.id ? produtoAtualizado : p
                 );
                 Storage.salvarItem('inventario', produtoAtualizado);
+                return { ...state, inventario: inventarioAtualizado };
+            }
+
+        case 'DELETE_PRODUCT':
+            {
+                const produtoId = action.payload;
+                const inventarioAtualizado = state.inventario.filter(p => p.id !== produtoId);
+                Storage.apagarItem('inventario', produtoId);
                 return { ...state, inventario: inventarioAtualizado };
             }
 
@@ -88,7 +96,6 @@ function reducer(state = initialState, action) {
         case 'ADD_ORDER_ITEM':
             {
                 const { contaId, produto, quantidade } = action.payload;
-                // Atualiza o stock do produto no inventário
                 const inventarioAtualizado = state.inventario.map(p => {
                     if (p.id === produto.id) {
                         const pAtualizado = { ...p, stockGeleira: p.stockGeleira - quantidade };
@@ -97,7 +104,6 @@ function reducer(state = initialState, action) {
                     }
                     return p;
                 });
-                // Adiciona o item à conta
                 const contasAtualizadas = state.contasAtivas.map(c => {
                     if (c.id === contaId) {
                         const cAtualizada = { ...c };
@@ -116,24 +122,56 @@ function reducer(state = initialState, action) {
                 return { ...state, inventario: inventarioAtualizado, contasAtivas: contasAtualizadas };
             }
         
-        case 'FINALIZE_PAYMENT':
+        case 'REMOVE_ORDER_ITEM':
             {
-                const { contaId, metodoPagamento } = action.payload;
+                const { contaId, itemIndex } = action.payload;
+                let inventarioAtualizado = state.inventario;
+
                 const contasAtualizadas = state.contasAtivas.map(c => {
                     if (c.id === contaId) {
-                        const cAtualizada = {
-                            ...c,
-                            status: 'fechada',
-                            dataFecho: new Date().toISOString(),
-                            metodoPagamento,
-                            valorFinal: c.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0)
-                        };
+                        const itemRemovido = c.pedidos[itemIndex];
+                        if (!itemRemovido) return c; // Segurança
+
+                        // Devolve o stock à geleira
+                        inventarioAtualizado = state.inventario.map(p => {
+                            if (p.id === itemRemovido.produtoId) {
+                                const pAtualizado = { ...p, stockGeleira: p.stockGeleira + itemRemovido.qtd };
+                                Storage.salvarItem('inventario', pAtualizado);
+                                return pAtualizado;
+                            }
+                            return p;
+                        });
+
+                        // Remove o pedido da conta
+                        const pedidosAtualizados = c.pedidos.filter((_, index) => index !== itemIndex);
+                        const cAtualizada = { ...c, pedidos: pedidosAtualizados };
                         Storage.salvarItem('contas', cAtualizada);
                         return cAtualizada;
                     }
                     return c;
                 });
-                return { ...state, contasAtivas: contasAtualizadas };
+                return { ...state, inventario: inventarioAtualizado, contasAtivas: contasAtualizadas };
+            }
+
+        case 'FINALIZE_PAYMENT':
+            {
+                const { contaId, metodoPagamento } = action.payload;
+                const contaFechada = state.contasAtivas.find(c => c.id == contaId); // Usa '==' para compatibilidade de tipos
+
+                if (contaFechada) {
+                    const contaAtualizada = {
+                        ...contaFechada,
+                        status: 'fechada',
+                        dataFecho: new Date().toISOString(),
+                        metodoPagamento,
+                        valorFinal: contaFechada.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0)
+                    };
+                    Storage.salvarItem('contas', contaAtualizada);
+                }
+                
+                const contasAposPagamento = state.contasAtivas.filter(c => c.id != contaId); // Usa '!=' para compatibilidade de tipos
+
+                return { ...state, contasAtivas: contasAposPagamento };
             }
 
         // --- AÇÕES DE CLIENTES ---
@@ -143,6 +181,55 @@ function reducer(state = initialState, action) {
                 const novosClientes = [...state.clientes, novoCliente];
                 Storage.salvarItem('clientes', novoCliente);
                 return { ...state, clientes: novosClientes };
+            }
+
+        // --- NOVAS AÇÕES DE GESTÃO DE DÍVIDAS ---
+        case 'ADD_DEBT':
+            {
+                const { clienteId, valor, descricao } = action.payload;
+                const clientesAtualizados = state.clientes.map(cliente => {
+                    if (cliente.id === clienteId) {
+                        const novaDivida = {
+                            id: crypto.randomUUID(),
+                            data: new Date().toISOString(),
+                            valor,
+                            descricao,
+                            tipo: 'debito'
+                        };
+                        const clienteAtualizado = {
+                            ...cliente,
+                            dividas: [...cliente.dividas, novaDivida]
+                        };
+                        Storage.salvarItem('clientes', clienteAtualizado);
+                        return clienteAtualizado;
+                    }
+                    return cliente;
+                });
+                return { ...state, clientes: clientesAtualizados };
+            }
+
+        case 'SETTLE_DEBT':
+            {
+                const { clienteId, valor } = action.payload;
+                const clientesAtualizados = state.clientes.map(cliente => {
+                    if (cliente.id === clienteId) {
+                        const novoPagamento = {
+                            id: crypto.randomUUID(),
+                            data: new Date().toISOString(),
+                            valor: -Math.abs(valor), // Garante que o pagamento é sempre um crédito (negativo)
+                            descricao: 'Pagamento',
+                            tipo: 'credito'
+                        };
+                        const clienteAtualizado = {
+                            ...cliente,
+                            dividas: [...cliente.dividas, novoPagamento]
+                        };
+                        Storage.salvarItem('clientes', clienteAtualizado);
+                        return clienteAtualizado;
+                    }
+                    return cliente;
+                });
+                return { ...state, clientes: clientesAtualizados };
             }
 
         // --- AÇÕES DE FLUXO DE CAIXA ---

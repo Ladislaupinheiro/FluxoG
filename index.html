@@ -14,6 +14,8 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -21,30 +23,45 @@
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans pb-16">
 
-    <main id="app-container" class="p-4 hidden">
+    <header id="app-header" class="bg-white shadow-md sticky top-0 z-40 p-4 flex justify-between items-center">
+        <h1 id="header-title" class="text-xl font-bold text-gray-800">Dashboard</h1>
+        <button id="btn-settings" class="text-gray-600 hover:text-blue-500 text-2xl">
+            <i class="lni lni-cog"></i>
+        </button>
+    </header>
+
+    <main id="app-container" class="p-4">
         
         <section id="tab-dashboard" class="tab-content">
-            <div id="dashboard-content" class="grid grid-cols-2 gap-4">
-                <div class="bg-white p-4 rounded-lg shadow-md text-center col-span-2">
+            <div class="space-y-4">
+                <div class="bg-white p-4 rounded-lg shadow-md text-center">
                     <p class="text-sm font-semibold text-gray-600">Vendas de Hoje</p>
-                    <span id="db-vendas-total" class="block text-4xl font-bold text-blue-600 my-1">Kz 0,00</span>
-                    <div class="flex justify-center gap-4 text-xs text-gray-500 pt-1 border-t mt-1">
-                        <span>NUM: <b id="db-vendas-numerario" class="font-semibold">Kz 0,00</b></span>
-                        <span>TPA: <b id="db-vendas-tpa" class="font-semibold">Kz 0,00</b></span>
+                    <span id="db-vendas-total" class="block text-5xl font-bold text-blue-600 my-2">Kz 0,00</span>
+                    <div class="flex justify-center gap-4 text-sm text-gray-500 pt-2 border-t mt-2">
+                        <span><i class="lni lni-money-location text-green-500"></i> NUM: <b id="db-vendas-numerario" class="font-semibold">Kz 0,00</b></span>
+                        <span><i class="lni lni-credit-cards text-blue-500"></i> TPA: <b id="db-vendas-tpa" class="font-semibold">Kz 0,00</b></span>
                     </div>
                 </div>
-                <div class="bg-white p-3 rounded-lg shadow-md text-center">
-                    <p class="text-xs text-gray-500">Contas Ativas</p>
-                    <span id="db-contas-ativas" class="text-2xl font-bold text-gray-800">0</span>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-lg shadow-md text-center">
+                        <i class="lni lni-clipboard text-3xl text-blue-500 mb-2"></i>
+                        <p class="text-xs text-gray-500">Contas Ativas</p>
+                        <span id="db-contas-ativas" class="text-2xl font-bold text-gray-800">0</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-md text-center">
+                        <i class="lni lni-warning text-3xl text-red-500 mb-2"></i>
+                        <p class="text-xs text-gray-500">Alertas de Stock</p>
+                        <span id="db-alertas-stock" class="text-2xl font-bold text-red-500">0</span>
+                    </div>
                 </div>
-                <div class="bg-white p-3 rounded-lg shadow-md text-center">
-                    <p class="text-xs text-gray-500">Alertas de Stock</p>
-                    <span id="db-alertas-stock" class="text-2xl font-bold text-red-500">0</span>
-                </div>
-                <div class="bg-white p-4 rounded-lg shadow-md text-center col-span-2">
-                    <p class="text-sm text-gray-500">Produto Mais Vendido</p>
-                    <span id="db-top-produto-nome" class="text-lg font-bold text-gray-800 block">—</span>
-                    <span id="db-top-produto-qtd" class="text-base text-gray-600">0 vendidos</span>
+
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <p class="text-sm text-gray-500 mb-1">Produto Mais Vendido</p>
+                    <div class="flex justify-between items-center">
+                        <span id="db-top-produto-nome" class="text-lg font-bold text-gray-800">—</span>
+                        <span id="db-top-produto-qtd" class="text-base font-semibold text-blue-600 bg-blue-100 px-3 py-1 rounded-full">0 vendidos</span>
+                    </div>
                 </div>
             </div>
         </section>
@@ -54,7 +71,7 @@
                 <input type="search" id="input-busca-inventario" placeholder="🔎 Buscar por nome..." class="w-full p-3 border border-gray-300 rounded-lg">
             </div>
             <div id="lista-inventario" class="space-y-4">
-                </div>
+            </div>
             <div id="inventario-empty-state" class="hidden text-center text-gray-500 py-16 px-4 flex flex-col items-center justify-center h-full">
                 <i class="lni lni-dropbox text-6xl text-gray-300"></i>
                 <h2 class="text-xl font-semibold mt-4">Sem Produtos no Inventário</h2>
@@ -66,17 +83,15 @@
         </section>
 
         <section id="tab-atendimento" class="tab-content hidden">
-            <div id="atendimento-header" class="mb-4">
-                 <select id="seletor-cliente" class="w-full p-3 border border-gray-300 rounded-lg bg-white text-base"></select>
-            </div>
+            <div id="lista-contas-ativas" class="space-y-4">
+                </div>
+            
             <div id="atendimento-empty-state" class="hidden text-center text-gray-500 py-16 px-4 flex flex-col items-center justify-center h-full">
                 <i class="lni lni-clipboard text-6xl text-gray-300"></i>
                 <h2 class="text-xl font-semibold mt-4">Nenhuma Conta Ativa</h2>
                 <p class="mt-2 max-w-xs">Toque no botão '+' para iniciar um novo atendimento.</p>
             </div>
-            <div id="vista-cliente-ativo">
-                 </div>
-             <button id="btn-fab-add-conta" class="fab hidden">
+            <button id="btn-fab-add-conta" class="fab hidden">
                 <i class="lni lni-plus"></i>
             </button>
         </section>
@@ -110,14 +125,36 @@
                 <p class="mt-2 max-w-xs">Toque no botão '+' para adicionar o seu primeiro cliente.</p>
             </div>
             <div id="lista-clientes" class="space-y-4">
-                 </div>
+            </div>
              <button id="btn-fab-add-cliente" class="fab hidden">
                 <i class="lni lni-plus"></i>
             </button>
         </section>
+
+        <section id="tab-cliente-detalhes" class="tab-content hidden">
+            <header class="flex items-center mb-4">
+                <button id="btn-voltar-lista-clientes" class="p-2 text-2xl text-gray-600 hover:text-blue-500">
+                    <i class="lni lni-arrow-left"></i>
+                </button>
+                <h2 id="detalhes-cliente-nome" class="text-2xl font-bold text-center flex-grow">Nome do Cliente</h2>
+            </header>
+            <div class="bg-white p-4 rounded-lg shadow-md text-center mb-4">
+                <p class="text-sm font-semibold text-gray-600">Dívida Total</p>
+                <span id="detalhes-cliente-divida-total" class="block text-4xl font-bold text-red-600 my-1">Kz 0,00</span>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <button id="btn-abrir-modal-add-divida" class="bg-red-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-red-600">Adicionar Dívida</button>
+                <button id="btn-abrir-modal-liquidar-divida" class="bg-green-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-green-600">Liquidar Dívida</button>
+            </div>
+            <div>
+                <h3 class="text-lg font-semibold mb-2 border-b pb-1">Histórico de Transações</h3>
+                <div id="detalhes-cliente-historico" class="space-y-2"></div>
+            </div>
+        </section>
+
     </main>
 
-    <nav id="bottom-nav" class="fixed bottom-0 left-0 w-full bg-white shadow-[0_-2px_5px_rgba(0,0,0,0.1)] grid grid-cols-4 z-[90] hidden">
+    <nav id="bottom-nav" class="fixed bottom-0 left-0 w-full bg-white shadow-[0_-2px_5px_rgba(0,0,0,0.1)] grid grid-cols-5 z-[90] hidden">
         <button class="nav-btn" data-tab="tab-dashboard" title="Dashboard">
             <i class="lni lni-grid-alt"></i>
             <span class="nav-text">Dashboard</span>
@@ -133,6 +170,10 @@
         <button class="nav-btn" data-tab="tab-clientes" title="Clientes">
             <i class="lni lni-users"></i>
             <span class="nav-text">Clientes</span>
+        </button>
+        <button class="nav-btn" data-tab="tab-fluxo-caixa" title="Caixa">
+            <i class="lni lni-stats-up"></i>
+            <span class="nav-text">Caixa</span>
         </button>
     </nav>
 
@@ -151,16 +192,35 @@
         </div>
 
         <div id="modal-add-pedido-overlay" class="modal-container-wrapper fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
-            <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-lg">
                 <h2 class="text-xl font-bold mb-4">Adicionar Pedido para <span id="modal-pedido-nome-conta" class="text-blue-600"></span></h2>
                 <form id="form-add-pedido">
                     <input type="hidden" id="hidden-conta-id">
-                    <div class="relative mb-4">
-                        <input type="text" id="input-busca-produto-pedido" placeholder="Procurar produto..." class="w-full p-3 border rounded-md">
-                        <div id="autocomplete-results" class="absolute top-full left-0 w-full bg-white border border-gray-300 rounded-md shadow-lg z-10 hidden max-h-40 overflow-y-auto"></div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label for="input-busca-produto-pedido" class="block text-sm font-medium text-gray-700">Buscar Produto</label>
+                            <input type="search" id="input-busca-produto-pedido" placeholder="Comece a digitar o nome..." class="mt-1 w-full p-3 border border-gray-300 rounded-md">
+                            <div id="autocomplete-results" class="border border-gray-300 rounded-md mt-1 max-h-32 overflow-y-auto"></div>
+                        </div>
+
+                        <div id="detalhes-produto-selecionado" class="hidden bg-blue-50 p-3 rounded-md border border-blue-200 space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-lg text-blue-800" id="pedido-nome-produto"></span>
+                                <span class="text-sm text-gray-600" id="pedido-preco-produto"></span>
+                            </div>
+                            <div class="text-center">
+                                <span class="text-xs bg-blue-200 text-blue-800 font-semibold px-2 py-1 rounded-full">Disponível: <b id="pedido-stock-disponivel"></b></span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="input-quantidade" class="block text-sm font-medium text-gray-700">Quantidade</label>
+                            <input type="number" id="input-quantidade" placeholder="0" min="1" class="mt-1 w-full p-3 border border-gray-300 rounded-md">
+                        </div>
                     </div>
-                    <input type="number" id="input-quantidade" placeholder="Quantidade" min="1" required class="w-full p-3 border rounded-md mb-4">
-                    <div class="flex justify-end gap-4">
+                    
+                    <div class="flex justify-end gap-4 mt-6">
                         <button type="button" class="btn-cancelar-modal bg-gray-300 font-bold py-2 px-4 rounded">Cancelar</button>
                         <button type="submit" class="bg-blue-500 text-white font-bold py-2 px-4 rounded">Adicionar</button>
                     </div>
@@ -272,31 +332,24 @@
 
         <div id="modal-mover-stock-overlay" class="modal-container-wrapper fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
             <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
-                <h2 class="text-xl font-bold mb-4">Mover Stock</h2>
+                <h2 class="text-xl font-bold mb-4">Transferir para Loja</h2>
                 <form id="form-mover-stock">
                     <input type="hidden" id="hidden-mover-stock-id">
                     <p class="mb-2">Produto: <span id="mover-stock-nome-produto" class="font-semibold"></span></p>
-                    <div class="grid grid-cols-2 gap-4 mb-4">
-                        <div class="text-center">
-                            <p class="text-sm text-gray-500">Armazém</p>
-                            <span id="mover-stock-armazem-qtd" class="text-lg font-bold">0</span>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-sm text-gray-500">Geleira</p>
-                            <span id="mover-stock-geleira-qtd" class="text-lg font-bold">0</span>
-                        </div>
-                    </div>
-                    <input type="number" id="input-mover-stock-quantidade" placeholder="Quantidade a mover" min="1" required class="w-full p-3 border rounded-md mb-4">
+                    <p class="text-center text-sm text-gray-500 mb-2">Disponível no Armazém: <span id="mover-stock-armazem-qtd" class="font-bold text-lg">0</span></p>
+                    <input type="number" id="input-mover-stock-quantidade" placeholder="Quantidade a transferir" min="1" required class="w-full p-3 border rounded-md mb-4">
                     <div class="flex justify-end gap-4">
                         <button type="button" class="btn-cancelar-modal bg-gray-300 font-bold py-2 px-4 rounded">Cancelar</button>
-                        <button type="submit" class="bg-blue-500 text-white font-bold py-2 px-4 rounded">Mover</button>
+                        <button type="submit" class="bg-blue-500 text-white font-bold py-2 px-4 rounded">Transferir</button>
                     </div>
                 </form>
             </div>
         </div>
 
         <div id="modal-fecho-global-overlay" class="modal-container-wrapper fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
-            <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-lg max-h-[90vh] overflow-y-auto">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md relative">
+                <button type="button" class="btn-cancelar-modal absolute top-2 right-2 text-2xl text-gray-500 hover:text-gray-800">&times;</button>
+                
                 <h2 class="text-xl font-bold mb-4">Fecho do Dia</h2>
                 <div class="space-y-4">
                     <p><strong>Data:</strong> <span id="fg-data-relatorio"></span></p>
@@ -326,15 +379,12 @@
                         <h3 class="font-bold mb-2">Produtos Vendidos:</h3>
                         <div id="fg-lista-produtos" class="max-h-40 overflow-y-auto"></div>
                     </div>
-                    <div class="flex justify-between gap-4">
-                        <div class="flex gap-2">
-                            <button type="button" id="btn-exportar-pdf" class="bg-red-500 text-white px-3 py-2 rounded text-sm">PDF</button>
-                            <button type="button" id="btn-exportar-xls" class="bg-green-500 text-white px-3 py-2 rounded text-sm">Excel</button>
+                    <div class="pt-4 border-t space-y-3">
+                        <div class="flex justify-center gap-4">
+                            <button type="button" id="btn-exportar-pdf" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow hover:bg-red-600">Exportar PDF</button>
+                            <button type="button" id="btn-exportar-xls" class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow hover:bg-green-600">Exportar Excel</button>
                         </div>
-                        <div class="flex gap-2">
-                            <button type="button" class="btn-cancelar-modal bg-gray-300 font-bold py-2 px-4 rounded">Fechar</button>
-                            <button type="button" id="btn-arquivar-dia" class="bg-blue-500 text-white font-bold py-2 px-4 rounded">Arquivar Dia</button>
-                        </div>
+                        <button type="button" id="btn-arquivar-dia" class="w-full bg-blue-500 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-blue-600">Fechar Dia</button>
                     </div>
                 </div>
             </div>
@@ -348,6 +398,34 @@
                     <button type="button" class="btn-cancelar-modal bg-gray-300 font-bold py-2 px-4 rounded">Cancelar</button>
                     <button type="button" id="btn-confirmar-confirmacao-modal" class="bg-red-500 text-white font-bold py-2 px-4 rounded">Confirmar</button>
                 </div>
+            </div>
+        </div>
+
+        <div id="modal-add-divida-overlay" class="modal-container-wrapper fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
+                <h2 class="text-xl font-bold mb-4">Adicionar Dívida para <span id="modal-divida-cliente-nome" class="text-blue-600"></span></h2>
+                <form id="form-add-divida">
+                    <input type="number" id="input-divida-valor" placeholder="Valor da dívida (Kz)" min="0" step="0.01" required class="w-full p-3 border rounded-md mb-4">
+                    <input type="text" id="input-divida-descricao" placeholder="Descrição (ex: 2 Grades Cuca)" required class="w-full p-3 border rounded-md mb-4">
+                    <div class="flex justify-end gap-4 mt-6">
+                        <button type="button" class="btn-cancelar-modal bg-gray-300 font-bold py-2 px-4 rounded">Cancelar</button>
+                        <button type="submit" class="bg-red-500 text-white font-bold py-2 px-4 rounded">Adicionar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="modal-liquidar-divida-overlay" class="modal-container-wrapper fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
+                <h2 class="text-xl font-bold mb-4">Liquidar Dívida de <span id="modal-liquidar-cliente-nome" class="text-blue-600"></span></h2>
+                <form id="form-liquidar-divida">
+                    <p class="mb-4">Dívida Atual: <span id="modal-liquidar-divida-atual" class="font-bold text-red-600"></span></p>
+                    <input type="number" id="input-liquidar-valor" placeholder="Valor do pagamento (Kz)" min="0" step="0.01" required class="w-full p-3 border rounded-md mb-4">
+                    <div class="flex justify-end gap-4 mt-6">
+                        <button type="button" class="btn-cancelar-modal bg-gray-300 font-bold py-2 px-4 rounded">Cancelar</button>
+                        <button type="submit" class="bg-green-500 text-white font-bold py-2 px-4 rounded">Registar Pagamento</button>
+                    </div>
+                </form>
             </div>
         </div>
 

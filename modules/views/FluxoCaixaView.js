@@ -4,6 +4,7 @@
 import store from '../services/Store.js';
 import * as Modals from '../components/Modals.js';
 import * as Toast from '../components/Toast.js';
+import { calcularRelatorioDia } from '../services/utils.js'; // <-- NOVA IMPORTAÇÃO
 
 const sel = {};
 // Estado local da View para controlar o mês/ano do calendário
@@ -71,7 +72,8 @@ function handleArquivarDia() {
         Toast.mostrarNotificacao("O dia de hoje já foi fechado e arquivado.", "erro");
         return;
     }
-    if (state.contasAtivas.filter(c => c.status === 'fechada').length === 0) {
+    const contasFechadasHoje = state.contasAtivas.filter(c => c.status === 'fechada' && new Date(c.dataFecho).toDateString() === hojeStr);
+    if (contasFechadasHoje.length === 0) {
         Toast.mostrarNotificacao("Não existem vendas fechadas para arquivar.", "erro");
         return;
     }
@@ -80,9 +82,8 @@ function handleArquivarDia() {
         'Arquivar o Dia?',
         'Todas as contas fechadas serão arquivadas e o dia será reiniciado. Esta ação não pode ser desfeita.',
         () => {
-            // A função de cálculo do relatório está agora em Modals.js, mas poderia ser um utilitário.
-            const relatorio = Modals.calcularRelatorioDia(); 
-            relatorio.data = new Date().toISOString();
+            // A função de cálculo do relatório é agora importada do utils.js
+            const relatorio = calcularRelatorioDia(store.getState()); 
             
             store.dispatch({ type: 'ARCHIVE_DAY', payload: { relatorio } });
 
@@ -123,7 +124,7 @@ function init() {
         }
     });
     
-    sel.btnVerFechoDiaAtual.addEventListener('click', Modals.abrirModalFechoGlobal);
+    sel.btnVerFechoDiaAtual.addEventListener('click', () => Modals.abrirModalFechoGlobal(calcularRelatorioDia(store.getState())));
     sel.btnArquivarDia.addEventListener('click', handleArquivarDia);
     
     render();

@@ -1,4 +1,4 @@
-// /modules/app.js - O Orquestrador da Aplicação (v7.0 - Arquitetura Final)
+// /modules/app.js - O Orquestrador da Aplicação (v7.1 - Correção de Auditoria)
 'use strict';
 
 // Import do Store e da função de inicialização
@@ -6,12 +6,13 @@ import store, { carregarEstadoInicial } from './services/Store.js';
 
 // Import de todos os módulos de UI
 import * as Modals from './components/Modals.js';
-import * as Nav from './components/Nav.js'; // Assumindo que a lógica da nav será movida para aqui
+import * as Nav from './components/Nav.js';
 import * as Toast from './components/Toast.js';
 
 // Import de todas as nossas Views Reativas
 import AtendimentoView from './views/AtendimentoView.js';
 import ClientesView from './views/ClientesView.js';
+import ClienteDetalhesView from './views/ClienteDetalhesView.js'; // <-- ADICIONADO
 import DashboardView from './views/DashboardView.js';
 import FluxoCaixaView from './views/FluxoCaixaView.js';
 import InventarioView from './views/InventarioView.js';
@@ -92,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
     InventarioView.init();
     AtendimentoView.init();
     ClientesView.init();
+    ClienteDetalhesView.init(); // <-- ADICIONADO
     FluxoCaixaView.init();
     
     // Configura os listeners que não pertencem a nenhuma view específica

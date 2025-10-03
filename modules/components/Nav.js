@@ -1,4 +1,4 @@
-// /modules/components/Nav.js - Componente de Navegação Principal (v7.0)
+// /modules/components/Nav.js - Componente de Navegação Principal (v7.1 - Header Dinâmica)
 'use strict';
 
 const sel = {};
@@ -7,6 +7,7 @@ const sel = {};
  * Guarda as referências aos elementos do DOM necessários para a navegação.
  */
 function querySelectors() {
+    sel.headerTitle = document.getElementById('header-title');
     sel.bottomNav = document.getElementById('bottom-nav');
     sel.tabContents = document.querySelectorAll('.tab-content');
     sel.fabs = document.querySelectorAll('.fab');
@@ -32,8 +33,16 @@ export function navigateToTab(tabId) {
         activeTab.classList.remove('hidden');
     }
 
+    // Mapeamento de IDs de abas para títulos de header
+    const titleMappings = {
+        'tab-dashboard': 'Dashboard',
+        'tab-inventario': 'Inventário',
+        'tab-atendimento': 'Atendimento',
+        'tab-clientes': 'Clientes',
+        'tab-fluxo-caixa': 'Caixa'
+    };
+    
     // Define o nome do FAB com base no ID da aba
-    // ex: 'tab-inventario' -> 'btn-fab-add-produto'
     const fabMappings = {
         'tab-inventario': 'btn-fab-add-produto',
         'tab-atendimento': 'btn-fab-add-conta',
@@ -48,10 +57,11 @@ export function navigateToTab(tabId) {
         }
     }
     
-    // Ativa o botão da nav correspondente
+    // Ativa o botão da nav e atualiza o título da header
     const activeButton = sel.bottomNav.querySelector(`.nav-btn[data-tab="${tabId}"]`);
     if (activeButton) {
         activeButton.classList.add('active');
+        sel.headerTitle.textContent = titleMappings[tabId] || 'Gestor de Bar';
     }
 }
 
@@ -60,9 +70,5 @@ export function navigateToTab(tabId) {
  */
 export function init() {
     querySelectors();
-    // Define a aba inicial como Dashboard, mas não mostra o conteúdo ainda
-    const initialButton = sel.bottomNav.querySelector('.nav-btn[data-tab="tab-dashboard"]');
-    if (initialButton) {
-        initialButton.classList.add('active');
-    }
+    // A aba inicial é definida no app.js, não mais aqui
 }

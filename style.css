@@ -1,4 +1,4 @@
-/* /style.css - Folha de Estilos Principal (v7.0 - Final) */
+/* /style.css - Folha de Estilos Principal (v7.5 - Reversão Atendimento) */
 
 /* --- VARIAVEIS GLOBAIS --- */
 :root {
@@ -12,6 +12,13 @@
     --sombra-padrao: 0 4px 8px rgba(0,0,0,0.1);
     --borda-radius: 0.5rem; /* 8px */
     --altura-nav: 60px;
+
+    /* Variáveis customizadas para o Swiper.js (apenas para Inventário) */
+    --swiper-pagination-color: var(--cor-primaria);
+    --swiper-pagination-bullet-inactive-color: #d1d5db; /* gray-300 */
+    --swiper-pagination-bullet-inactive-opacity: 1;
+    --swiper-pagination-bullet-size: 8px;
+    --swiper-pagination-bullet-horizontal-gap: 4px;
 }
 
 /* --- ESTILOS DE BASE E RESET --- */
@@ -19,7 +26,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    -webkit-tap-highlight-color: transparent; /* Remove o brilho azul ao tocar em links/botões no mobile */
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -27,13 +34,18 @@ body {
     background-color: var(--cor-fundo-principal);
     color: var(--cor-texto-principal);
     line-height: 1.6;
-    /* Garante que o conteúdo não fica por baixo da barra de navegação */
     padding-bottom: var(--altura-nav); 
 }
 
+/* --- CORREÇÃO DE LAYOUT VERTICAL --- */
+.tab-content {
+    min-height: calc(100vh - var(--altura-nav) - 4rem);
+    display: flex;
+    flex-direction: column;
+}
+
 #bottom-nav {
-    /* ... */
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
 }
 
 .nav-btn {
@@ -41,28 +53,24 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    gap: 2px; /* Adiciona um pequeno espaçamento entre o ícone e o texto */
+    gap: 2px;
     background: none;
     border: none;
     cursor: pointer;
     color: #888;
     transition: color 0.2s ease, border-top-color 0.2s ease;
     border-top: 3px solid transparent;
-    padding: 4px 0; /* Ajusta o padding vertical */
+    padding: 4px 0;
 }
 
 .nav-btn .lni {
-    font-size: 1.3rem; /* 21px - Ligeiramente reduzido para equilíbrio */
+    font-size: 1.3rem;
 }
 
 .nav-btn .nav-text {
-    font-size: 0.75rem; /* 12px - Aumentado para legibilidade */
+    font-size: 0.75rem;
     font-weight: 500;
-    line-height: 1; /* Garante que o texto não adicione altura extra */
-}
-
-.nav-btn:hover {
-    color: var(--cor-primaria);
+    line-height: 1;
 }
 
 .nav-btn.active {
@@ -70,11 +78,11 @@ body {
     border-top: 3px solid var(--cor-primaria);
 }
 
-/* --- ESTILOS PARA COMPONENTES DE UI --- */
+/* --- COMPONENTES DE UI --- */
 
 .fab {
     position: fixed;
-    bottom: calc(var(--altura-nav) + 20px); /* 20px acima da barra de navegação */
+    bottom: calc(var(--altura-nav) + 20px);
     left: 50%;
     transform: translateX(-50%);
     width: 56px;
@@ -89,10 +97,54 @@ body {
     border: none;
     box-shadow: var(--sombra-padrao);
     cursor: pointer;
-    z-index: 80; /* Abaixo da navegação (90) mas acima do conteúdo */
+    z-index: 80;
     transition: transform 0.2s ease-in-out;
 }
 
-.fab:hover {
-    transform: translateX(-50%) scale(1.05);
+/* --- ESTILOS PARA INVENTÁRIO --- */
+#swiper-inventario {
+    width: 100%;
+    padding-bottom: 30px; 
+}
+
+.product-card {
+    background-color: #f3f4f6;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: var(--sombra-padrao);
+    border: 1px solid #e5e7eb;
+    min-height: 240px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.stock-column {
+    text-align: center;
+}
+.stock-column .label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+.stock-column .value {
+    font-size: 3rem;
+    font-weight: 700;
+    color: var(--cor-texto-principal);
+    line-height: 1;
+    margin: 0.5rem 0;
+}
+.btn-add-stock-small {
+    background-color: #10b981;
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 20px;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
 }

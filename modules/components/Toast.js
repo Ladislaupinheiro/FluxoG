@@ -28,19 +28,29 @@ function processarFilaDeNotificacoes() {
     sel.toastNotificacao.classList.remove('hidden');
     setTimeout(() => sel.toastNotificacao.classList.remove('opacity-0'), 50);
 
-
     // Esconde a notificação após um tempo
+    const tempoDeEspera = 3000;
     setTimeout(() => {
         sel.toastNotificacao.classList.add('opacity-0');
         
-        // Espera a transição terminar para esconder o elemento e processar a próxima
-        sel.toastNotificacao.addEventListener('transitionend', () => {
+        const onTransitionEnd = () => {
             sel.toastNotificacao.classList.add('hidden');
             notificacaoAtiva = false;
             processarFilaDeNotificacoes();
+        };
+
+        // Fallback de segurança caso o evento 'transitionend' não dispare
+        const fallbackTimeout = setTimeout(() => {
+            sel.toastNotificacao.removeEventListener('transitionend', onTransitionEnd);
+            onTransitionEnd();
+        }, tempoDeEspera + 500); // 500ms de margem de segurança
+
+        sel.toastNotificacao.addEventListener('transitionend', () => {
+            clearTimeout(fallbackTimeout);
+            onTransitionEnd();
         }, { once: true });
 
-    }, 3000);
+    }, tempoDeEspera);
 }
 
 /**
