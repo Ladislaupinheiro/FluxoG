@@ -132,3 +132,26 @@ export async function apagarItem(storeName, key) {
         };
     });
 }
+
+/**
+ * Apaga TODOS os itens de um Object Store.
+ * Essencial para a funcionalidade de Restauro de Backup.
+ * @param {string} storeName - O nome do store a ser limpo.
+ * @returns {Promise<void>} Uma promessa que resolve quando o store é limpo.
+ */
+export async function limparStore(storeName) {
+    if (!db) await initDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(storeName, 'readwrite');
+        const store = transaction.objectStore(storeName);
+        const request = store.clear();
+
+        request.onsuccess = () => {
+            resolve();
+        };
+        request.onerror = (event) => {
+            console.error(`Erro ao limpar o store '${storeName}':`, event.target.error);
+            reject(`Erro ao limpar o store '${storeName}'.`);
+        };
+    });
+}

@@ -23,23 +23,27 @@
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans pb-16">
 
-    <header id="app-header" class="bg-white shadow-md sticky top-0 z-40 p-4 flex justify-between items-center">
-        <h1 id="header-title" class="text-xl font-bold text-gray-800">Dashboard</h1>
-        <button id="btn-settings" class="text-gray-600 hover:text-blue-500 text-2xl">
-            <i class="lni lni-cog"></i>
-        </button>
-    </header>
-
     <main id="app-container" class="p-4">
         
         <section id="tab-dashboard" class="tab-content">
+            <div id="dashboard-profile-area" class="flex justify-end items-center gap-3 mb-4">
+                <div class="text-right">
+                    <span id="db-business-name" class="font-bold text-gray-800 block">O Meu Bar</span>
+                    <span class="text-xs text-gray-500">Gestor</span>
+                </div>
+                <img id="db-profile-pic" src="icons/logo-small-192.png" alt="Logo" class="w-12 h-12 rounded-full object-cover bg-gray-200">
+                <button id="btn-settings" class="text-gray-500 hover:text-blue-500 text-2xl">
+                    <i class="lni lni-cog"></i>
+                </button>
+            </div>
+
             <div class="space-y-4">
                 <div class="bg-white p-4 rounded-lg shadow-md text-center">
                     <p class="text-sm font-semibold text-gray-600">Vendas de Hoje</p>
                     <span id="db-vendas-total" class="block text-5xl font-bold text-blue-600 my-2">Kz 0,00</span>
                     <div class="flex justify-center gap-4 text-sm text-gray-500 pt-2 border-t mt-2">
-                        <span><i class="lni lni-money-location text-green-500"></i> NUM: <b id="db-vendas-numerario" class="font-semibold">Kz 0,00</b></span>
-                        <span><i class="lni lni-credit-cards text-blue-500"></i> TPA: <b id="db-vendas-tpa" class="font-semibold">Kz 0,00</b></span>
+                        <span><i class="lni lni-money-location text-green-500"></i><b id="db-vendas-numerario" class="font-semibold">Kz 0,00</b></span>
+                        <span><i class="lni lni-credit-cards text-blue-500"></i><b id="db-vendas-tpa" class="font-semibold">Kz 0,00</b></span>
                     </div>
                 </div>
 
@@ -108,21 +112,24 @@
 
         <section id="tab-fluxo-caixa" class="tab-content hidden">
             <header class="bg-white p-4 rounded-lg shadow-md mb-4 space-y-4">
-                <div class="flex justify-end items-center">
-                    <button id="btn-ver-fecho-dia-atual" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow">Fechar o Dia</button>
-                </div>
-                <div id="calendario-nav" class="flex justify-between items-center pt-2 border-t">
+                <div id="calendario-nav" class="flex justify-between items-center">
                     <button id="btn-mes-anterior" class="p-2 text-lg"><i class="lni lni-chevron-left"></i></button>
                     <h2 id="calendario-titulo" class="text-xl font-bold">Outubro 2025</h2>
                     <button id="btn-mes-seguinte" class="p-2 text-lg"><i class="lni lni-chevron-right"></i></button>
                 </div>
             </header>
-            <div id="calendario-container">
+            <div id="calendario-container" class="flex-grow">
                 <div class="grid grid-cols-7 gap-2 text-center font-bold text-gray-600 text-sm mb-2">
                     <div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div><div>D</div>
                 </div>
                 <div id="calendario-grid-dias" class="grid grid-cols-7 gap-2"></div>
             </div>
+            <footer class="pt-4 mt-4">
+                <button id="btn-ver-fecho-dia-atual" class="w-full max-w-xs mx-auto bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow flex items-center justify-center gap-2">
+                    <i class="lni lni-printer"></i>
+                    <span>Fechar o Dia</span>
+                </button>
+            </footer>
         </section>
         
         <section id="tab-clientes" class="tab-content hidden">
@@ -163,6 +170,9 @@
         </section>
 
         <section id="view-settings" class="tab-content hidden">
+             <button id="btn-close-settings" class="absolute top-2 right-2 text-3xl text-gray-400 hover:text-gray-700 z-10">
+                &times;
+            </button>
             <div class="space-y-6">
 
                 <div>

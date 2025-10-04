@@ -10,6 +10,7 @@ const URLS_TO_CACHE = [
     './index.html',
     './style.css',
     './manifest.json',
+    './tips.json', // <-- ADICIONADO
     './favicon.png',
     
     // Ícones
@@ -27,13 +28,16 @@ const URLS_TO_CACHE = [
     // Serviços
     './modules/services/Store.js',
     './modules/services/Storage.js',
+    './modules/services/TipsService.js', // <-- ADICIONADO
 
     // Views
     './modules/views/AtendimentoView.js',
     './modules/views/ClientesView.js',
+    './modules/views/ClienteDetalhesView.js', // <-- ADICIONADO (Correção)
     './modules/views/DashboardView.js',
     './modules/views/FluxoCaixaView.js',
-    './modules/views/InventarioView.js'
+    './modules/views/InventarioView.js',
+    './modules/views/SettingsView.js' // <-- ADICIONADO
 ];
 
 self.addEventListener('install', (event) => {

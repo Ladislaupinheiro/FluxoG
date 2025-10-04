@@ -2,6 +2,9 @@
 'use strict';
 
 import store from '../services/Store.js';
+import * as TipsService from '../services/TipsService.js';
+import * as Modals from '../components/Modals.js';
+import * as Toast from '../components/Toast.js';
 
 const sel = {};
 
@@ -16,6 +19,9 @@ function querySelectors() {
     sel.dbAlertasStock = document.getElementById('db-alertas-stock');
     sel.dbTopProdutoNome = document.getElementById('db-top-produto-nome');
     sel.dbTopProdutoQtd = document.getElementById('db-top-produto-qtd');
+    sel.btnVerDica = document.getElementById('btn-ver-dica');
+    sel.dbProfilePic = document.getElementById('db-profile-pic');
+    sel.dbBusinessName = document.getElementById('db-business-name');
 }
 
 /**
@@ -24,10 +30,20 @@ function querySelectors() {
  */
 function render() {
     const state = store.getState();
-    const { contasAtivas, inventario } = state;
+    const { contasAtivas, inventario, config } = state;
 
-    // 1. Calcula as Vendas de Hoje a partir das contas fechadas
-    const contasFechadasHoje = contasAtivas.filter(c => c.status === 'fechada');
+    // Renderiza a área de perfil
+    if (config) {
+        sel.dbBusinessName.textContent = config.businessName || 'O Meu Bar';
+        sel.dbProfilePic.src = config.profilePicDataUrl || 'icons/logo-small-192.png';
+    }
+
+    // 1. Calcula as Vendas de Hoje a partir das contas fechadas (LÓGICA CORRIGIDA)
+    const hojeString = new Date().toDateString();
+    const contasFechadasHoje = contasAtivas.filter(c => 
+        c.status === 'fechada' && new Date(c.dataFecho).toDateString() === hojeString
+    );
+
     const totais = contasFechadasHoje.reduce((acc, conta) => {
         const valor = conta.valorFinal || 0;
         acc.totalVendas += valor;
@@ -63,11 +79,20 @@ function render() {
 
 /**
  * Função de inicialização da View.
- * Apenas se inscreve nas atualizações do store.
  */
 function init() {
     querySelectors();
     store.subscribe(render);
+    
+    sel.btnVerDica.addEventListener('click', async () => {
+        const dica = await TipsService.getDailyTip();
+        if (dica) {
+            Modals.abrirModalDicaDoDia(dica);
+        } else {
+            Toast.mostrarNotificacao("Não foi possível carregar a dica de hoje.", "erro");
+        }
+    });
+
     render(); // Renderiza o estado inicial
 }
 

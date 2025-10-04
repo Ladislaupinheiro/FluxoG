@@ -3,9 +3,11 @@
 
 import store from '../services/Store.js';
 import * as Toast from './Toast.js';
+import { exportarRelatorioPDF, exportarRelatorioXLS } from '../services/utils.js';
 
 const sel = {};
 let onConfirmCallback = null;
+let relatorioAtual = null; // Guarda os dados do relatório visível no modal
 
 function querySelectors() {
     // Modal Nova Conta
@@ -57,19 +59,6 @@ function querySelectors() {
     sel.moverStockArmazemQtd = document.getElementById('mover-stock-armazem-qtd');
     sel.inputMoverStockQuantidade = document.getElementById('input-mover-stock-quantidade');
     
-    // MODAIS DE DÍVIDAS
-    sel.modalAddDividaOverlay = document.getElementById('modal-add-divida-overlay');
-    sel.formAddDivida = document.getElementById('form-add-divida');
-    sel.modalDividaClienteNome = document.getElementById('modal-divida-cliente-nome');
-    sel.inputDividaValor = document.getElementById('input-divida-valor');
-    sel.inputDividaDescricao = document.getElementById('input-divida-descricao');
-    
-    sel.modalLiquidarDividaOverlay = document.getElementById('modal-liquidar-divida-overlay');
-    sel.formLiquidarDivida = document.getElementById('form-liquidar-divida');
-    sel.modalLiquidarClienteNome = document.getElementById('modal-liquidar-cliente-nome');
-    sel.modalLiquidarDividaAtual = document.getElementById('modal-liquidar-divida-atual');
-    sel.inputLiquidarValor = document.getElementById('input-liquidar-valor');
-
     // Modal Fecho Global
     sel.modalFechoGlobalOverlay = document.getElementById('modal-fecho-global-overlay');
     sel.fgDataRelatorio = document.getElementById('fg-data-relatorio');
@@ -88,14 +77,99 @@ function querySelectors() {
     sel.modalConfirmacaoTitulo = document.getElementById('modal-confirmacao-titulo');
     sel.modalConfirmacaoMensagem = document.getElementById('modal-confirmacao-mensagem');
     sel.btnConfirmarConfirmacaoModal = document.getElementById('btn-confirmar-confirmacao-modal');
+
+    // Modal de Backup e Restauro
+    sel.modalBackupRestoreOverlay = document.getElementById('modal-backup-restore-overlay');
+
+    // Modal Dica do Dia
+    sel.modalDicaOverlay = document.getElementById('modal-dica-overlay');
+    sel.dicaCategoria = document.getElementById('dica-categoria');
+    sel.dicaTitulo = document.getElementById('dica-titulo');
+    sel.dicaConteudo = document.getElementById('dica-conteudo');
+
+    // MODAIS DE DÍVIDAS
+    sel.modalAddDividaOverlay = document.getElementById('modal-add-divida-overlay');
+    sel.formAddDivida = document.getElementById('form-add-divida');
+    sel.modalDividaClienteNome = document.getElementById('modal-divida-cliente-nome');
+    sel.inputDividaValor = document.getElementById('input-divida-valor');
+    sel.inputDividaDescricao = document.getElementById('input-divida-descricao');
+    
+    sel.modalLiquidarDividaOverlay = document.getElementById('modal-liquidar-divida-overlay');
+    sel.formLiquidarDivida = document.getElementById('form-liquidar-divida');
+    sel.modalLiquidarClienteNome = document.getElementById('modal-liquidar-cliente-nome');
+    sel.modalLiquidarDividaAtual = document.getElementById('modal-liquidar-divida-atual');
+    sel.inputLiquidarValor = document.getElementById('input-liquidar-valor');
 }
 
 export function init() {
     querySelectors();
+
+    // Listener para o botão de exportar PDF no modal de fecho global
+    if (sel.btnExportarPdf) {
+        sel.btnExportarPdf.addEventListener('click', () => {
+            if (relatorioAtual) {
+                const config = store.getState().config; // Obter config atual
+                exportarRelatorioPDF(relatorioAtual, config);
+            } else {
+                Toast.mostrarNotificacao("Dados do relatório não encontrados.", "erro");
+            }
+        });
+    }
+
+    // Listener para o botão de exportar XLS no modal de fecho global
+    if (sel.btnExportarXls) {
+        sel.btnExportarXls.addEventListener('click', () => {
+            if (relatorioAtual) {
+                const config = store.getState().config; // Obter config atual
+                exportarRelatorioXLS(relatorioAtual, config);
+            } else {
+                Toast.mostrarNotificacao("Dados do relatório não encontrados.", "erro");
+            }
+        });
+    }
+
+    // Listener de delegação de eventos para o MODAL DE PAGAMENTO (CORREÇÃO DO BUG)
+    if (sel.modalPagamentoOverlay) {
+        let metodoSelecionado = null;
+
+        sel.modalPagamentoOverlay.addEventListener('click', (event) => {
+            const metodoBtn = event.target.closest('.pagamento-metodo-btn');
+            const confirmarBtn = event.target.closest('#btn-confirmar-pagamento');
+
+            if (metodoBtn) {
+                // Remove a seleção de outros botões
+                sel.pagamentoMetodosContainer.querySelectorAll('.pagamento-metodo-btn').forEach(btn => {
+                    btn.classList.remove('border-blue-500', 'bg-blue-100');
+                });
+                // Adiciona a seleção ao botão clicado
+                metodoBtn.classList.add('border-blue-500', 'bg-blue-100');
+                metodoSelecionado = metodoBtn.dataset.metodo;
+                
+                // Ativa o botão de confirmação
+                sel.btnConfirmarPagamento.disabled = false;
+                sel.btnConfirmarPagamento.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                sel.btnConfirmarPagamento.classList.add('bg-blue-500', 'hover:bg-blue-600');
+            }
+
+            if (confirmarBtn && !confirmarBtn.disabled) {
+                const contaId = sel.pagamentoContaIdInput.value;
+                if (contaId && metodoSelecionado) {
+                    store.dispatch({
+                        type: 'FINALIZE_PAYMENT',
+                        payload: { contaId, metodoPagamento: metodoSelecionado }
+                    });
+                    Toast.mostrarNotificacao("Pagamento finalizado com sucesso!");
+                    fecharModalPagamento();
+                    metodoSelecionado = null; // Limpa a seleção
+                }
+            }
+        });
+    }
+
     if (sel.btnConfirmarConfirmacaoModal) {
         sel.btnConfirmarConfirmacaoModal.addEventListener('click', () => {
             if (typeof onConfirmCallback === 'function') {
-                onConfirmCallback();
+                onConfirmarCallback();
             }
             fecharModalConfirmacao();
         });
@@ -205,6 +279,7 @@ export function fecharModalMoverStock() {
 }
 
 export function abrirModalFechoGlobal(relatorio) {
+    relatorioAtual = relatorio; // Guarda o relatório atual para os botões de exportação
     sel.fgDataRelatorio.textContent = new Date(relatorio.data).toLocaleDateString('pt-PT', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     sel.fgTotalVendido.textContent = relatorio.totalVendido.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
     sel.fgTotalNumerario.textContent = relatorio.totalNumerario.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
@@ -219,6 +294,7 @@ export function abrirModalFechoGlobal(relatorio) {
 }
 export function fecharModalFechoGlobal() {
     sel.modalFechoGlobalOverlay.classList.add('hidden');
+    relatorioAtual = null; // Limpa os dados do relatório ao fechar
 }
 
 export function abrirModalFechoGlobalHistorico(relatorio) {
@@ -236,6 +312,27 @@ export function fecharModalConfirmacao() {
     sel.modalConfirmacaoOverlay.classList.add('hidden');
     onConfirmCallback = null;
 }
+
+// --- Funções para Modal de Backup/Restauro ---
+export function abrirModalBackupRestore() {
+    sel.modalBackupRestoreOverlay.classList.remove('hidden');
+}
+export function fecharModalBackupRestore() {
+    sel.modalBackupRestoreOverlay.classList.add('hidden');
+}
+
+// --- Funções para Modal de Dica do Dia ---
+export function abrirModalDicaDoDia(dica) {
+    if (!dica) return;
+    sel.dicaCategoria.textContent = dica.category;
+    sel.dicaTitulo.textContent = dica.title;
+    sel.dicaConteudo.textContent = dica.content;
+    sel.modalDicaOverlay.classList.remove('hidden');
+}
+export function fecharModalDicaDoDia() {
+    sel.modalDicaOverlay.classList.add('hidden');
+}
+
 
 // --- FUNÇÕES PARA MODAIS DE DÍVIDAS ---
 

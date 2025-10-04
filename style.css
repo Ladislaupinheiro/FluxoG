@@ -3,7 +3,7 @@
 /* --- VARIAVEIS GLOBAIS --- */
 :root {
     --cor-primaria: #007bff;
-    --cor-primaria-clara: #e6f2ff;
+    --cor-primaria-clara: #e6f2ff; /* Usado para backgrounds subtis no tema claro */
     --cor-fundo-principal: #f4f7f6;
     --cor-fundo-secundario: #ffffff;
     --cor-texto-principal: #333333;
@@ -19,6 +19,15 @@
     --swiper-pagination-bullet-inactive-opacity: 1;
     --swiper-pagination-bullet-size: 8px;
     --swiper-pagination-bullet-horizontal-gap: 4px;
+}
+
+body[data-theme='dark'] {
+    --cor-primaria-clara: #1a2637; /* Usado para backgrounds subtis no tema escuro */
+    --cor-fundo-principal: #121212;
+    --cor-fundo-secundario: #1e1e1e;
+    --cor-texto-principal: #e0e0e0;
+    --cor-texto-claro: #121212;
+    --sombra-padrao: 0 4px 8px rgba(0,0,0,0.4);
 }
 
 /* --- ESTILOS DE BASE E RESET --- */

@@ -10,6 +10,7 @@ const sel = {};
 
 function querySelectors() {
     sel.clientesView = document.getElementById('tab-clientes');
+    sel.clientesHeader = document.getElementById('clientes-header');
     sel.clientesEmptyState = document.getElementById('clientes-empty-state');
     sel.listaClientes = document.getElementById('lista-clientes');
     sel.inputBuscaClientes = document.getElementById('input-busca-clientes');
@@ -28,18 +29,23 @@ function render() {
     const { clientes } = state;
     const termoBusca = sel.inputBuscaClientes.value.toLowerCase().trim();
 
-    // LÓGICA DO ESTADO VAZIO (MAIS ROBUSTA)
+    // LÓGICA DE BUSCA CONDICIONAL: Mostra a busca apenas se houver mais de 7 clientes.
+    if (clientes.length > 7) {
+        sel.clientesHeader.classList.remove('hidden');
+    } else {
+        sel.clientesHeader.classList.add('hidden');
+    }
+
+    // LÓGICA DO ESTADO VAZIO
     if (clientes.length === 0) {
         sel.clientesEmptyState.classList.remove('hidden');
         sel.listaClientes.classList.add('hidden');
-        sel.inputBuscaClientes.classList.add('hidden');
         return;
     }
 
     // LÓGICA DA VISTA PREENCHIDA
     sel.clientesEmptyState.classList.add('hidden');
     sel.listaClientes.classList.remove('hidden');
-    sel.inputBuscaClientes.classList.remove('hidden');
     sel.listaClientes.innerHTML = '';
 
     const clientesFiltrados = clientes.filter(cliente => 

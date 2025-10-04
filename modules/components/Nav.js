@@ -7,7 +7,6 @@ const sel = {};
  * Guarda as referências aos elementos do DOM necessários para a navegação.
  */
 function querySelectors() {
-    sel.headerTitle = document.getElementById('header-title');
     sel.bottomNav = document.getElementById('bottom-nav');
     sel.tabContents = document.querySelectorAll('.tab-content');
     sel.fabs = document.querySelectorAll('.fab');
@@ -61,7 +60,6 @@ export function navigateToTab(tabId) {
     const activeButton = sel.bottomNav.querySelector(`.nav-btn[data-tab="${tabId}"]`);
     if (activeButton) {
         activeButton.classList.add('active');
-        sel.headerTitle.textContent = titleMappings[tabId] || 'Gestor de Bar';
     }
 }
 

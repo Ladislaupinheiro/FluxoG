@@ -12,10 +12,11 @@ import * as Toast from './components/Toast.js';
 // Import de todas as nossas Views Reativas
 import AtendimentoView from './views/AtendimentoView.js';
 import ClientesView from './views/ClientesView.js';
-import ClienteDetalhesView from './views/ClienteDetalhesView.js'; // <-- ADICIONADO
+import ClienteDetalhesView from './views/ClienteDetalhesView.js';
 import DashboardView from './views/DashboardView.js';
 import FluxoCaixaView from './views/FluxoCaixaView.js';
 import InventarioView from './views/InventarioView.js';
+import SettingsView from './views/SettingsView.js'; // <-- ADICIONADO
 
 
 /**
@@ -25,6 +26,12 @@ async function inicializarApp() {
     try {
         await carregarEstadoInicial();
         
+        // Aplica o tema guardado no arranque para evitar "flash"
+        const state = store.getState();
+        if (state.config && state.config.theme) {
+            document.body.dataset.theme = state.config.theme;
+        }
+        
         const appContainer = document.getElementById('app-container');
         const bottomNav = document.getElementById('bottom-nav');
         
@@ -32,7 +39,6 @@ async function inicializarApp() {
         bottomNav.classList.remove('hidden');
         
         // Decide qual a melhor aba para mostrar no arranque com base no estado
-        const state = store.getState();
         if (state.inventario.length === 0) {
             Nav.navigateToTab('tab-inventario');
         } else if (state.contasAtivas.filter(c => c.status === 'ativa').length > 0) {
@@ -93,8 +99,9 @@ document.addEventListener('DOMContentLoaded', () => {
     InventarioView.init();
     AtendimentoView.init();
     ClientesView.init();
-    ClienteDetalhesView.init(); // <-- ADICIONADO
+    ClienteDetalhesView.init(); 
     FluxoCaixaView.init();
+    SettingsView.init(); // <-- ADICIONADO
     
     // Configura os listeners que não pertencem a nenhuma view específica
     configurarEventListenersGlobais();

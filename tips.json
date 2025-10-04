@@ -1,0 +1,362 @@
+[
+  {
+    "id": 1,
+    "category": "Gestão de Stock",
+    "title": "O Inventário é Gita Parada",
+    "content": "Analise os teus 5 produtos com menos saída no último mês. Um bom desconto pode despachar o stock e libertar capital para investir no que vende mais."
+  },
+  {
+    "id": 2,
+    "category": "Engenharia de Menu",
+    "title": "Destaque o Que Dá Mais Lucro",
+    "content": "Coloca os teus itens mais lucrativos em destaque no menu. Uma foto apelativa ou uma descrição caprichada pode fazer a faturação do dia subir bwe."
+  },
+  {
+    "id": 3,
+    "category": "Operações",
+    "title": "A Eficiência do Balcão",
+    "content": "Um balcão bem organizado (mise en place) é fundamental. Reduz o tempo de preparo, evita desperdício e mostra profissionalismo ao cliente que está a ver."
+  },
+  {
+    "id": 4,
+    "category": "Marketing",
+    "title": "Aproveita os Dias de Cacimbo",
+    "content": "Identifica os teus dias de menor movimento. Cria eventos temáticos ou promoções 'happy hour' para chamar mais pessoal e equilibrar a receita da semana."
+  },
+  {
+    "id": 5,
+    "category": "Finanças",
+    "title": "Kilapis em Dia, Negócio em Paz",
+    "content": "Não deixe os kilapis (dívidas) acumularem. Pagar aos fornecedores a tempo pode garantir melhores negócios e evita muitos mambos."
+  },
+  {
+    "id": 6,
+    "category": "Atendimento ao Cliente",
+    "title": "O Cliente é Cota",
+    "content": "Ensina a tua equipa a tratar cada cliente como um 'cota' (pessoa respeitada). Um bom atendimento fideliza mais do que qualquer promoção."
+  },
+  {
+    "id": 7,
+    "category": "Gestão de Stock",
+    "title": "Controlo Semanal é Regra",
+    "content": "Faz uma contagem rápida do teu stock chave todas as semanas. Isto ajuda a identificar perdas, furtos ou desperdícios antes que virem um problema sério."
+  },
+  {
+    "id": 8,
+    "category": "Engenharia de Menu",
+    "title": "Menus Pequenos, Grandes Lucros",
+    "content": "Um menu muito extenso pode confundir o cliente e complicar o stock. Foca-te em menos pratos, mas que sejam excelentes. Qualidade vende mais que quantidade."
+  },
+  {
+    "id": 9,
+    "category": "Finanças",
+    "title": "Separa a Gita do Negócio",
+    "content": "Nunca mistures o dinheiro do bar com o teu dinheiro pessoal. Cria contas separadas. É o primeiro passo para uma gestão financeira profissional."
+  },
+  {
+    "id": 10,
+    "category": "Marketing",
+    "title": "Usa as Redes Sociais",
+    "content": "Tira boas fotos dos teus cocktails e petiscos e publica no Instagram e Facebook. Mostra o ambiente do teu bar. É publicidade gratuita e eficaz."
+  },
+  {
+    "id": 11,
+    "category": "Operações",
+    "title": "A Importância do Gelo",
+    "content": "Gelo de qualidade é crucial para um bom cocktail. Investe numa boa máquina de gelo e garante que está sempre limpa. Faz toda a diferença na bebida."
+  },
+  {
+    "id": 12,
+    "category": "Atendimento ao Cliente",
+    "title": "Conhece os Teus Clientes",
+    "content": "Tenta saber o nome e a bebida preferida dos teus clientes habituais. Chamar alguém pelo nome cria uma conexão imediata e forte."
+  },
+  {
+    "id": 13,
+    "category": "Finanças",
+    "title": "Olho Vivo no TPA",
+    "content": "Confere as taxas do teu terminal de pagamento (TPA). Compara com outros bancos e negoceia. Cada percentagem conta no final do mês."
+  },
+  {
+    "id": 14,
+    "category": "Gestão de Stock",
+    "title": "Primeiro a Entrar, Primeiro a Sair",
+    "content": "Usa o método PEPS (Primeiro a Entrar, Primeiro a Sair) para organizar o teu stock. Garante que os produtos mais antigos são usados primeiro, evitando perdas."
+  },
+  {
+    "id": 15,
+    "category": "Marketing",
+    "title": "Cria um Cocktail da Casa",
+    "content": "Desenvolve uma bebida exclusiva do teu bar. Dá-lhe um nome criativo e promove-a. É uma excelente forma de criar uma identidade única."
+  },
+  {
+    "id": 16,
+    "category": "Operações",
+    "title": "Formação Contínua da Equipa",
+    "content": "Investe tempo a ensinar a tua equipa sobre os produtos que vendem. Um barman que sabe explicar a origem de um whisky vende muito mais."
+  },
+  {
+    "id": 17,
+    "category": "Atendimento ao Cliente",
+    "title": "Resolve os Mambos na Hora",
+    "content": "Se um cliente reclamar, ouve com atenção e resolve o problema imediatamente. Um problema bem resolvido pode transformar um cliente insatisfeito num fã."
+  },
+  {
+    "id": 18,
+    "category": "Finanças",
+    "title": "Define Metas de Vendas Diárias",
+    "content": "Estabelece uma meta de faturação diária para a tua equipa. Ajuda a manter todos focados e motivados para atingir os objetivos."
+  },
+  {
+    "id": 19,
+    "category": "Engenharia de Menu",
+    "title": "Combos e Petiscos",
+    "content": "Cria menus de petiscos ou combos (ex: balde de cervejas + snack). Aumenta o valor médio por cliente e simplifica a escolha."
+  },
+  {
+    "id": 20,
+    "category": "Gestão de Stock",
+    "title": "Negoceia com Fornecedores",
+    "content": "Não tenhas receio de negociar preços e prazos de pagamento com os teus fornecedores. Comprar em maior quantidade pode garantir bons descontos."
+  },
+  {
+    "id": 21,
+    "category": "Marketing",
+    "title": "Música Ambiente Faz a Diferença",
+    "content": "A música certa cria o ambiente certo. Cria playlists adequadas ao teu público e ao horário. Uma boa música pode fazer os clientes ficarem mais tempo."
+  },
+  {
+    "id": 22,
+    "category": "Operações",
+    "title": "Limpeza é Marketing",
+    "content": "Uma casa de banho limpa é um dos melhores cartões de visita do teu estabelecimento. Garante que está sempre impecável. Clientes reparam nisso."
+  },
+  {
+    "id": 23,
+    "category": "Atendimento ao Cliente",
+    "title": "Sugestão, Não Pressão",
+    "content": "Ensina a equipa a fazer sugestões de venda (upselling). 'Gostaria de experimentar o nosso novo petisco com a sua cerveja?' funciona melhor que 'Quer mais alguma coisa?'"
+  },
+  {
+    "id": 24,
+    "category": "Finanças",
+    "title": "Regista Todas as Despesas",
+    "content": "Até o pequeno café que compraste para a equipa deve ser registado. Um controlo rigoroso das pequenas despesas revela para onde a gita está a ir."
+  },
+  {
+    "id": 25,
+    "category": "Gestão de Stock",
+    "title": "Cuidado com o Desperdício",
+    "content": "Monitoriza o desperdício, especialmente em frutas para cocktails e comida. Um pequeno ajuste no preparo pode poupar muito dinheiro ao final do mês."
+  },
+  {
+    "id": 26,
+    "category": "Engenharia de Menu",
+    "title": "Opções Não-Alcoólicas Criativas",
+    "content": "Oferece mais do que 'sumo ou cola'. Investe em mocktails (cocktails sem álcool) e águas saborizadas. É um mercado em crescimento e com boa margem."
+  },
+  {
+    "id": 27,
+    "category": "Marketing",
+    "title": "Parcerias Locais",
+    "content": "Faz parceria com outros negócios locais. Oferece um desconto para clientes de uma loja próxima, e vice-versa. Ajuda a divulgar o teu espaço na vizinhança."
+  },
+  {
+    "id": 28,
+    "category": "Operações",
+    "title": "Iluminação Adequada",
+    "content": "A luz certa convida a entrar e a ficar. Evita luz branca e forte. Uma iluminação mais quente e indireta torna o ambiente mais acolhedor."
+  },
+  {
+    "id": 29,
+    "category": "Atendimento ao Cliente",
+    "title": "A Despedida é Importante",
+    "content": "Um 'Obrigado e volte sempre!' sincero ao sair faz uma grande diferença. É a última impressão que o cliente leva do teu bar."
+  },
+  {
+    "id": 30,
+    "category": "Finanças",
+    "title": "Cria um Fundo de Emergência",
+    "content": "Guarda uma pequena percentagem da faturação todos os meses para um fundo de emergência. Ajuda a lidar com imprevistos sem contrair kilapis."
+  },
+  {
+    "id": 31,
+    "category": "Gestão de Stock",
+    "title": "Padroniza as Doses",
+    "content": "Usa medidores (jiggers) para todas as doses de bebidas. Garante a consistência dos cocktails e controla o custo exato de cada bebida vendida."
+  },
+  {
+    "id": 32,
+    "category": "Engenharia de Menu",
+    "title": "Analisa o Custo de Cada Prato",
+    "content": "Calcula o custo exato de cada item do teu menu (CMV - Custo da Mercadoria Vendida). Assim saberás quais te dão mais lucro e quais precisam de ajuste."
+  },
+  {
+    "id": 33,
+    "category": "Marketing",
+    "title": "Programa de Fidelidade Simples",
+    "content": "Cria um cartão de fidelidade simples. Ex: 'Na sua 5ª cerveja, a 6ª é por nossa conta'. Incentiva o cliente a voltar sempre ao teu propz."
+  },
+  {
+    "id": 34,
+    "category": "Operações",
+    "title": "Manutenção Preventiva",
+    "content": "Não esperes o frigorífico avariar. Faz manutenções preventivas regulares a todos os teus equipamentos. Evita paragens e custos inesperados."
+  },
+  {
+    "id": 35,
+    "category": "Atendimento ao Cliente",
+    "title": "Antecipa as Necessidades",
+    "content": "Viste um copo quase vazio? Aproxima-te e pergunta se o cliente deseja mais um. Um serviço proativo é um serviço de excelência e aumenta as vendas."
+  },
+  {
+    "id": 36,
+    "category": "Finanças",
+    "title": "Fluxo de Caixa é Rei",
+    "content": "Mais importante que o lucro é o fluxo de caixa. Garante que tens sempre gita disponível para pagar as contas. Controla bem as entradas e saídas diárias."
+  },
+  {
+    "id": 37,
+    "category": "Gestão de Stock",
+    "title": "Foge dos 'Oitos e Oitentas'",
+    "content": "Evita ter stock a mais (dinheiro parado) ou stock a menos (perda de vendas). Usa os alertas de stock mínimo desta app para encontrar o equilíbrio."
+  },
+  {
+    "id": 38,
+    "category": "Engenharia de Menu",
+    "title": "A Psicologia dos Preços",
+    "content": "Evita usar o símbolo 'Kz' no menu e termina os preços em '.99'. Ex: '1500' em vez de 'Kz 1.500,00'. São pequenos truques que funcionam."
+  },
+  {
+    "id": 39,
+    "category": "Marketing",
+    "title": "Eventos Desportivos",
+    "content": "Se tiveres uma TV, transmite os grandes jogos de futebol. Cria promoções especiais durante os jogos. É uma forma garantida de encher a casa."
+  },
+  {
+    "id": 40,
+    "category": "Operações",
+    "title": "Briefing Diário com a Equipa",
+    "content": "Faz uma reunião rápida de 5 minutos com a equipa antes de abrir. Informa sobre promoções, produtos em falta ou metas para o dia. Alinha todo o pessoal."
+  },
+  {
+    "id": 41,
+    "category": "Atendimento ao Cliente",
+    "title": "Wi-Fi Gratuito é Essencial",
+    "content": "Oferecer Wi-Fi gratuito e de boa qualidade é quase uma obrigação hoje em dia. É um pequeno investimento que faz os clientes ficarem mais tempo e consumirem mais."
+  },
+  {
+    "id": 42,
+    "category": "Finanças",
+    "title": "Analisa o Relatório Mensal",
+    "content": "Quando a funcionalidade estiver pronta, usa o relatório de fluxo de caixa mensal para entender a saúde do teu negócio. Onde podes cortar custos? Onde podes investir?"
+  },
+  {
+    "id": 43,
+    "category": "Gestão de Stock",
+    "title": "Fornecedores Alternativos",
+    "content": "Tem sempre um plano B. Mantém contacto com pelo menos dois fornecedores para os teus produtos mais importantes. Evita ficar na mão se um deles falhar."
+  },
+  {
+    "id": 44,
+    "category": "Engenharia de Menu",
+    "title": "Sazonalidade é Oportunidade",
+    "content": "Cria pratos ou cocktails especiais com ingredientes da época. São mais frescos, mais baratos e mostram que o teu menu está sempre a evoluir."
+  },
+  {
+    "id": 45,
+    "category": "Marketing",
+    "title": "Recolhe Contactos",
+    "content": "De forma subtil, tenta recolher contactos de telemóvel dos clientes para uma lista de transmissão no WhatsApp. Envia promoções exclusivas uma vez por semana."
+  },
+  {
+    "id": 46,
+    "category": "Operações",
+    "title": "A Segurança em Primeiro Lugar",
+    "content": "Garante que o teu espaço é seguro. Boa iluminação à entrada, extintores visíveis e saídas de emergência desobstruídas. Um ambiente seguro é um ambiente tranquilo."
+  },
+  {
+    "id": 47,
+    "category": "Atendimento ao Cliente",
+    "title": "Oferece um 'Mimo'",
+    "content": "Para clientes especiais ou em contas grandes, oferecer um pequeno digestivo ou um café por conta da casa é um gesto de cortesia que cria um impacto enorme."
+  },
+  {
+    "id": 48,
+    "category": "Finanças",
+    "title": "Cuidado com o Crédito a Clientes",
+    "content": "Vender fiado ('deixar kilapi') é arriscado. Se o fizeres, que seja para clientes de extrema confiança e com um limite bem definido. Usa a secção de Clientes da app para controlar."
+  },
+  {
+    "id": 49,
+    "category": "Gestão de Stock",
+    "title": "O Custo Oculto da Eletricidade",
+    "content": "Arcones e geleiras gastam muita energia. Garante que as borrachas de vedação estão em bom estado e que não ficam abertas desnecessariamente."
+  },
+  {
+    "id": 50,
+    "category": "Engenharia de Menu",
+    "title": "Testa Novos Itens",
+    "content": "Antes de adicionar um novo item ao menu fixo, apresenta-o como 'Sugestão do Dia'. Mede a aceitação do público sem arriscar um grande investimento em stock."
+  },
+  {
+    "id": 51,
+    "category": "Marketing",
+    "title": "O Poder do 'Boca a Boca'",
+    "content": "A melhor publicidade é um cliente satisfeito. Foca-te em oferecer uma experiência tão boa que os teus clientes se tornem os teus maiores promotores."
+  },
+  {
+    "id": 52,
+    "category": "Operações",
+    "title": "A Arte de Fazer Gelo Saborizado",
+    "content": "Eleva os teus drinks com gelo saborizado. Congela sumos de fruta, café ou ervas aromáticas em formas de gelo. Um detalhe visual e de sabor impressionante."
+  },
+  {
+    "id": 53,
+    "category": "Atendimento ao Cliente",
+    "title": "Sê Acessível",
+    "content": "Como gerente, não fiques apenas no escritório. Circula pelo bar, conversa com os clientes, pergunta se está tudo bem. A tua presença mostra que te importas."
+  },
+  {
+    "id": 54,
+    "category": "Finanças",
+    "title": "Reinveste no Negócio",
+    "content": "Quando tiveres lucro, resiste à tentação de o tirar todo. Guarda uma parte para reinvestir: uma pintura nova, melhores copos, uma máquina de café. Melhora o teu ativo."
+  },
+  {
+    "id": 55,
+    "category": "Gestão de Stock",
+    "title": "Agrupa as Tuas Compras",
+    "content": "Tenta concentrar as tuas compras num ou dois dias da semana. Reduz o tempo gasto com logística e pode ajudar a negociar melhores preços por volume."
+  },
+  {
+    "id": 56,
+    "category": "Engenharia de Menu",
+    "title": "Alergénios e Restrições",
+    "content": "Informa no teu menu sobre os principais alergénios (glúten, lactose, etc.). Ter opções para pessoas com restrições alimentares é um grande diferencial."
+  },
+  {
+    "id": 57,
+    "category": "Marketing",
+    "title": "Happy Hour Inteligente",
+    "content": "Não dês apenas desconto na cerveja. Cria um 'Happy Hour' temático com cocktails específicos. Tem uma margem de lucro melhor e promove outras bebidas."
+  },
+  {
+    "id": 58,
+    "category": "Operações",
+    "title": "Vidro Limpo, Bebida Boa",
+    "content": "Garante que os copos estão impecavelmente limpos e sem cheiros. Um copo mal lavado pode estragar a melhor das bebidas. Usa detergentes neutros."
+  },
+  {
+    "id": 59,
+    "category": "Atendimento ao Cliente",
+    "title": "Não Deixes o Cliente à Espera",
+    "content": "Mesmo que o bar esteja cheio, reconhece a chegada de um novo cliente com um aceno ou um 'Boa noite, já estou consigo!'. Faz com que se sinta visto e valorizado."
+  },
+  {
+    "id": 60,
+    "category": "Finanças",
+    "title": "O Preço Certo",
+    "content": "Definir o preço não é só multiplicar o custo por 3. Considera os teus custos fixos, a percepção de valor do cliente e os preços da concorrência. Encontra o teu ponto ideal."
+  }
+]

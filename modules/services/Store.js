@@ -156,22 +156,25 @@ function reducer(state = initialState, action) {
         case 'FINALIZE_PAYMENT':
             {
                 const { contaId, metodoPagamento } = action.payload;
-                const contaFechada = state.contasAtivas.find(c => c.id == contaId); // Usa '==' para compatibilidade de tipos
-
-                if (contaFechada) {
-                    const contaAtualizada = {
-                        ...contaFechada,
-                        status: 'fechada',
-                        dataFecho: new Date().toISOString(),
-                        metodoPagamento,
-                        valorFinal: contaFechada.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0)
-                    };
-                    Storage.salvarItem('contas', contaAtualizada);
-                }
                 
-                const contasAposPagamento = state.contasAtivas.filter(c => c.id != contaId); // Usa '!=' para compatibilidade de tipos
+                const contasAtualizadas = state.contasAtivas.map(conta => {
+                    // Usa '==' para garantir a comparação correta, mesmo que os tipos sejam diferentes
+                    if (conta.id == contaId) {
+                        const contaAtualizada = {
+                            ...conta,
+                            status: 'fechada',
+                            dataFecho: new Date().toISOString(),
+                            metodoPagamento,
+                            valorFinal: conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0)
+                        };
+                        // Persiste a versão finalizada no armazenamento
+                        Storage.salvarItem('contas', contaAtualizada);
+                        return contaAtualizada;
+                    }
+                    return conta;
+                });
 
-                return { ...state, contasAtivas: contasAposPagamento };
+                return { ...state, contasAtivas: contasAtualizadas };
             }
 
         // --- AÇÕES DE CLIENTES ---
@@ -239,7 +242,10 @@ function reducer(state = initialState, action) {
                 const novoHistorico = [...state.historicoFechos, relatorio];
                 Storage.salvarItem('historico', relatorio);
 
-                state.contasAtivas.forEach(c => Storage.apagarItem('contas', c.id));
+                const contasAtivasAposArquivo = state.contasAtivas.filter(c => c.status === 'ativa');
+                const contasFechadasParaApagar = state.contasAtivas.filter(c => c.status === 'fechada');
+
+                contasFechadasParaApagar.forEach(c => Storage.apagarItem('contas', c.id));
 
                 const inventarioAtualizado = state.inventario.map(item => {
                     if (item.stockGeleira > 0) {
@@ -253,9 +259,18 @@ function reducer(state = initialState, action) {
                 return {
                     ...state,
                     historicoFechos: novoHistorico,
-                    contasAtivas: [],
+                    contasAtivas: contasAtivasAposArquivo,
                     inventario: inventarioAtualizado,
                 };
+            }
+
+        // --- AÇÕES DE CONFIGURAÇÃO ---
+        case 'UPDATE_CONFIG':
+            {
+                const configAtualizada = { ...state.config, ...action.payload };
+                // Guardamos a configuração como um único objeto com uma chave fixa.
+                Storage.salvarItem('config', { key: 'appConfig', ...configAtualizada });
+                return { ...state, config: configAtualizada };
             }
 
         default:
@@ -300,20 +315,25 @@ const store = new Store(reducer, initialState);
 export async function carregarEstadoInicial() {
     try {
         await Storage.initDB();
-        const [inventario, contas, historico, clientes] = await Promise.all([
+        const [inventario, contas, historico, clientes, configArray] = await Promise.all([
             Storage.carregarTodos('inventario'),
             Storage.carregarTodos('contas'),
             Storage.carregarTodos('historico'),
-            Storage.carregarTodos('clientes')
+            Storage.carregarTodos('clientes'),
+            Storage.carregarTodos('config')
         ]);
         
+        // A nossa configuração é um único objeto, por isso procuramo-lo no array.
+        const config = configArray.find(item => item.key === 'appConfig') || {};
+
         store.dispatch({
             type: 'SET_INITIAL_STATE',
             payload: {
                 inventario,
                 contasAtivas: contas,
                 historicoFechos: historico,
-                clientes
+                clientes,
+                config
             }
         });
 

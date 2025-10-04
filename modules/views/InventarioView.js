@@ -35,14 +35,19 @@ function render() {
     const state = store.getState();
     const { inventario } = state;
 
-    if (inventario.length === 0) {
+    // LÓGICA DE BUSCA CONDICIONAL: Mostra a busca apenas se houver mais de 4 itens.
+    if (inventario.length > 4) {
+        sel.inventarioHeader.classList.remove('hidden');
+    } else {
         sel.inventarioHeader.classList.add('hidden');
+    }
+
+    if (inventario.length === 0) {
         sel.inventarioEmptyState.classList.remove('hidden');
         if (sel.listaInventario) sel.listaInventario.innerHTML = '';
         return;
     }
     
-    if(sel.inventarioHeader) sel.inventarioHeader.classList.remove('hidden');
     if(sel.inventarioEmptyState) sel.inventarioEmptyState.classList.add('hidden');
     
     const termoBusca = sel.inputBuscaInventario.value.toLowerCase().trim();
