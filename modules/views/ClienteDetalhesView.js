@@ -1,163 +1,238 @@
-// /modules/views/ClienteDetalhesView.js - (v7.5 - Lógica de Crédito e Correção de Render)
+// /modules/views/ClienteDetalhesView.js - (v11.1 - CORRIGIDO o bug de congelamento no unmount)
 'use strict';
 
 import store from '../services/Store.js';
-import * as Modals from '../components/Modals.js';
-import * as Toast from '../components/Toast.js';
-import ClientesView from './ClientesView.js';
+import { abrirModalAddDivida, abrirModalLiquidarDivida } from '../components/Modals.js';
+import Router from '../Router.js';
 
-const sel = {};
-let clienteAtivoId = null; // Guarda o ID do cliente que estamos a ver
+let unsubscribe = null;
+let viewNode = null;
+let clienteAtivoId = null;
 
-function querySelectors() {
-    sel.view = document.getElementById('tab-cliente-detalhes');
-    sel.btnVoltar = document.getElementById('btn-voltar-lista-clientes');
-    sel.nomeClienteEl = document.getElementById('detalhes-cliente-nome');
-    sel.dividaLabelEl = sel.view.querySelector('.font-semibold.text-gray-600'); // Novo seletor para o label
-    sel.dividaTotalEl = document.getElementById('detalhes-cliente-divida-total');
-    sel.historicoEl = document.getElementById('detalhes-cliente-historico');
-    
-    sel.btnAbrirModalAddDivida = document.getElementById('btn-abrir-modal-add-divida');
-    sel.btnAbrirModalLiquidarDivida = document.getElementById('btn-abrir-modal-liquidar-divida');
+// CORREÇÃO: O event handler foi extraído para uma função nomeada
+function handleViewClick(event) {
+    const target = event.target;
+    const state = store.getState();
+    const cliente = state.clientes.find(c => c.id === clienteAtivoId);
 
-    sel.formAddDivida = document.getElementById('form-add-divida');
-    sel.inputDividaValor = document.getElementById('input-divida-valor');
-    sel.inputDividaDescricao = document.getElementById('input-divida-descricao');
-
-    sel.formLiquidarDivida = document.getElementById('form-liquidar-divida');
-    sel.inputLiquidarValor = document.getElementById('input-liquidar-valor');
+    if (target.closest('#btn-voltar-lista-clientes')) {
+        Router.navigateTo('#clientes');
+    }
+    if (target.closest('#btn-abrir-modal-add-divida')) {
+        abrirModalAddDivida(cliente);
+    }
+    if (target.closest('#btn-abrir-modal-liquidar-divida')) {
+        abrirModalLiquidarDivida(cliente);
+    }
 }
 
 /**
- * Função principal de renderização para a view de detalhes.
+ * Calcula as estatísticas de um cliente a partir do estado da aplicação.
+ * NOTA: Esta lógica será movida para um serviço de análise (utils.js) no futuro.
+ * @param {string} clienteId - O ID do cliente.
+ * @param {object} state - O estado completo da aplicação.
+ * @returns {object} Um objeto com as estatísticas calculadas.
  */
-function render() {
-    if (!clienteAtivoId) return;
+function calcularEstatisticasCliente(clienteId, state) {
+    const { historicoFechos } = state;
+    const estatisticas = {
+        gastoTotal: 0,
+        visitas: 0,
+        ticketMedio: 0,
+        produtosPreferidos: {}
+    };
+
+    const contasDoCliente = historicoFechos
+        .flatMap(fecho => fecho.contasFechadas || [])
+        .filter(conta => conta.clienteId === clienteId);
+
+    estatisticas.visitas = contasDoCliente.length;
+    
+    contasDoCliente.forEach(conta => {
+        estatisticas.gastoTotal += conta.valorFinal || 0;
+        conta.pedidos.forEach(pedido => {
+            estatisticas.produtosPreferidos[pedido.nome] = (estatisticas.produtosPreferidos[pedido.nome] || 0) + pedido.qtd;
+        });
+    });
+
+    if (estatisticas.visitas > 0) {
+        estatisticas.ticketMedio = estatisticas.gastoTotal / estatisticas.visitas;
+    }
+
+    estatisticas.produtosPreferidos = Object.entries(estatisticas.produtosPreferidos)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 3)
+        .map(([nome, qtd]) => ({ nome, qtd }));
+
+    return estatisticas;
+}
+
+
+/**
+ * Atualiza o DOM com os detalhes do cliente ativo.
+ */
+function updateDOM() {
+    if (!viewNode || !clienteAtivoId) return;
 
     const state = store.getState();
     const cliente = state.clientes.find(c => c.id === clienteAtivoId);
 
     if (!cliente) {
-        Toast.mostrarNotificacao("Cliente não encontrado.", "erro");
-        hide();
-        ClientesView.show();
+        Router.navigateTo('#clientes');
         return;
     }
 
-    sel.nomeClienteEl.textContent = cliente.nome;
+    const nomeClienteEl = viewNode.querySelector('#detalhes-cliente-nome');
+    if (nomeClienteEl) nomeClienteEl.textContent = cliente.nome;
 
-    const dividaTotal = cliente.dividas.reduce((total, divida) => total + divida.valor, 0);
+    const estatisticas = calcularEstatisticasCliente(clienteAtivoId, state);
+    const gastoTotalEl = viewNode.querySelector('#widget-gasto-total');
+    const ticketMedioEl = viewNode.querySelector('#widget-ticket-medio');
+    const visitasEl = viewNode.querySelector('#widget-visitas');
 
-    // Lógica de UI para Dívida vs. Crédito
-    if (dividaTotal > 0) {
-        sel.dividaLabelEl.textContent = 'Dívida Total';
-        sel.dividaTotalEl.textContent = dividaTotal.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
-        sel.dividaTotalEl.className = 'block text-4xl font-bold text-red-600 my-1';
-    } else {
-        sel.dividaLabelEl.textContent = 'Crédito Disponível';
-        sel.dividaTotalEl.textContent = Math.abs(dividaTotal).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
-        sel.dividaTotalEl.className = 'block text-4xl font-bold text-green-600 my-1';
+    if (gastoTotalEl) gastoTotalEl.textContent = estatisticas.gastoTotal.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
+    if (ticketMedioEl) ticketMedioEl.textContent = estatisticas.ticketMedio.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
+    if (visitasEl) visitasEl.textContent = estatisticas.visitas;
+
+    const produtosPreferidosListaEl = viewNode.querySelector('#produtos-preferidos-lista');
+    if (produtosPreferidosListaEl) {
+        if (estatisticas.produtosPreferidos.length === 0) {
+            produtosPreferidosListaEl.innerHTML = '<p class="text-center text-texto-secundario text-sm">Nenhum histórico de consumo.</p>';
+        } else {
+            produtosPreferidosListaEl.innerHTML = estatisticas.produtosPreferidos.map((prod, index) => `
+                <div class="flex items-center gap-3">
+                    <span class="font-bold text-blue-500">${index + 1}.</span>
+                    <span class="flex-grow">${prod.nome}</span>
+                    <span class="text-sm text-texto-secundario">(${prod.qtd} un.)</span>
+                </div>
+            `).join('');
+        }
     }
-
-
-    // Renderiza o histórico
-    sel.historicoEl.innerHTML = '';
-    if (cliente.dividas.length === 0) {
-        sel.historicoEl.innerHTML = '<p class="text-center text-gray-500">Nenhuma transação registada.</p>';
-        return;
-    }
-
-    [...cliente.dividas].sort((a, b) => new Date(b.data) - new Date(a.data)).forEach(transacao => {
-        const isCredito = transacao.tipo === 'credito';
-        const corValor = isCredito ? 'text-green-500' : 'text-red-500';
-        const sinal = isCredito ? '' : '+';
-
-        const itemEl = document.createElement('div');
-        itemEl.className = 'bg-white p-3 rounded-lg shadow-sm flex justify-between items-center';
-        itemEl.innerHTML = `
-            <div>
-                <p class="font-semibold">${transacao.descricao}</p>
-                <p class="text-xs text-gray-500">${new Date(transacao.data).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
-            </div>
-            <span class="font-bold text-lg ${corValor}">
-                ${sinal} ${transacao.valor.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}
-            </span>
-        `;
-        sel.historicoEl.appendChild(itemEl);
-    });
-}
-
-function show(clienteId) {
-    clienteAtivoId = clienteId;
-    sel.view.classList.remove('hidden');
-    render();
-}
-
-function hide() {
-    clienteAtivoId = null;
-    sel.view.classList.add('hidden');
-}
-
-// --- Handlers ---
-
-function handleAddDivida(event) {
-    event.preventDefault();
-    const valor = parseFloat(sel.inputDividaValor.value);
-    const descricao = sel.inputDividaDescricao.value.trim();
-
-    if (!valor || valor <= 0 || !descricao) {
-        Toast.mostrarNotificacao("Por favor, preencha todos os campos com valores válidos.", "erro");
-        return;
-    }
-
-    store.dispatch({
-        type: 'ADD_DEBT',
-        payload: { clienteId: clienteAtivoId, valor, descricao }
-    });
-
-    Toast.mostrarNotificacao("Dívida adicionada com sucesso.");
-    Modals.fecharModalAddDivida();
-}
-
-function handleLiquidarDivida(event) {
-    event.preventDefault();
-    const valor = parseFloat(sel.inputLiquidarValor.value);
-
-    if (!valor || valor <= 0) {
-        Toast.mostrarNotificacao("Por favor, insira um valor de pagamento válido.", "erro");
-        return;
-    }
-
-    store.dispatch({
-        type: 'SETTLE_DEBT',
-        payload: { clienteId: clienteAtivoId, valor }
-    });
-
-    Toast.mostrarNotificacao("Pagamento registado com sucesso.");
-    Modals.fecharModalLiquidarDivida();
-}
-
-function init() {
-    querySelectors();
-    store.subscribe(render);
     
-    sel.btnVoltar.addEventListener('click', () => {
-        hide();
-        ClientesView.show();
-    });
+    const historicoEl = viewNode.querySelector('#detalhes-cliente-historico');
+    if (historicoEl) {
+        const dividaTotal = cliente.dividas.reduce((total, divida) => total + divida.valor, 0);
+        viewNode.querySelector('#divida-total-valor').textContent = dividaTotal.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
 
-    sel.btnAbrirModalAddDivida.addEventListener('click', () => {
-        const cliente = store.getState().clientes.find(c => c.id === clienteAtivoId);
-        Modals.abrirModalAddDivida(cliente);
-    });
+        if (cliente.dividas.length === 0) {
+            historicoEl.innerHTML = '<p class="text-center text-texto-secundario text-sm py-4">Nenhuma transação de dívida registada.</p>';
+        } else {
+            historicoEl.innerHTML = [...cliente.dividas]
+                .sort((a, b) => new Date(b.data) - new Date(a.data))
+                .map(transacao => {
+                    const isCredito = transacao.tipo === 'credito';
+                    const corValor = isCredito ? 'text-green-500' : 'text-red-500';
+                    const sinal = isCredito ? '' : '+';
 
-    sel.btnAbrirModalLiquidarDivida.addEventListener('click', () => {
-        const cliente = store.getState().clientes.find(c => c.id === clienteAtivoId);
-        Modals.abrirModalLiquidarDivida(cliente);
-    });
-
-    sel.formAddDivida.addEventListener('submit', handleAddDivida);
-    sel.formLiquidarDivida.addEventListener('submit', handleLiquidarDivida);
+                    return `
+                        <div class="bg-fundo-principal p-3 rounded-lg flex justify-between items-center">
+                            <div>
+                                <p class="font-semibold">${transacao.descricao}</p>
+                                <p class="text-xs text-texto-secundario">${new Date(transacao.data).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                            </div>
+                            <span class="font-bold text-lg ${corValor}">
+                                ${sinal} ${transacao.valor.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}
+                            </span>
+                        </div>
+                    `;
+                }).join('');
+        }
+    }
 }
 
-export default { init, show, hide };
+/**
+ * Retorna o HTML do ecrã de Detalhes do Cliente.
+ */
+function render(clienteId) {
+    const cliente = store.getState().clientes.find(c => c.id === clienteId);
+
+    if (!cliente) {
+        return `<p class="p-4 text-center text-red-500">Cliente não encontrado.</p>`;
+    }
+
+    return `
+        <section id="view-cliente-detalhes" class="p-4 space-y-6">
+            <header class="flex items-center">
+                <button id="btn-voltar-lista-clientes" class="p-2 -ml-2 text-2xl text-texto-secundario hover:text-primaria">
+                    <i class="lni lni-arrow-left"></i>
+                </button>
+                <h2 id="detalhes-cliente-nome" class="text-2xl font-bold text-center flex-grow"></h2>
+                <div class="w-8"></div>
+            </header>
+
+            <div class="bg-fundo-secundario p-4 rounded-lg shadow-md">
+                <h3 class="text-sm font-semibold text-texto-secundario mb-3">Resumo do Cliente</h3>
+                <div id="resumo-cliente-widgets" class="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                        <span id="widget-gasto-total" class="text-2xl font-bold block">Kz 0,00</span>
+                        <span class="text-xs text-texto-secundario">Gasto Total</span>
+                    </div>
+                    <div>
+                        <span id="widget-ticket-medio" class="text-2xl font-bold block">Kz 0,00</span>
+                        <span class="text-xs text-texto-secundario">Ticket Médio</span>
+                    </div>
+                    <div>
+                        <span id="widget-visitas" class="text-2xl font-bold block">0</span>
+                        <span class="text-xs text-texto-secundario">Visitas</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-fundo-secundario p-4 rounded-lg shadow-md">
+                <h3 class="text-sm font-semibold text-texto-secundario mb-3">Top 3 Produtos Preferidos</h3>
+                <div id="produtos-preferidos-lista" class="space-y-2"></div>
+            </div>
+
+            <div class="bg-fundo-secundario p-4 rounded-lg shadow-md">
+                 <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-sm font-semibold text-texto-secundario">Gestão de Dívidas</h3>
+                    <span id="divida-total-valor" class="text-xl font-bold text-red-500">Kz 0,00</span>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <button id="btn-abrir-modal-add-divida" class="bg-red-500 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-red-600">Adicionar Dívida</button>
+                    <button id="btn-abrir-modal-liquidar-divida" class="bg-green-500 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-green-600">Liquidar Dívida</button>
+                </div>
+                <h4 class="text-xs font-semibold text-texto-secundario mb-2 border-t border-borda pt-3">HISTÓRICO DE TRANSAÇÕES</h4>
+                <div id="detalhes-cliente-historico" class="space-y-2 max-h-48 overflow-y-auto"></div>
+            </div>
+        </section>
+    `;
+}
+
+/**
+ * Adiciona os event listeners ao ecrã após ser renderizado.
+ */
+function mount(clienteId) {
+    viewNode = document.getElementById('app-root');
+    clienteAtivoId = clienteId;
+
+    updateDOM();
+    unsubscribe = store.subscribe(updateDOM);
+
+    // CORREÇÃO: Adiciona o listener nomeado ao viewNode
+    viewNode.addEventListener('click', handleViewClick);
+}
+
+/**
+ * Remove os listeners e anula a inscrição no store.
+ */
+function unmount() {
+    if (unsubscribe) {
+        unsubscribe();
+        unsubscribe = null;
+    }
+    
+    // CORREÇÃO: Remove o listener específico e não destrói o viewNode
+    if (viewNode) {
+        viewNode.removeEventListener('click', handleViewClick);
+    }
+
+    viewNode = null;
+    clienteAtivoId = null;
+}
+
+export default {
+    render,
+    mount,
+    unmount
+};

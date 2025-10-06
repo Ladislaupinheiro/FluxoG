@@ -1,72 +1,86 @@
-// /modules/components/Nav.js - Componente de Navegação Principal (v7.1 - Header Dinâmica)
+// /modules/components/Nav.js - (v10.0 - Componente SPA Refatorado)
 'use strict';
+
+import Router from '../Router.js';
 
 const sel = {};
 
 /**
- * Guarda as referências aos elementos do DOM necessários para a navegação.
+ * Retorna o HTML da barra de navegação como uma string.
+ * Esta função é chamada uma vez pelo Router no arranque.
+ * @returns {string} O HTML do componente.
  */
-function querySelectors() {
-    sel.bottomNav = document.getElementById('bottom-nav');
-    sel.tabContents = document.querySelectorAll('.tab-content');
-    sel.fabs = document.querySelectorAll('.fab');
+function render() {
+    return `
+        <nav id="bottom-nav" class="fixed bottom-0 left-0 w-full bg-fundo-secundario shadow-[0_-2px_5px_rgba(0,0,0,0.1)] dark:shadow-[0_-2px_5px_rgba(0,0,0,0.4)] grid grid-cols-5 z-[90]">
+            <button class="nav-btn flex flex-col justify-center items-center gap-1 bg-none border-0 cursor-pointer transition-colors duration-200 border-t-2 border-transparent py-1 text-texto-secundario" data-hash="#dashboard" title="Dashboard">
+                <i class="lni lni-grid-alt text-xl"></i>
+                <span class="text-xs font-medium">Dashboard</span>
+            </button>
+            <button class="nav-btn flex flex-col justify-center items-center gap-1 bg-none border-0 cursor-pointer transition-colors duration-200 border-t-2 border-transparent py-1 text-texto-secundario" data-hash="#inventario" title="Inventário">
+                <i class="lni lni-dropbox text-xl"></i>
+                <span class="text-xs font-medium">Inventário</span>
+            </button>
+            <button class="nav-btn flex flex-col justify-center items-center gap-1 bg-none border-0 cursor-pointer transition-colors duration-200 border-t-2 border-transparent py-1 text-texto-secundario" data-hash="#atendimento" title="Atendimento">
+                <i class="lni lni-clipboard text-xl"></i>
+                <span class="text-xs font-medium">Atendimento</span>
+            </button>
+            <button class="nav-btn flex flex-col justify-center items-center gap-1 bg-none border-0 cursor-pointer transition-colors duration-200 border-t-2 border-transparent py-1 text-texto-secundario" data-hash="#clientes" title="Clientes">
+                <i class="lni lni-users text-xl"></i>
+                <span class="text-xs font-medium">Clientes</span>
+            </button>
+            <button class="nav-btn flex flex-col justify-center items-center gap-1 bg-none border-0 cursor-pointer transition-colors duration-200 border-t-2 border-transparent py-1 text-texto-secundario" data-hash="#fluxo-caixa" title="Caixa">
+                <i class="lni lni-stats-up text-xl"></i>
+                <span class="text-xs font-medium">Caixa</span>
+            </button>
+        </nav>
+    `;
 }
 
 /**
- * Navega para uma aba específica, atualizando a UI.
- * @param {string} tabId - O ID da aba de destino (ex: 'tab-inventario').
+ * Adiciona os event listeners ao componente após ser renderizado.
+ * Usa delegação de eventos para performance.
  */
-export function navigateToTab(tabId) {
-    // Esconde todos os conteúdos e FABs
-    sel.tabContents.forEach(tab => tab.classList.add('hidden'));
-    sel.fabs.forEach(fab => fab.classList.add('hidden'));
+function mount() {
+    sel.navContainer = document.getElementById('bottom-nav');
+    if (!sel.navContainer) return;
 
-    // Desativa todos os botões da nav
-    sel.bottomNav.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    // Mostra o conteúdo da aba selecionada
-    const activeTab = document.getElementById(tabId);
-    if (activeTab) {
-        activeTab.classList.remove('hidden');
-    }
-
-    // Mapeamento de IDs de abas para títulos de header
-    const titleMappings = {
-        'tab-dashboard': 'Dashboard',
-        'tab-inventario': 'Inventário',
-        'tab-atendimento': 'Atendimento',
-        'tab-clientes': 'Clientes',
-        'tab-fluxo-caixa': 'Caixa'
-    };
-    
-    // Define o nome do FAB com base no ID da aba
-    const fabMappings = {
-        'tab-inventario': 'btn-fab-add-produto',
-        'tab-atendimento': 'btn-fab-add-conta',
-        'tab-clientes': 'btn-fab-add-cliente'
-    };
-
-    const fabId = fabMappings[tabId];
-    if (fabId) {
-        const fab = document.getElementById(fabId);
-        if (fab) {
-            fab.classList.remove('hidden');
+    sel.navContainer.addEventListener('click', (event) => {
+        const navBtn = event.target.closest('.nav-btn');
+        if (navBtn && navBtn.dataset.hash) {
+            // A única responsabilidade do clique é mudar a hash.
+            // O Router tratará do resto.
+            window.location.hash = navBtn.dataset.hash;
         }
-    }
-    
-    // Ativa o botão da nav e atualiza o título da header
-    const activeButton = sel.bottomNav.querySelector(`.nav-btn[data-tab="${tabId}"]`);
-    if (activeButton) {
-        activeButton.classList.add('active');
-    }
+    });
 }
 
 /**
- * Função de inicialização do componente de navegação.
+ * Atualiza o estado visual (botão ativo) da barra de navegação.
+ * Esta função é chamada pelo Router a cada mudança de rota.
+ * @param {string} currentHash O hash da rota ativa.
  */
-export function init() {
-    querySelectors();
-    // A aba inicial é definida no app.js, não mais aqui
+function updateActiveState(currentHash) {
+    if (!sel.navContainer) {
+        sel.navContainer = document.getElementById('bottom-nav');
+    }
+    
+    // Simplifica a correspondência de hash para rotas dinâmicas
+    const baseHash = '#' + currentHash.split('/')[0].replace('#', '');
+
+    sel.navContainer.querySelectorAll('.nav-btn').forEach(btn => {
+        if (btn.dataset.hash === baseHash) {
+            btn.classList.add('active', 'text-primaria');
+            btn.classList.remove('text-texto-secundario');
+        } else {
+            btn.classList.remove('active', 'text-primaria');
+            btn.classList.add('text-texto-secundario');
+        }
+    });
 }
+
+export default {
+    render,
+    mount,
+    updateActiveState
+};

@@ -1,152 +1,152 @@
-// /modules/views/ClientesView.js - A View de Clientes (v7.4 - Navegação para Detalhes)
+// /modules/views/ClientesView.js - (v11.0 - Refatorado com Navegação SPA e Ranking)
 'use strict';
 
 import store from '../services/Store.js';
-import * as Modals from '../components/Modals.js';
-import * as Toast from '../components/Toast.js';
-import ClienteDetalhesView from './ClienteDetalhesView.js';
+import { abrirModalAddCliente } from '../components/Modals.js';
+import { getRankedClients } from '../services/utils.js'; // IMPORTADO
+import Router from '../Router.js'; // IMPORTADO
 
-const sel = {};
-
-function querySelectors() {
-    sel.clientesView = document.getElementById('tab-clientes');
-    sel.clientesHeader = document.getElementById('clientes-header');
-    sel.clientesEmptyState = document.getElementById('clientes-empty-state');
-    sel.listaClientes = document.getElementById('lista-clientes');
-    sel.inputBuscaClientes = document.getElementById('input-busca-clientes');
-    sel.btnFabAddCliente = document.getElementById('btn-fab-add-cliente');
-    sel.formAddCliente = document.getElementById('form-add-cliente');
-    sel.inputClienteNome = document.getElementById('input-cliente-nome');
-    sel.inputClienteContacto = document.getElementById('input-cliente-contacto');
-    sel.inputClienteCategoria = document.getElementById('input-cliente-categoria');
-}
+let unsubscribe = null;
+let viewNode = null;
 
 /**
  * Função principal de renderização para a View de Clientes.
  */
 function render() {
+    if (!viewNode) return;
+    
     const state = store.getState();
-    const { clientes } = state;
-    const termoBusca = sel.inputBuscaClientes.value.toLowerCase().trim();
+    const inputBuscaClientes = viewNode.querySelector('#input-busca-clientes');
+    const termoBusca = inputBuscaClientes ? inputBuscaClientes.value.toLowerCase().trim() : '';
 
-    // LÓGICA DE BUSCA CONDICIONAL: Mostra a busca apenas se houver mais de 7 clientes.
-    if (clientes.length > 7) {
-        sel.clientesHeader.classList.remove('hidden');
+    const clientesRankeados = getRankedClients(state);
+
+    const clientesHeader = viewNode.querySelector('#clientes-header');
+    const clientesEmptyState = viewNode.querySelector('#clientes-empty-state');
+    const listaClientes = viewNode.querySelector('#lista-clientes');
+
+    // Mostra a busca apenas se houver mais de 5 clientes.
+    if (clientesRankeados.length > 5) {
+        clientesHeader.classList.remove('hidden');
     } else {
-        sel.clientesHeader.classList.add('hidden');
+        clientesHeader.classList.add('hidden');
     }
 
     // LÓGICA DO ESTADO VAZIO
-    if (clientes.length === 0) {
-        sel.clientesEmptyState.classList.remove('hidden');
-        sel.listaClientes.classList.add('hidden');
+    if (clientesRankeados.length === 0) {
+        clientesEmptyState.classList.remove('hidden');
+        listaClientes.classList.add('hidden');
         return;
     }
 
     // LÓGICA DA VISTA PREENCHIDA
-    sel.clientesEmptyState.classList.add('hidden');
-    sel.listaClientes.classList.remove('hidden');
-    sel.listaClientes.innerHTML = '';
+    clientesEmptyState.classList.add('hidden');
+    listaClientes.classList.remove('hidden');
+    listaClientes.innerHTML = '';
 
-    const clientesFiltrados = clientes.filter(cliente => 
+    const clientesFiltrados = clientesRankeados.filter(cliente => 
         cliente.nome.toLowerCase().includes(termoBusca)
     );
 
-    if (clientesFiltrados.length === 0) {
-        sel.listaClientes.innerHTML = `<p class="text-center text-gray-500">Nenhum cliente encontrado para "${termoBusca}".</p>`;
+    if (clientesFiltrados.length === 0 && termoBusca) {
+        listaClientes.innerHTML = `<p class="text-center text-texto-secundario p-4">Nenhum cliente encontrado para "${termoBusca}".</p>`;
         return;
     }
 
-    clientesFiltrados.forEach(cliente => {
+    clientesFiltrados.forEach((cliente, index) => {
         const dividaTotal = cliente.dividas.reduce((total, divida) => total + divida.valor, 0);
         const corDivida = dividaTotal > 0 ? 'text-red-500' : 'text-green-500';
+        
+        // Adiciona o indicador de ranking para o top 3
+        const rankingBadge = index < 3 
+            ? `<span class="text-xl" title="Top ${index + 1} Cliente">👑</span>` 
+            : '';
 
         const card = document.createElement('div');
-        card.className = 'bg-white p-4 rounded-lg shadow-md flex justify-between items-center cursor-pointer hover:bg-gray-50';
-        card.dataset.clienteId = cliente.id;
+        card.className = 'bg-fundo-secundario p-4 rounded-lg shadow-md flex justify-between items-center cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700';
+        card.dataset.clienteId = cliente.id; // Usado para navegação
         card.innerHTML = `
-            <div>
-                <p class="font-bold text-lg">${cliente.nome}</p>
-                <p class="text-sm text-gray-500">${cliente.contacto || 'Sem contacto'}</p>
+            <div class="flex items-center gap-3">
+                ${rankingBadge}
+                <div>
+                    <p class="font-bold text-lg">${cliente.nome}</p>
+                    <p class="text-sm text-texto-secundario">Dívida: <span class="${corDivida}">${dividaTotal.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</span></p>
+                </div>
             </div>
             <div class="text-right">
-                <span class="font-semibold text-lg ${corDivida}">${dividaTotal.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</span>
-                <p class="text-xs text-gray-400">Dívida</p>
+                <span class="font-semibold text-lg text-blue-500">${cliente.gastoTotal.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</span>
+                <p class="text-xs text-texto-secundario">Gasto Total</p>
             </div>
         `;
-        sel.listaClientes.appendChild(card);
+        listaClientes.appendChild(card);
     });
 }
 
 /**
- * Handler para adicionar um novo cliente, despachando a ação para o store.
+ * Retorna o HTML do ecrã de Clientes.
  */
-function handleAddCliente(event) {
-    event.preventDefault();
-    const nome = sel.inputClienteNome.value.trim();
-    const contacto = sel.inputClienteContacto.value.trim();
-    const categoria = sel.inputClienteCategoria.value.trim();
-    
-    if (!nome) {
-        Toast.mostrarNotificacao("O nome do cliente é obrigatório.", "erro");
-        return;
-    }
+function getHTML() {
+    return `
+        <header id="clientes-header" class="p-4 hidden">
+            <input type="search" id="input-busca-clientes" class="w-full p-2 border border-borda rounded-md bg-fundo-principal" placeholder="Buscar cliente...">
+        </header>
 
-    const novoCliente = {
-        id: crypto.randomUUID(),
-        nome,
-        contacto,
-        categoria,
-        dataRegisto: new Date().toISOString(),
-        dividas: [],
-        vasilhames: []
-    };
+        <div id="clientes-empty-state" class="text-center p-8 hidden">
+            <i class="lni lni-users text-6xl text-gray-300 dark:text-gray-600"></i>
+            <h3 class="mt-4 text-xl font-semibold">Nenhum cliente registado</h3>
+            <p class="text-texto-secundario">Toque no botão '+' para começar.</p>
+        </div>
 
-    store.dispatch({ type: 'ADD_CLIENT', payload: novoCliente });
+        <div id="lista-clientes" class="p-4 space-y-3"></div>
 
-    Modals.fecharModalAddCliente();
-    Toast.mostrarNotificacao(`Cliente "${nome}" adicionado com sucesso.`);
+        <button id="btn-fab-add-cliente" class="fab z-50">
+            <i class="lni lni-plus"></i>
+        </button>
+    `;
 }
-
-/**
- * Esconde a view da lista de clientes e o FAB correspondente.
- */
-function hide() {
-    sel.clientesView.classList.add('hidden');
-    sel.btnFabAddCliente.classList.add('hidden');
-}
-
-/**
- * Mostra a view da lista de clientes e o FAB correspondente.
- */
-function show() {
-    sel.clientesView.classList.remove('hidden');
-    sel.btnFabAddCliente.classList.remove('hidden');
-    render(); // Garante que a lista está atualizada ao voltar
-}
-
 
 /**
  * Função de inicialização da View.
  */
-function init() {
-    querySelectors();
-    store.subscribe(render);
+function mount() {
+    viewNode = document.getElementById('app-root');
+    
+    // Inscreve-se no store para reatividade
+    unsubscribe = store.subscribe(render);
 
-    sel.btnFabAddCliente.addEventListener('click', Modals.abrirModalAddCliente);
-    sel.formAddCliente.addEventListener('submit', handleAddCliente);
-    sel.inputBuscaClientes.addEventListener('input', render);
+    const inputBuscaClientes = viewNode.querySelector('#input-busca-clientes');
+    const listaClientes = viewNode.querySelector('#lista-clientes');
+    const btnFabAddCliente = viewNode.querySelector('#btn-fab-add-cliente');
 
-    sel.listaClientes.addEventListener('click', (event) => {
-        const card = event.target.closest('[data-cliente-id]');
-        if (card) {
-            const clienteId = card.dataset.clienteId;
-            hide(); // Esconde a view atual
-            ClienteDetalhesView.show(clienteId); // Mostra e renderiza a view de detalhes
-        }
-    });
+    // Adiciona os event listeners
+    if(inputBuscaClientes) inputBuscaClientes.addEventListener('input', render);
+    if(btnFabAddCliente) btnFabAddCliente.addEventListener('click', abrirModalAddCliente);
 
-    render();
+    // CORRIGIDO: Event listener para navegação usando o Router
+    if(listaClientes) {
+        listaClientes.addEventListener('click', (event) => {
+            const card = event.target.closest('[data-cliente-id]');
+            if (card) {
+                const clienteId = card.dataset.clienteId;
+                // Navega para a view de detalhes da forma correta
+                Router.navigateTo(`#cliente-detalhes/${clienteId}`);
+            }
+        });
+    }
+
+    render(); // Renderização inicial
 }
 
-export default { init, show, hide };
+function unmount() {
+    if (unsubscribe) {
+        unsubscribe();
+        unsubscribe = null;
+    }
+    viewNode = null;
+}
+
+export default {
+    render: getHTML,
+    mount,
+    unmount
+};

@@ -1,39 +1,38 @@
-// /modules/views/FluxoCaixaView.js - A View Reativa do Fluxo de Caixa (v7.0 - Final)
+// /modules/views/FluxoCaixaView.js - (v10.0 - View SPA Refatorada)
 'use strict';
 
 import store from '../services/Store.js';
-import * as Modals from '../components/Modals.js';
-import * as Toast from '../components/Toast.js';
-import { calcularRelatorioDia } from '../services/utils.js'; // <-- NOVA IMPORTAÇÃO
+// ATUALIZADO: Importa as novas funções de relatório
+import { abrirModalFechoGlobal, abrirModalNovaDespesa, abrirModalRelatorioPeriodo } from '../components/Modals.js';
+import { calcularRelatorioDia, gerarRelatorioPorPeriodo } from '../services/utils.js';
 
-const sel = {};
-// Estado local da View para controlar o mês/ano do calendário
-let dataAtualCalendario = new Date();
-
-function querySelectors() {
-    sel.calendarioTitulo = document.getElementById('calendario-titulo');
-    sel.calendarioGridDias = document.getElementById('calendario-grid-dias');
-    sel.btnMesAnterior = document.getElementById('btn-mes-anterior');
-    sel.btnMesSeguinte = document.getElementById('btn-mes-seguinte');
-    sel.btnVerFechoDiaAtual = document.getElementById('btn-ver-fecho-dia-atual');
-    sel.btnArquivarDia = document.getElementById('btn-arquivar-dia');
-}
+let unsubscribe = null;
+let viewNode = null;
+let dataAtualCalendario = new Date(); // Estado local para o mês/ano a ser exibido
 
 /**
- * Função principal de renderização para a View de Fluxo de Caixa.
+ * Renderiza o grid do calendário para o mês e ano em `dataAtualCalendario`.
  */
-function render() {
+function renderCalendarGrid() {
+    if (!viewNode) return;
+
     const state = store.getState();
     const ano = dataAtualCalendario.getFullYear();
     const mes = dataAtualCalendario.getMonth();
 
-    sel.calendarioTitulo.textContent = new Date(ano, mes).toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase());
-    sel.calendarioGridDias.innerHTML = '';
+    const calendarioTituloEl = viewNode.querySelector('#calendario-titulo');
+    const calendarioGridDiasEl = viewNode.querySelector('#calendario-grid-dias');
 
-    const primeiroDiaDoMes = (new Date(ano, mes, 1).getDay() + 6) % 7;
+    if (!calendarioTituloEl || !calendarioGridDiasEl) return;
+
+    const nomeDoMes = new Date(ano, mes).toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
+    calendarioTituloEl.textContent = nomeDoMes.charAt(0).toUpperCase() + nomeDoMes.slice(1);
+    
+    calendarioGridDiasEl.innerHTML = '';
+
+    const primeiroDiaDoMes = new Date(ano, mes, 1).getDay();
     const diasNoMes = new Date(ano, mes + 1, 0).getDate();
     
-    // Lê os dados do store para saber que dias destacar
     const diasComRelatorio = new Set(
         (state.historicoFechos || []).map(relatorio => {
             const dataRelatorio = new Date(relatorio.data);
@@ -42,76 +41,131 @@ function render() {
     );
 
     for (let i = 0; i < primeiroDiaDoMes; i++) {
-        sel.calendarioGridDias.appendChild(document.createElement('div'));
+        calendarioGridDiasEl.appendChild(document.createElement('div'));
     }
 
     for (let dia = 1; dia <= diasNoMes; dia++) {
         const temRelatorio = diasComRelatorio.has(dia);
         const diaEl = document.createElement('div');
         diaEl.textContent = dia;
-        diaEl.className = 'p-2 text-center rounded-full';
+        diaEl.className = 'p-2 text-center rounded-full transition-colors duration-200';
         
         if (temRelatorio) {
             diaEl.classList.add('bg-blue-500', 'text-white', 'font-bold', 'cursor-pointer', 'hover:bg-blue-600');
             diaEl.dataset.dia = dia;
         } else {
-            diaEl.classList.add('text-gray-400');
+            diaEl.classList.add('text-gray-400', 'dark:text-gray-600');
         }
-        sel.calendarioGridDias.appendChild(diaEl);
+        calendarioGridDiasEl.appendChild(diaEl);
     }
 }
 
 /**
- * Handler para arquivar o dia, que agora despacha uma ação para o store.
+ * Retorna o HTML do ecrã de Fluxo de Caixa.
+ * @returns {string} O HTML completo do ecrã.
  */
-function handleArquivarDia() {
-    const state = store.getState();
-    const hojeStr = new Date().toDateString();
-    
-    if (state.historicoFechos.some(rel => new Date(rel.data).toDateString() === hojeStr)) {
-        Toast.mostrarNotificacao("O dia de hoje já foi fechado e arquivado.", "erro");
-        return;
-    }
-    const contasFechadasHoje = state.contasAtivas.filter(c => c.status === 'fechada' && new Date(c.dataFecho).toDateString() === hojeStr);
-    if (contasFechadasHoje.length === 0) {
-        Toast.mostrarNotificacao("Não existem vendas fechadas para arquivar.", "erro");
-        return;
-    }
-    
-    Modals.abrirModalConfirmacao(
-        'Arquivar o Dia?',
-        'Todas as contas fechadas serão arquivadas e o dia será reiniciado. Esta ação não pode ser desfeita.',
-        () => {
-            // A função de cálculo do relatório é agora importada do utils.js
-            const relatorio = calcularRelatorioDia(store.getState()); 
+function render() {
+    return `
+        <section id="view-fluxo-caixa" class="p-4 flex flex-col h-full">
+            <header class="bg-fundo-secundario p-4 rounded-lg shadow-md mb-4 space-y-4">
+                <div>
+                    <h3 class="text-sm font-semibold text-texto-secundario mb-2">Relatórios de Caixa</h3>
+                    <div id="botoes-filtro-periodo" class="grid grid-cols-4 gap-2 text-xs">
+                        <button data-periodo="hoje" class="filtro-btn bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-1 rounded-lg">Hoje</button>
+                        <button data-periodo="semana" class="filtro-btn bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-1 rounded-lg">Semana</button>
+                        <button data-periodo="quinzena" class="filtro-btn bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-1 rounded-lg">Quinzena</button>
+                        <button data-periodo="mes" class="filtro-btn bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-1 rounded-lg">Mês</button>
+                    </div>
+                </div>
+
+                <div class="border-t border-borda pt-4">
+                    <h3 class="text-sm font-semibold text-texto-secundario mb-2">Ações Rápidas</h3>
+                     <button id="btn-nova-despesa" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-2 text-sm">
+                        <i class="lni lni-plus"></i> Novo Lançamento (Despesa)
+                    </button>
+                </div>
+            </header>
+
+            <div id="calendario-container" class="flex-grow bg-fundo-secundario p-4 rounded-lg shadow-md">
+                 <h3 class="text-sm font-semibold text-texto-secundario mb-2 text-center">Histórico de Fechos Diários</h3>
+                 <div id="calendario-nav" class="flex justify-between items-center mb-2">
+                    <button id="btn-mes-anterior" class="p-2 text-lg rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"><i class="lni lni-chevron-left"></i></button>
+                    <h2 id="calendario-titulo" class="text-lg font-bold"></h2>
+                    <button id="btn-mes-seguinte" class="p-2 text-lg rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"><i class="lni lni-chevron-right"></i></button>
+                </div>
+                <div class="grid grid-cols-7 gap-2 text-center font-bold text-texto-secundario text-sm mb-2">
+                    <div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div>
+                </div>
+                <div id="calendario-grid-dias" class="grid grid-cols-7 gap-2"></div>
+            </div>
             
-            store.dispatch({ type: 'ARCHIVE_DAY', payload: { relatorio } });
-
-            Modals.fecharModalFechoGlobal();
-            Toast.mostrarNotificacao("Dia arquivado com sucesso!");
-        }
-    );
+            <footer class="pt-4 mt-4">
+                <button id="btn-ver-fecho-dia-atual" class="w-full max-w-sm mx-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg flex items-center justify-center gap-2">
+                    <i class="lni lni-printer"></i>
+                    <span>Fechar o Dia</span>
+                </button>
+            </footer>
+        </section>
+    `;
 }
 
-
 /**
- * Função de inicialização da View.
+ * Adiciona os event listeners ao ecrã após ser renderizado.
  */
-function init() {
-    querySelectors();
-    store.subscribe(render);
+function mount() {
+    viewNode = document.getElementById('app-root');
+    dataAtualCalendario = new Date();
 
-    sel.btnMesAnterior.addEventListener('click', () => {
+    renderCalendarGrid();
+    unsubscribe = store.subscribe(renderCalendarGrid);
+
+    viewNode.querySelector('#btn-nova-despesa')?.addEventListener('click', abrirModalNovaDespesa);
+    
+    // ATUALIZADO: Lógica para os novos botões de filtro
+    viewNode.querySelector('#botoes-filtro-periodo')?.addEventListener('click', (event) => {
+        const button = event.target.closest('.filtro-btn');
+        if (!button) return;
+
+        const periodo = button.dataset.periodo;
+        const state = store.getState();
+        const hoje = new Date();
+        let dataInicio, dataFim = new Date();
+        let titulo = '';
+
+        switch(periodo) {
+            case 'hoje':
+                dataInicio = hoje;
+                titulo = 'Relatório de Hoje';
+                break;
+            case 'semana':
+                dataInicio = new Date(hoje.setDate(hoje.getDate() - hoje.getDay()));
+                titulo = 'Relatório desta Semana';
+                break;
+            case 'quinzena':
+                dataInicio = new Date(hoje.setDate(hoje.getDate() - 14));
+                 titulo = 'Relatório da Última Quinzena';
+                break;
+            case 'mes':
+                dataInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+                titulo = 'Relatório deste Mês';
+                break;
+        }
+
+        const relatorio = gerarRelatorioPorPeriodo(state, dataInicio, dataFim);
+        abrirModalRelatorioPeriodo(relatorio, titulo);
+    });
+
+    viewNode.querySelector('#btn-mes-anterior')?.addEventListener('click', () => {
         dataAtualCalendario.setMonth(dataAtualCalendario.getMonth() - 1);
-        render(); // Re-renderiza o calendário para o novo mês
+        renderCalendarGrid();
     });
 
-    sel.btnMesSeguinte.addEventListener('click', () => {
+    viewNode.querySelector('#btn-mes-seguinte')?.addEventListener('click', () => {
         dataAtualCalendario.setMonth(dataAtualCalendario.getMonth() + 1);
-        render();
+        renderCalendarGrid();
     });
 
-    sel.calendarioGridDias.addEventListener('click', (event) => {
+    viewNode.querySelector('#calendario-grid-dias')?.addEventListener('click', (event) => {
         const diaEl = event.target.closest('[data-dia]');
         if (diaEl) {
             const dia = parseInt(diaEl.dataset.dia, 10);
@@ -119,15 +173,30 @@ function init() {
             const dataProcurada = new Date(dataAtualCalendario.getFullYear(), dataAtualCalendario.getMonth(), dia);
             const relatorio = state.historicoFechos.find(rel => new Date(rel.data).toDateString() === dataProcurada.toDateString());
             if (relatorio) {
-                Modals.abrirModalFechoGlobalHistorico(relatorio);
+                abrirModalFechoGlobal(relatorio, true);
             }
         }
     });
     
-    sel.btnVerFechoDiaAtual.addEventListener('click', () => Modals.abrirModalFechoGlobal(calcularRelatorioDia(store.getState())));
-    sel.btnArquivarDia.addEventListener('click', handleArquivarDia);
-    
-    render();
+    viewNode.querySelector('#btn-ver-fecho-dia-atual')?.addEventListener('click', () => {
+        const relatorioDoDia = calcularRelatorioDia(store.getState());
+        abrirModalFechoGlobal(relatorioDoDia, false);
+    });
 }
 
-export default { init };
+/**
+ * Remove os listeners e anula a inscrição no store.
+ */
+function unmount() {
+    if (unsubscribe) {
+        unsubscribe();
+        unsubscribe = null;
+    }
+    viewNode = null;
+}
+
+export default {
+    render,
+    mount,
+    unmount
+};

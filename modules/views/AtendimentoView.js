@@ -1,47 +1,35 @@
-// /modules/views/AtendimentoView.js - A View Reativa de Atendimento (v7.2 - Correção de Bugs Pedido)
+// /modules/views/AtendimentoView.js - (v10.0 - View SPA Refatorada com GSAP)
 'use strict';
 
 import store from '../services/Store.js';
-import * as Modals from '../components/Modals.js';
-import * as Toast from '../components/Toast.js';
+import { 
+    abrirModalNovaConta, 
+    abrirModalAddPedido,
+    abrirModalPagamento,
+    abrirModalConfirmacao
+} from '../components/Modals.js';
+import { mostrarNotificacao } from '../components/Toast.js';
 
-const sel = {};
-let produtoSelecionadoParaPedido = null; // Guarda o produto selecionado na busca
-
-function querySelectors() {
-    sel.listaContasAtivas = document.getElementById('lista-contas-ativas');
-    sel.atendimentoEmptyState = document.getElementById('atendimento-empty-state');
-    sel.btnFabAddConta = document.getElementById('btn-fab-add-conta');
-    sel.formNovaConta = document.getElementById('form-nova-conta');
-    sel.inputNomeConta = document.getElementById('input-nome-conta');
-    sel.pagamentoMetodosContainer = document.getElementById('pagamento-metodos-container');
-    sel.btnConfirmarPagamento = document.getElementById('btn-confirmar-pagamento');
-    
-    // Seletores para o modal de adicionar pedido
-    sel.formAddPedido = document.getElementById('form-add-pedido');
-    sel.inputQuantidade = document.getElementById('input-quantidade');
-    sel.hiddenContaId = document.getElementById('hidden-conta-id');
-    sel.inputBuscaProdutoPedido = document.getElementById('input-busca-produto-pedido');
-    sel.autocompleteResults = document.getElementById('autocomplete-results');
-}
+let unsubscribe = null;
+let viewNode = null;
 
 /**
- * Gera o HTML para um único cartão de conta.
- * @param {object} conta - O objeto da conta.
- * @returns {string} O HTML do cartão.
+ * Função auxiliar para renderizar um único card de conta.
+ * @param {object} conta - O objeto da conta a ser renderizado.
+ * @returns {string} O HTML do card da conta.
  */
 function renderContaCard(conta) {
     const subtotal = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0);
     const contaEstaVazia = conta.pedidos.length === 0;
 
     const pedidosHTML = contaEstaVazia
-        ? '<p class="text-center text-gray-500 py-4">Nenhum pedido nesta conta.</p>'
+        ? '<p class="text-center text-texto-secundario py-4">Nenhum pedido nesta conta.</p>'
         : conta.pedidos.map((pedido, index) => `
-            <div class="flex justify-between items-center py-2 border-b last:border-b-0">
+            <div class="flex justify-between items-center py-2 border-b border-borda last:border-b-0">
                 <span>${pedido.qtd}x ${pedido.nome}</span>
                 <div class="flex items-center gap-4">
                     <span class="font-semibold">${(pedido.preco * pedido.qtd).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</span>
-                    <button class="btn-icon btn-remover-item text-red-500 hover:text-red-700" data-index="${index}" title="Remover Item">
+                    <button class="btn-icon btn-remover-item text-red-500 hover:text-red-700" data-index="${index}" title="Remover Item" aria-label="Remover Item">
                         <i class="lni lni-trash-can"></i>
                     </button>
                 </div>
@@ -49,19 +37,19 @@ function renderContaCard(conta) {
         `).join('');
 
     return `
-        <div class="conta-card bg-white rounded-lg shadow-md overflow-hidden" data-id="${conta.id}">
-            <div class="card-header p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50">
+        <div class="conta-card bg-fundo-secundario rounded-lg shadow-md overflow-hidden" data-id="${conta.id}">
+            <div class="card-header p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
                 <h3 class="text-xl font-bold">${conta.nome}</h3>
                 <div class="text-right">
                     <span class="font-bold text-lg block">${subtotal.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</span>
-                    <span class="text-xs text-gray-500">${conta.pedidos.length} Itens</span>
+                    <span class="text-xs text-texto-secundario">${conta.pedidos.length} Itens</span>
                 </div>
             </div>
-            <div class="card-body border-t border-gray-200" style="display: none;">
+            <div class="card-body border-t border-borda" style="display: none;">
                 <div class="p-4">${pedidosHTML}</div>
-                <div class="p-4 bg-gray-50 flex gap-2">
+                <div class="p-4 bg-gray-50 dark:bg-gray-900/50 flex gap-2">
                     <button class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded btn-adicionar-pedido">+ Pedido</button>
-                    <button class="w-full text-white font-bold py-2 px-4 rounded btn-finalizar-pagamento ${contaEstaVazia ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}" ${contaEstaVazia ? 'disabled' : ''}>Finalizar</button>
+                    <button class="w-full text-white font-bold py-2 px-4 rounded btn-finalizar-pagamento ${contaEstaVazia ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}" ${contaEstaVazia ? 'disabled' : ''}>Finalizar</button>
                 </div>
             </div>
         </div>
@@ -69,140 +57,98 @@ function renderContaCard(conta) {
 }
 
 /**
- * Função principal de renderização para a View de Atendimento.
+ * Renderiza a lista de contas ativas na UI.
  */
-function render() {
+function renderAccountList() {
+    if (!viewNode) return;
+    
     const state = store.getState();
     const contasAtivas = state.contasAtivas.filter(c => c.status === 'ativa');
+    const listaContasEl = viewNode.querySelector('#lista-contas-ativas');
+    const emptyStateEl = viewNode.querySelector('#atendimento-empty-state');
+
+    if (!listaContasEl || !emptyStateEl) return;
 
     if (contasAtivas.length === 0) {
-        sel.atendimentoEmptyState.classList.remove('hidden');
-        sel.listaContasAtivas.classList.add('hidden');
+        emptyStateEl.classList.remove('hidden');
+        listaContasEl.classList.add('hidden');
+        listaContasEl.innerHTML = '';
     } else {
-        sel.atendimentoEmptyState.classList.add('hidden');
-        sel.listaContasAtivas.classList.remove('hidden');
-        sel.listaContasAtivas.innerHTML = contasAtivas.map(renderContaCard).join('');
+        emptyStateEl.classList.add('hidden');
+        listaContasEl.classList.remove('hidden');
+        // Para evitar perder o estado de qual card está aberto, fazemos uma atualização inteligente
+        contasAtivas.forEach(conta => {
+            const elExistente = listaContasEl.querySelector(`.conta-card[data-id="${conta.id}"]`);
+            if (elExistente) {
+                // Se o elemento já existe, substitui o seu conteúdo para não perder a expansão
+                elExistente.innerHTML = renderContaCard(conta).replace(/^<div[^>]*>|<\/div>$/g, '');
+            } else {
+                // Se for novo, adiciona ao final
+                listaContasEl.insertAdjacentHTML('beforeend', renderContaCard(conta));
+            }
+        });
+        // Remove elementos que já não existem no estado
+        Array.from(listaContasEl.children).forEach(child => {
+            if (!contasAtivas.some(c => c.id === child.dataset.id)) {
+                child.remove();
+            }
+        });
     }
-}
-
-function handleCriarNovaConta(event) {
-    event.preventDefault();
-    const nomeConta = sel.inputNomeConta.value.trim();
-    if (!nomeConta) {
-        Toast.mostrarNotificacao("O nome da conta não pode estar vazio.", "erro");
-        return;
-    }
-
-    const state = store.getState();
-    if (state.contasAtivas.some(c => c.status === 'ativa' && c.nome.toLowerCase() === nomeConta.toLowerCase())) {
-        Toast.mostrarNotificacao(`Já existe uma conta ativa com o nome "${nomeConta}".`, "erro");
-        return;
-    }
-
-    const novaContaObj = { id: crypto.randomUUID(), nome: nomeConta, pedidos: [], dataAbertura: new Date().toISOString(), status: 'ativa' };
-    store.dispatch({ type: 'ADD_ACCOUNT', payload: novaContaObj });
-    
-    Modals.fecharModalAddPedido();
-    Toast.mostrarNotificacao(`Conta "${nomeConta}" criada com sucesso!`);
-}
-
-function handleFinalizarPagamento(conta) {
-    if (!conta) return;
-    Modals.abrirModalPagamento(conta);
 }
 
 /**
- * Função de inicialização da View de Atendimento.
+ * Retorna o HTML do ecrã de Atendimento.
+ * @returns {string} O HTML completo do ecrã.
  */
-function init() {
-    querySelectors();
-    store.subscribe(render);
+function render() {
+    return `
+        <section id="view-atendimento" class="p-4">
+            <div id="lista-contas-ativas" class="space-y-4"></div>
+            <div id="atendimento-empty-state" class="hidden text-center text-texto-secundario py-16 px-4 flex flex-col items-center justify-center h-full">
+                <i class="lni lni-clipboard text-6xl text-gray-300 dark:text-gray-600"></i>
+                <h2 class="text-xl font-semibold mt-4">Nenhuma Conta Ativa</h2>
+                <p class="mt-2 max-w-xs">Toque no botão '+' para iniciar um novo atendimento.</p>
+            </div>
+        </section>
+        <button id="btn-fab-add-conta" class="fab z-40 fixed bottom-20 right-4 w-14 h-14 bg-primaria text-white rounded-full flex justify-center items-center text-2xl shadow-lg">
+            <i class="lni lni-plus"></i>
+        </button>
+    `;
+}
 
-    sel.btnFabAddConta.addEventListener('click', Modals.abrirModalNovaConta);
-    sel.formNovaConta.addEventListener('submit', handleCriarNovaConta);
+/**
+ * Adiciona os event listeners ao ecrã após ser renderizado.
+ */
+function mount() {
+    viewNode = document.getElementById('app-root');
     
-    // --- LISTENERS PARA O MODAL DE PEDIDO ---
+    // Renderiza a lista inicial
+    renderAccountList();
 
-    // Listener para a busca de produtos
-    sel.inputBuscaProdutoPedido.addEventListener('input', () => {
-        const termo = sel.inputBuscaProdutoPedido.value.toLowerCase();
-        const state = store.getState();
-        produtoSelecionadoParaPedido = null; // Limpa seleção anterior ao digitar
+    // Inscreve-se no store para re-renderizar a lista em caso de mudanças
+    unsubscribe = store.subscribe(renderAccountList);
 
-        if (termo.length < 2) {
-            sel.autocompleteResults.classList.add('hidden');
-            return;
-        }
+    // Listeners
+    viewNode.querySelector('#btn-fab-add-conta')?.addEventListener('click', abrirModalNovaConta);
 
-        const resultados = state.inventario.filter(p => p.nome.toLowerCase().includes(termo) && p.stockGeleira > 0);
-        
-        sel.autocompleteResults.innerHTML = '';
-        if (resultados.length > 0) {
-            resultados.forEach(produto => {
-                const item = document.createElement('div');
-                item.className = 'p-2 hover:bg-gray-100 cursor-pointer';
-                item.textContent = `${produto.nome} (Disp: ${produto.stockGeleira})`;
-                item.addEventListener('click', () => {
-                    sel.inputBuscaProdutoPedido.value = produto.nome;
-                    produtoSelecionadoParaPedido = produto; // Guarda o objeto completo
-                    sel.autocompleteResults.classList.add('hidden');
-                });
-                sel.autocompleteResults.appendChild(item);
-            });
-            sel.autocompleteResults.classList.remove('hidden');
-        } else {
-            sel.autocompleteResults.classList.add('hidden');
-        }
-    });
-
-    // Listener para a submissão do formulário de pedido
-    sel.formAddPedido.addEventListener('submit', (event) => {
-        event.preventDefault(); // Previne o reload da página
-        const contaId = sel.hiddenContaId.value;
-        const quantidade = parseInt(sel.inputQuantidade.value);
-
-        if (!produtoSelecionadoParaPedido) {
-            Toast.mostrarNotificacao("Por favor, selecione um produto válido da lista.", "erro");
-            return;
-        }
-        if (isNaN(quantidade) || quantidade <= 0) {
-            Toast.mostrarNotificacao("Por favor, insira uma quantidade válida.", "erro");
-            return;
-        }
-        if (quantidade > produtoSelecionadoParaPedido.stockGeleira) {
-            Toast.mostrarNotificacao(`Stock insuficiente. Apenas ${produtoSelecionadoParaPedido.stockGeleira} disponíveis.`, "erro");
-            return;
-        }
-
-        store.dispatch({
-            type: 'ADD_ORDER_ITEM',
-            payload: {
-                contaId,
-                produto: produtoSelecionadoParaPedido,
-                quantidade
-            }
-        });
-
-        Toast.mostrarNotificacao("Pedido adicionado com sucesso.");
-        Modals.fecharModalAddPedido();
-        produtoSelecionadoParaPedido = null; // Limpa a seleção
-    });
-
-    // --- LISTENER PRINCIPAL DA VIEW ---
-    
-    sel.listaContasAtivas.addEventListener('click', (event) => {
-        const cardHeader = event.target.closest('.card-header');
+    const listaContasEl = viewNode.querySelector('#lista-contas-ativas');
+    listaContasEl?.addEventListener('click', (event) => {
         const card = event.target.closest('.conta-card');
         if (!card) return;
 
         const contaId = card.dataset.id;
-        const state = store.getState();
-        const conta = state.contasAtivas.find(c => c.id === contaId);
+        const conta = store.getState().contasAtivas.find(c => c.id === contaId);
+        if (!conta) return;
 
+        const cardHeader = event.target.closest('.card-header');
+        const targetButton = event.target.closest('button');
+
+        // Lógica de expandir/fechar com GSAP
         if (cardHeader) {
             const cardBody = card.querySelector('.card-body');
             const isExpanded = card.classList.contains('expanded');
 
+            // Fecha todos os outros cards abertos
             document.querySelectorAll('.conta-card.expanded').forEach(otherCard => {
                 if (otherCard !== card) {
                     const otherBody = otherCard.querySelector('.card-body');
@@ -215,29 +161,46 @@ function init() {
                 gsap.to(cardBody, { height: 0, duration: 0.3, onComplete: () => { cardBody.style.display = 'none'; } });
                 card.classList.remove('expanded');
             } else {
+                card.classList.add('expanded');
                 cardBody.style.display = 'block';
                 gsap.fromTo(cardBody, { height: 0 }, { height: 'auto', duration: 0.3 });
-                card.classList.add('expanded');
             }
         }
-        
-        const targetButton = event.target.closest('button');
-        if (!targetButton || !conta) return;
-        
+
+        // Lógica dos botões de ação
+        if (!targetButton) return;
+
         if (targetButton.classList.contains('btn-adicionar-pedido')) {
-            Modals.abrirModalAddPedido(contaId);
-        }
-        if (targetButton.classList.contains('btn-finalizar-pagamento')) {
-            handleFinalizarPagamento(conta);
-        }
-        if (targetButton.classList.contains('btn-remover-item')) {
+            abrirModalAddPedido(contaId);
+        } else if (targetButton.classList.contains('btn-finalizar-pagamento')) {
+            abrirModalPagamento(conta);
+        } else if (targetButton.classList.contains('btn-remover-item')) {
             const itemIndex = parseInt(targetButton.dataset.index, 10);
-            store.dispatch({ type: 'REMOVE_ORDER_ITEM', payload: { contaId, itemIndex } });
-            Toast.mostrarNotificacao("Item removido com sucesso.");
+            abrirModalConfirmacao(
+                "Remover Item?",
+                `Tem a certeza que deseja remover este item da conta? O stock será devolvido à Loja.`,
+                () => {
+                    store.dispatch({ type: 'REMOVE_ORDER_ITEM', payload: { contaId, itemIndex } });
+                    mostrarNotificacao("Item removido com sucesso.");
+                }
+            );
         }
     });
-
-    render();
 }
 
-export default { init };
+/**
+ * Remove os listeners e anula a inscrição no store.
+ */
+function unmount() {
+    if (unsubscribe) {
+        unsubscribe();
+        unsubscribe = null;
+    }
+    viewNode = null;
+}
+
+export default {
+    render,
+    mount,
+    unmount
+};

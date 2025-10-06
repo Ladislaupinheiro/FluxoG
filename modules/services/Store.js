@@ -1,6 +1,7 @@
-// /modules/services/Store.js - O Coração da Arquitetura State-Driven (v7.6 - Correção Final de Pagamento)
+// /modules/services/Store.js - (v10.0 - Terminologia Corrigida e Reducer Simplificado)
 'use strict';
 import * as Storage from './Storage.js';
+import { gerarEstadoAposArquivo } from './utils.js';
 
 // O estado inicial da nossa aplicação.
 const initialState = {
@@ -9,13 +10,13 @@ const initialState = {
     inventario: [],
     historicoFechos: [],
     clientes: [],
+    despesas: [], // ADICIONADO
     config: {}
 };
 
 /**
  * O Reducer é uma função pura que recebe o estado atual e uma ação,
- * e retorna o NOVO estado da aplicação. Toda a lógica de negócio que
- * modifica o estado está centralizada aqui.
+ * e retorna o NOVO estado da aplicação.
  */
 function reducer(state = initialState, action) {
     switch (action.type) {
@@ -74,7 +75,7 @@ function reducer(state = initialState, action) {
                         const pAtualizado = {
                             ...p,
                             stockArmazem: p.stockArmazem - quantidade,
-                            stockGeleira: p.stockGeleira + quantidade
+                            stockLoja: p.stockLoja + quantidade
                         };
                         Storage.salvarItem('inventario', pAtualizado);
                         return pAtualizado;
@@ -98,7 +99,7 @@ function reducer(state = initialState, action) {
                 const { contaId, produto, quantidade } = action.payload;
                 const inventarioAtualizado = state.inventario.map(p => {
                     if (p.id === produto.id) {
-                        const pAtualizado = { ...p, stockGeleira: p.stockGeleira - quantidade };
+                        const pAtualizado = { ...p, stockLoja: p.stockLoja - quantidade };
                         Storage.salvarItem('inventario', pAtualizado);
                         return pAtualizado;
                     }
@@ -130,19 +131,18 @@ function reducer(state = initialState, action) {
                 const contasAtualizadas = state.contasAtivas.map(c => {
                     if (c.id === contaId) {
                         const itemRemovido = c.pedidos[itemIndex];
-                        if (!itemRemovido) return c; // Segurança
+                        if (!itemRemovido) return c;
 
-                        // Devolve o stock à geleira
+                        // Devolve o stock à loja
                         inventarioAtualizado = state.inventario.map(p => {
                             if (p.id === itemRemovido.produtoId) {
-                                const pAtualizado = { ...p, stockGeleira: p.stockGeleira + itemRemovido.qtd };
+                                const pAtualizado = { ...p, stockLoja: p.stockLoja + itemRemovido.qtd };
                                 Storage.salvarItem('inventario', pAtualizado);
                                 return pAtualizado;
                             }
                             return p;
                         });
 
-                        // Remove o pedido da conta
                         const pedidosAtualizados = c.pedidos.filter((_, index) => index !== itemIndex);
                         const cAtualizada = { ...c, pedidos: pedidosAtualizados };
                         Storage.salvarItem('contas', cAtualizada);
@@ -156,10 +156,8 @@ function reducer(state = initialState, action) {
         case 'FINALIZE_PAYMENT':
             {
                 const { contaId, metodoPagamento } = action.payload;
-                
                 const contasAtualizadas = state.contasAtivas.map(conta => {
-                    // Usa '==' para garantir a comparação correta, mesmo que os tipos sejam diferentes
-                    if (conta.id == contaId) {
+                    if (conta.id === contaId) {
                         const contaAtualizada = {
                             ...conta,
                             status: 'fechada',
@@ -167,13 +165,11 @@ function reducer(state = initialState, action) {
                             metodoPagamento,
                             valorFinal: conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0)
                         };
-                        // Persiste a versão finalizada no armazenamento
                         Storage.salvarItem('contas', contaAtualizada);
                         return contaAtualizada;
                     }
                     return conta;
                 });
-
                 return { ...state, contasAtivas: contasAtualizadas };
             }
 
@@ -186,79 +182,49 @@ function reducer(state = initialState, action) {
                 return { ...state, clientes: novosClientes };
             }
 
-        // --- NOVAS AÇÕES DE GESTÃO DE DÍVIDAS ---
         case 'ADD_DEBT':
-            {
-                const { clienteId, valor, descricao } = action.payload;
-                const clientesAtualizados = state.clientes.map(cliente => {
-                    if (cliente.id === clienteId) {
-                        const novaDivida = {
-                            id: crypto.randomUUID(),
-                            data: new Date().toISOString(),
-                            valor,
-                            descricao,
-                            tipo: 'debito'
-                        };
-                        const clienteAtualizado = {
-                            ...cliente,
-                            dividas: [...cliente.dividas, novaDivida]
-                        };
-                        Storage.salvarItem('clientes', clienteAtualizado);
-                        return clienteAtualizado;
-                    }
-                    return cliente;
-                });
-                return { ...state, clientes: clientesAtualizados };
-            }
-
         case 'SETTLE_DEBT':
-            {
-                const { clienteId, valor } = action.payload;
-                const clientesAtualizados = state.clientes.map(cliente => {
-                    if (cliente.id === clienteId) {
-                        const novoPagamento = {
-                            id: crypto.randomUUID(),
-                            data: new Date().toISOString(),
-                            valor: -Math.abs(valor), // Garante que o pagamento é sempre um crédito (negativo)
-                            descricao: 'Pagamento',
-                            tipo: 'credito'
-                        };
-                        const clienteAtualizado = {
-                            ...cliente,
-                            dividas: [...cliente.dividas, novoPagamento]
-                        };
-                        Storage.salvarItem('clientes', clienteAtualizado);
-                        return clienteAtualizado;
-                    }
-                    return cliente;
-                });
-                return { ...state, clientes: clientesAtualizados };
-            }
+            const { clienteId, ...rest } = action.payload;
+            const clientesAtualizados = state.clientes.map(cliente => {
+                if (cliente.id === clienteId) {
+                    const transacao = action.type === 'ADD_DEBT'
+                        ? { id: crypto.randomUUID(), data: new Date().toISOString(), valor: rest.valor, descricao: rest.descricao, tipo: 'debito' }
+                        : { id: crypto.randomUUID(), data: new Date().toISOString(), valor: -Math.abs(rest.valor), descricao: 'Pagamento', tipo: 'credito' };
+                    
+                    const clienteAtualizado = { ...cliente, dividas: [...cliente.dividas, transacao] };
+                    Storage.salvarItem('clientes', clienteAtualizado);
+                    return clienteAtualizado;
+                }
+                return cliente;
+            });
+            return { ...state, clientes: clientesAtualizados };
+
 
         // --- AÇÕES DE FLUXO DE CAIXA ---
+        case 'ADD_EXPENSE': // ADICIONADO
+            {
+                const novaDespesa = action.payload;
+                const novasDespesas = [...state.despesas, novaDespesa];
+                Storage.salvarItem('despesas', novaDespesa);
+                return { ...state, despesas: novasDespesas };
+            }
+
         case 'ARCHIVE_DAY':
             {
                 const { relatorio } = action.payload;
-                const novoHistorico = [...state.historicoFechos, relatorio];
+                const { 
+                    contasAtivasAposArquivo, 
+                    inventarioAtualizado, 
+                    contasFechadasParaApagar 
+                } = gerarEstadoAposArquivo(state);
+
                 Storage.salvarItem('historico', relatorio);
-
-                const contasAtivasAposArquivo = state.contasAtivas.filter(c => c.status === 'ativa');
-                const contasFechadasParaApagar = state.contasAtivas.filter(c => c.status === 'fechada');
-
                 contasFechadasParaApagar.forEach(c => Storage.apagarItem('contas', c.id));
-
-                const inventarioAtualizado = state.inventario.map(item => {
-                    if (item.stockGeleira > 0) {
-                        const itemAtualizado = { ...item, stockArmazem: item.stockArmazem + item.stockGeleira, stockGeleira: 0 };
-                        Storage.salvarItem('inventario', itemAtualizado);
-                        return itemAtualizado;
-                    }
-                    return item;
-                });
+                inventarioAtualizado.forEach(item => Storage.salvarItem('inventario', item));
 
                 return {
                     ...state,
-                    historicoFechos: novoHistorico,
+                    historicoFechos: [...state.historicoFechos, relatorio],
                     contasAtivas: contasAtivasAposArquivo,
                     inventario: inventarioAtualizado,
                 };
@@ -268,7 +234,6 @@ function reducer(state = initialState, action) {
         case 'UPDATE_CONFIG':
             {
                 const configAtualizada = { ...state.config, ...action.payload };
-                // Guardamos a configuração como um único objeto com uma chave fixa.
                 Storage.salvarItem('config', { key: 'appConfig', ...configAtualizada });
                 return { ...state, config: configAtualizada };
             }
@@ -281,7 +246,7 @@ function reducer(state = initialState, action) {
 
 class Store {
     #state;
-    #listeners = [];
+    #listeners = new Set();
     #reducer;
 
     constructor(reducer, initialState) {
@@ -299,9 +264,9 @@ class Store {
     }
 
     subscribe(listener) {
-        this.#listeners.push(listener);
+        this.#listeners.add(listener);
         return () => {
-            this.#listeners = this.#listeners.filter(l => l !== listener);
+            this.#listeners.delete(listener);
         };
     }
 
@@ -315,15 +280,15 @@ const store = new Store(reducer, initialState);
 export async function carregarEstadoInicial() {
     try {
         await Storage.initDB();
-        const [inventario, contas, historico, clientes, configArray] = await Promise.all([
+        const [inventario, contas, historico, clientes, despesas, configArray] = await Promise.all([ // ADICIONADO `despesas`
             Storage.carregarTodos('inventario'),
             Storage.carregarTodos('contas'),
             Storage.carregarTodos('historico'),
             Storage.carregarTodos('clientes'),
+            Storage.carregarTodos('despesas'), // ADICIONADO
             Storage.carregarTodos('config')
         ]);
         
-        // A nossa configuração é um único objeto, por isso procuramo-lo no array.
         const config = configArray.find(item => item.key === 'appConfig') || {};
 
         store.dispatch({
@@ -333,6 +298,7 @@ export async function carregarEstadoInicial() {
                 contasAtivas: contas,
                 historicoFechos: historico,
                 clientes,
+                despesas, // ADICIONADO
                 config
             }
         });

@@ -1,204 +1,186 @@
-// /modules/views/InventarioView.js - (v7.1 - UI Refatorada e Correção de Bug)
+// /modules/views/InventarioView.js - (v12.0 - Refatorado para SPA com Destaque de Produto)
 'use strict';
 
 import store from '../services/Store.js';
-import * as Modals from '../components/Modals.js';
+import { 
+    abrirModalAddProduto, 
+    abrirModalEditProduto, 
+    abrirModalAddStock, 
+    abrirModalMoverStock, 
+    abrirModalConfirmacao 
+} from '../components/Modals.js';
 import * as Toast from '../components/Toast.js';
 
-const sel = {};
+let unsubscribe = null;
+let viewNode = null;
 
-function querySelectors() {
-    sel.inventarioHeader = document.getElementById('inventario-header');
-    sel.listaInventario = document.getElementById('lista-inventario');
-    sel.inputBuscaInventario = document.getElementById('input-busca-inventario');
-    sel.inventarioEmptyState = document.getElementById('inventario-empty-state');
-    sel.btnFabAddProduto = document.getElementById('btn-fab-add-produto');
-    sel.formAddProduto = document.getElementById('form-add-produto');
-    sel.inputProdutoNome = document.getElementById('input-produto-nome');
-    sel.inputProdutoPreco = document.getElementById('input-produto-preco');
-    sel.inputProdutoStock = document.getElementById('input-produto-stock');
-    sel.inputProdutoStockMinimo = document.getElementById('input-produto-stock-minimo');
-    sel.formEditProduto = document.getElementById('form-edit-produto');
-    sel.hiddenEditProdutoId = document.getElementById('hidden-edit-produto-id');
-    sel.inputEditProdutoNome = document.getElementById('input-edit-produto-nome');
-    sel.inputEditProdutoPreco = document.getElementById('input-edit-produto-preco');
-    sel.inputEditProdutoStockMinimo = document.getElementById('input-edit-produto-stock-minimo');
-    sel.formAddStock = document.getElementById('form-add-stock');
-    sel.hiddenAddStockId = document.getElementById('hidden-add-stock-id');
-    sel.inputAddStockQuantidade = document.getElementById('input-add-stock-quantidade');
-    sel.formMoverStock = document.getElementById('form-mover-stock');
-    sel.hiddenMoverStockId = document.getElementById('hidden-mover-stock-id');
-    sel.inputMoverStockQuantidade = document.getElementById('input-mover-stock-quantidade');
-}
+/**
+ * Renderiza a lista de produtos do inventário.
+ */
+function renderProducts() {
+    if (!viewNode) return;
 
-function render() {
     const state = store.getState();
     const { inventario } = state;
+    const listaInventarioEl = viewNode.querySelector('#lista-inventario');
+    const inventarioHeaderEl = viewNode.querySelector('#inventario-header');
+    const inventarioEmptyStateEl = viewNode.querySelector('#inventario-empty-state');
+    const inputBuscaInventarioEl = viewNode.querySelector('#input-busca-inventario');
 
-    // LÓGICA DE BUSCA CONDICIONAL: Mostra a busca apenas se houver mais de 4 itens.
-    if (inventario.length > 4) {
-        sel.inventarioHeader.classList.remove('hidden');
+    // Mostra/esconde a barra de busca
+    if (inventario.length > 5) {
+        inventarioHeaderEl.classList.remove('hidden');
     } else {
-        sel.inventarioHeader.classList.add('hidden');
+        inventarioHeaderEl.classList.add('hidden');
     }
 
+    // Mostra/esconde o estado vazio
     if (inventario.length === 0) {
-        sel.inventarioEmptyState.classList.remove('hidden');
-        if (sel.listaInventario) sel.listaInventario.innerHTML = '';
+        inventarioEmptyStateEl.classList.remove('hidden');
+        listaInventarioEl.innerHTML = '';
         return;
     }
+    inventarioEmptyStateEl.classList.add('hidden');
     
-    if(sel.inventarioEmptyState) sel.inventarioEmptyState.classList.add('hidden');
-    
-    const termoBusca = sel.inputBuscaInventario.value.toLowerCase().trim();
+    const termoBusca = inputBuscaInventarioEl.value.toLowerCase().trim();
     const inventarioParaMostrar = inventario.filter(item => 
         item.nome.toLowerCase().includes(termoBusca)
     );
     
-    sel.listaInventario.innerHTML = '';
+    listaInventarioEl.innerHTML = '';
 
     if (inventarioParaMostrar.length === 0) {
-        sel.listaInventario.innerHTML = `<div class="text-center text-gray-500 py-8">Nenhum produto encontrado.</div>`;
+        listaInventarioEl.innerHTML = `<div class="text-center text-texto-secundario py-8">Nenhum produto encontrado.</div>`;
         return;
     }
     
     inventarioParaMostrar.forEach(item => {
-        const isLowStock = item.stockGeleira > 0 && item.stockGeleira <= item.stockMinimo;
-        const card = document.createElement('div');
-        card.className = 'bg-white p-4 rounded-lg shadow-md';
-        card.innerHTML = `
-            <div class="flex justify-between items-start">
-                <div>
-                    <h3 class="text-xl font-bold">${item.nome}</h3>
-                    <p class="text-gray-500">${item.preco.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</p>
+        const isLowStock = item.stockLoja > 0 && item.stockLoja <= item.stockMinimo;
+        const cardHTML = `
+            <div id="produto-${item.id}" class="bg-fundo-secundario p-4 rounded-lg shadow-md transition-colors duration-300" data-product-id="${item.id}">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="text-xl font-bold">${item.nome}</h3>
+                        <p class="text-texto-secundario">${item.preco.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</p>
+                    </div>
+                    <div class="flex gap-2 text-lg">
+                        <button class="btn-icon btn-editar-produto text-texto-secundario hover:text-blue-500" title="Editar Produto"><i class="lni lni-pencil-alt"></i></button>
+                        <button class="btn-icon btn-apagar-produto text-texto-secundario hover:text-red-500" title="Apagar Produto"><i class="lni lni-trash-can"></i></button>
+                    </div>
                 </div>
-                <div class="flex gap-2">
-                    <button class="btn-icon btn-editar-produto text-gray-400 hover:text-blue-500" data-id="${item.id}" title="Editar Produto"><i class="lni lni-pencil-alt"></i></button>
-                    <button class="btn-icon btn-apagar-produto text-gray-400 hover:text-red-500" data-id="${item.id}" title="Apagar Produto"><i class="lni lni-trash-can"></i></button>
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-4 mt-4 text-center">
-                <div>
-                    <p class="text-sm text-gray-500">Armazém</p>
-                    <p class="text-2xl font-bold">${item.stockArmazem}</p>
-                    <button class="btn-add-stock-small btn-adicionar-stock" data-id="${item.id}" title="Adicionar Stock ao Armazém">
-                        <i class="lni lni-plus"></i>
-                    </button>
-                </div>
-                <div>
-                    <p class="text-sm text-gray-500 ${isLowStock ? 'text-red-500 animate-pulse' : ''}">Loja</p>
-                    <p class="text-2xl font-bold ${isLowStock ? 'text-red-500' : ''}">${item.stockGeleira}</p>
-                    <button class="btn-add-stock-small btn-mover-stock" data-id="${item.id}" title="Mover Stock para a Loja">
-                        <i class="lni lni-plus"></i>
-                    </button>
+                <div class="grid grid-cols-2 gap-4 mt-4 text-center">
+                    <div>
+                        <p class="text-sm text-texto-secundario">Armazém</p>
+                        <p class="text-2xl font-bold">${item.stockArmazem}</p>
+                        <button class="btn-add-stock-small btn-adicionar-stock" title="Adicionar Stock ao Armazém">
+                            <i class="lni lni-plus"></i>
+                        </button>
+                    </div>
+                    <div>
+                        <p class="text-sm ${isLowStock ? 'text-red-500 animate-pulse' : 'text-texto-secundario'}">Loja</p>
+                        <p class="text-2xl font-bold ${isLowStock ? 'text-red-500' : ''}">${item.stockLoja}</p>
+                        <button class="btn-add-stock-small btn-mover-stock" title="Mover Stock para a Loja">
+                            <i class="lni lni-chevron-right"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
-        sel.listaInventario.appendChild(card);
+        listaInventarioEl.insertAdjacentHTML('beforeend', cardHTML);
     });
 }
 
-function handleAddProduto(event) {
-    event.preventDefault();
-    const nome = sel.inputProdutoNome.value.trim();
-    const preco = parseFloat(sel.inputProdutoPreco.value);
-    const stock = parseInt(sel.inputProdutoStock.value);
-    const stockMinimo = parseInt(sel.inputProdutoStockMinimo.value);
-    if (!nome || isNaN(preco) || preco <= 0 || isNaN(stock) || stock < 0 || isNaN(stockMinimo) || stockMinimo < 0) {
-        Toast.mostrarNotificacao("Dados inválidos. Verifique os valores.", "erro"); return;
-    }
-    const novoProduto = { id: crypto.randomUUID(), nome, preco, stockArmazem: stock, stockGeleira: 0, stockMinimo };
-    store.dispatch({ type: 'ADD_PRODUCT', payload: novoProduto });
-    Modals.fecharModalAddProduto();
-    Toast.mostrarNotificacao(`Produto "${nome}" adicionado!`);
-}
+function handleViewClick(event) {
+    const target = event.target.closest('button');
+    if (!target) return;
+    
+    const card = target.closest('[data-product-id]');
+    if (!card) return;
 
-function handleEditProduto(event) {
-    event.preventDefault();
-    const id = sel.hiddenEditProdutoId.value;
-    const state = store.getState();
-    const produto = state.inventario.find(p => p.id === id);
-    if (!produto) return;
-    const produtoAtualizado = { ...produto, nome: sel.inputEditProdutoNome.value.trim(), preco: parseFloat(sel.inputEditProdutoPreco.value), stockMinimo: parseInt(sel.inputEditProdutoStockMinimo.value) };
-    store.dispatch({ type: 'UPDATE_PRODUCT', payload: produtoAtualizado });
-    Modals.fecharModalEditProduto();
-    Toast.mostrarNotificacao(`Produto "${produtoAtualizado.nome}" atualizado!`);
-}
-
-function handleAddStock(event) {
-    event.preventDefault();
-    const produtoId = sel.hiddenAddStockId.value;
-    const quantidade = parseInt(sel.inputAddStockQuantidade.value);
-    if (isNaN(quantidade) || quantidade === 0) {
-        Toast.mostrarNotificacao("Insira um número válido diferente de zero.", "erro"); return;
-    }
-    store.dispatch({ type: 'ADD_STOCK', payload: { produtoId, quantidade } });
-    Modals.fecharModalAddStock();
-    Toast.mostrarNotificacao(quantidade > 0 ? `${quantidade} un. adicionadas.` : `${Math.abs(quantidade)} un. removidas.`);
-}
-
-function handleMoverStock(event) {
-    event.preventDefault();
-    const produtoId = sel.hiddenMoverStockId.value;
-    const quantidade = parseInt(sel.inputMoverStockQuantidade.value);
+    const produtoId = card.dataset.productId;
     const state = store.getState();
     const produto = state.inventario.find(p => p.id === produtoId);
-    if (!produto || isNaN(quantidade) || quantidade <= 0) {
-        Toast.mostrarNotificacao("A quantidade deve ser um número positivo.", "erro"); return;
+    if (!produto) return;
+
+    if (target.classList.contains('btn-editar-produto')) {
+        abrirModalEditProduto(produto);
+    } else if (target.classList.contains('btn-adicionar-stock')) {
+        abrirModalAddStock(produto);
+    } else if (target.classList.contains('btn-mover-stock')) {
+        abrirModalMoverStock(produto);
+    } else if (target.classList.contains('btn-apagar-produto')) {
+        abrirModalConfirmacao(
+            `Apagar ${produto.nome}?`,
+            "Esta ação não pode ser desfeita. O produto será removido permanentemente do inventário.",
+            () => {
+                store.dispatch({ type: 'DELETE_PRODUCT', payload: produtoId });
+                Toast.mostrarNotificacao(`Produto "${produto.nome}" apagado com sucesso.`);
+            }
+        );
     }
-    if (quantidade > produto.stockArmazem) {
-        Toast.mostrarNotificacao(`Apenas ${produto.stockArmazem} un. disponíveis no armazém.`, "erro"); return;
-    }
-    store.dispatch({ type: 'MOVE_STOCK', payload: { produtoId, quantidade } });
-    Modals.fecharModalMoverStock();
-    Toast.mostrarNotificacao(`${quantidade} un. de ${produto.nome} movidas para a loja.`);
 }
 
-function init() {
-    querySelectors();
-    store.subscribe(render);
+/**
+ * Retorna o HTML do ecrã de Inventário.
+ */
+function render() {
+    return `
+        <header id="inventario-header" class="p-4 hidden sticky top-0 bg-fundo-principal z-10">
+            <input type="search" id="input-busca-inventario" class="w-full p-2 border border-borda rounded-md bg-fundo-secundario" placeholder="Buscar no inventário...">
+        </header>
 
-    if (sel.btnFabAddProduto) sel.btnFabAddProduto.addEventListener('click', Modals.abrirModalAddProduto);
-    if (sel.inputBuscaInventario) sel.inputBuscaInventario.addEventListener('input', render);
-    
-    if (sel.formAddProduto) sel.formAddProduto.addEventListener('submit', handleAddProduto);
-    if (sel.formEditProduto) sel.formEditProduto.addEventListener('submit', handleEditProduto);
-    if (sel.formAddStock) sel.formAddStock.addEventListener('submit', handleAddStock);
-    if (sel.formMoverStock) sel.formMoverStock.addEventListener('submit', handleMoverStock);
-    
-    if (sel.listaInventario) {
-        sel.listaInventario.addEventListener('click', (event) => {
-            const target = event.target.closest('button');
-            if (!target) return;
-            
-            const produtoId = target.dataset.id;
-            const state = store.getState();
-            const produto = state.inventario.find(p => p.id === produtoId);
-            if (!produto) return;
+        <div id="inventario-empty-state" class="text-center p-8 hidden">
+            <i class="lni lni-dropbox text-6xl text-gray-300 dark:text-gray-600"></i>
+            <h3 class="mt-4 text-xl font-semibold">O seu inventário está vazio</h3>
+            <p class="text-texto-secundario">Toque no botão '+' para adicionar o seu primeiro produto.</p>
+        </div>
 
-            if (target.classList.contains('btn-editar-produto')) {
-                Modals.abrirModalEditProduto(produto);
-            }
-            if (target.classList.contains('btn-adicionar-stock')) {
-                Modals.abrirModalAddStock(produto);
-            }
-            if (target.classList.contains('btn-mover-stock')) {
-                Modals.abrirModalMoverStock(produto);
-            }
-            if (target.classList.contains('btn-apagar-produto')) {
-                Modals.abrirModalConfirmacao(
-                    `Apagar ${produto.nome}?`,
-                    "Esta ação não pode ser desfeita. O produto será removido permanentemente do inventário.",
-                    () => {
-                        store.dispatch({ type: 'DELETE_PRODUCT', payload: produtoId });
-                        Toast.mostrarNotificacao(`Produto "${produto.nome}" apagado com sucesso.`);
-                    }
+        <div id="lista-inventario" class="p-4 space-y-3"></div>
+
+        <button id="btn-fab-add-produto" class="fab z-50">
+            <i class="lni lni-plus"></i>
+        </button>
+    `;
+}
+
+/**
+ * Adiciona os event listeners ao ecrã após ser renderizado.
+ */
+function mount(productId) { // Aceita o ID do produto como parâmetro
+    viewNode = document.getElementById('app-root');
+    
+    unsubscribe = store.subscribe(renderProducts);
+    renderProducts();
+
+    viewNode.querySelector('#input-busca-inventario')?.addEventListener('input', renderProducts);
+    viewNode.querySelector('#btn-fab-add-produto')?.addEventListener('click', abrirModalAddProduto);
+    viewNode.querySelector('#lista-inventario')?.addEventListener('click', handleViewClick);
+    
+    // LÓGICA DE DESTAQUE E SCROLL
+    if (productId) {
+        setTimeout(() => {
+            const targetCard = viewNode.querySelector(`#produto-${productId}`);
+            if (targetCard) {
+                targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                gsap.fromTo(targetCard, 
+                    { backgroundColor: 'rgba(59, 130, 246, 0.3)' }, 
+                    { backgroundColor: 'transparent', duration: 1.5, ease: 'power2.out' }
                 );
             }
-        });
+        }, 100); // Pequeno delay para garantir que o DOM está pronto
     }
-
-    render();
 }
 
-export default { init };
+function unmount() {
+    if (unsubscribe) {
+        unsubscribe();
+        unsubscribe = null;
+    }
+    viewNode = null;
+}
+
+export default {
+    render,
+    mount,
+    unmount
+};

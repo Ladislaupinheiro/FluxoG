@@ -1,111 +1,43 @@
-// /modules/app.js - O Orquestrador da Aplicação (v7.1 - Correção de Auditoria)
+// /modules/app.js - O Orquestrador Principal da Aplicação (v10.1 - CORRIGIDO)
 'use strict';
 
-// Import do Store e da função de inicialização
 import store, { carregarEstadoInicial } from './services/Store.js';
-
-// Import de todos os módulos de UI
+import Router from './Router.js';
 import * as Modals from './components/Modals.js';
-import * as Nav from './components/Nav.js';
 import * as Toast from './components/Toast.js';
-
-// Import de todas as nossas Views Reativas
-import AtendimentoView from './views/AtendimentoView.js';
-import ClientesView from './views/ClientesView.js';
-import ClienteDetalhesView from './views/ClienteDetalhesView.js';
-import DashboardView from './views/DashboardView.js';
-import FluxoCaixaView from './views/FluxoCaixaView.js';
-import InventarioView from './views/InventarioView.js';
-import SettingsView from './views/SettingsView.js'; // <-- ADICIONADO
-
+import ThemeService from './services/ThemeService.js';
 
 /**
- * Função de arranque principal da aplicação.
+ * Função principal que inicializa a aplicação.
  */
-async function inicializarApp() {
+async function main() {
     try {
+        // 1. Inicializa os serviços essenciais
         await carregarEstadoInicial();
+        ThemeService.init();
+        Modals.init(); // <-- CORRIGIDO
+        Toast.init();   // <-- CORRIGIDO
         
-        // Aplica o tema guardado no arranque para evitar "flash"
-        const state = store.getState();
-        if (state.config && state.config.theme) {
-            document.body.dataset.theme = state.config.theme;
-        }
-        
-        const appContainer = document.getElementById('app-container');
-        const bottomNav = document.getElementById('bottom-nav');
-        
-        appContainer.classList.remove('hidden');
-        bottomNav.classList.remove('hidden');
-        
-        // Decide qual a melhor aba para mostrar no arranque com base no estado
-        if (state.inventario.length === 0) {
-            Nav.navigateToTab('tab-inventario');
-        } else if (state.contasAtivas.filter(c => c.status === 'ativa').length > 0) {
-            Nav.navigateToTab('tab-atendimento');
-        } else {
-            Nav.navigateToTab('tab-dashboard');
-        }
+        // 2. Inicializa o Router (que vai gerir a renderização das Views)
+        Router.init();
+
+        console.log("Aplicação 'Gestor de Bar Pro' inicializada com sucesso no modo SPA.");
 
     } catch (error) {
-        console.error("Erro crítico durante a inicialização:", error);
-        document.body.innerHTML = `<div class="fixed inset-0 bg-red-800 text-white flex flex-col justify-center items-center p-4 text-center"><h1 class="text-2xl font-bold mb-4">Erro Crítico</h1><p>A aplicação não conseguiu arrancar. Por favor, limpe os dados de navegação e tente novamente.</p></div>`;
+        console.error('Falha crítica na inicialização da aplicação:', error);
+        // Renderiza uma mensagem de erro na tela para o utilizador
+        const appRoot = document.getElementById('app-root');
+        if (appRoot) {
+            appRoot.innerHTML = `
+                <div class="p-4 text-center text-red-500">
+                    <h1 class="text-2xl font-bold">Erro Crítico</h1>
+                    <p>Não foi possível carregar a aplicação. Por favor, tente recarregar a página.</p>
+                    <p class="text-sm mt-2">${error.message}</p>
+                </div>
+            `;
+        }
     }
 }
 
-/**
- * Regista os event listeners globais da aplicação.
- * A maioria dos listeners agora vive dentro das suas respetivas Views.
- */
-function configurarEventListenersGlobais() {
-    const bottomNav = document.getElementById('bottom-nav');
-    bottomNav.addEventListener('click', (event) => {
-        const target = event.target.closest('.nav-btn');
-        if (target) {
-            Nav.navigateToTab(target.dataset.tab);
-        }
-    });
-
-    // Gestão genérica de fecho de modais
-    document.addEventListener('click', (event) => {
-        if (event.target.matches('.modal-container-wrapper') || event.target.matches('.btn-cancelar-modal')) {
-            const modal = event.target.closest('.modal-container-wrapper');
-            if (modal) {
-                modal.classList.add('hidden');
-            }
-        }
-    });
-    
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') {
-            document.querySelectorAll('.modal-container-wrapper:not(.hidden)').forEach(modal => {
-                modal.classList.add('hidden');
-            });
-        }
-    });
-}
-
-
-// Ponto de entrada da aplicação
-document.addEventListener('DOMContentLoaded', () => {
-    
-    // Inicializa componentes de UI globais
-    Nav.init();
-    Modals.init();
-    Toast.init();
-    
-    // Inicializa todas as Views
-    DashboardView.init();
-    InventarioView.init();
-    AtendimentoView.init();
-    ClientesView.init();
-    ClienteDetalhesView.init(); 
-    FluxoCaixaView.init();
-    SettingsView.init(); // <-- ADICIONADO
-    
-    // Configura os listeners que não pertencem a nenhuma view específica
-    configurarEventListenersGlobais();
-    
-    // Arranca a aplicação
-    inicializarApp();
-});
+// O PONTO DE ENTRADA CORRETO: Espera que o HTML esteja pronto antes de chamar main()
+document.addEventListener('DOMContentLoaded', main);

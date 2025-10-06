@@ -1,36 +1,26 @@
-/* /style.css - Folha de Estilos Principal (v7.5 - Reversão Atendimento) */
+/* /style.css - (v9.0) */
 
-/* --- VARIAVEIS GLOBAIS --- */
 :root {
-    --cor-primaria: #007bff;
-    --cor-primaria-clara: #e6f2ff; /* Usado para backgrounds subtis no tema claro */
-    --cor-fundo-principal: #f4f7f6;
+    --cor-primaria: #0d6efd;
+    --cor-fundo-principal: #f8f9fa;
     --cor-fundo-secundario: #ffffff;
-    --cor-texto-principal: #333333;
-    --cor-texto-claro: #ffffff;
-    --cor-perigo: #dc3545;
-    --sombra-padrao: 0 4px 8px rgba(0,0,0,0.1);
-    --borda-radius: 0.5rem; /* 8px */
+    --cor-texto-principal: #212529;
+    --cor-texto-secundario: #6c757d;
+    --cor-borda: #dee2e6;
+    --sombra-padrao: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     --altura-nav: 60px;
-
-    /* Variáveis customizadas para o Swiper.js (apenas para Inventário) */
-    --swiper-pagination-color: var(--cor-primaria);
-    --swiper-pagination-bullet-inactive-color: #d1d5db; /* gray-300 */
-    --swiper-pagination-bullet-inactive-opacity: 1;
-    --swiper-pagination-bullet-size: 8px;
-    --swiper-pagination-bullet-horizontal-gap: 4px;
 }
 
-body[data-theme='dark'] {
-    --cor-primaria-clara: #1a2637; /* Usado para backgrounds subtis no tema escuro */
-    --cor-fundo-principal: #121212;
-    --cor-fundo-secundario: #1e1e1e;
-    --cor-texto-principal: #e0e0e0;
-    --cor-texto-claro: #121212;
-    --sombra-padrao: 0 4px 8px rgba(0,0,0,0.4);
+html.dark {
+    --cor-primaria: #3b82f6;
+    --cor-fundo-principal: #111827; /* gray-900 */
+    --cor-fundo-secundario: #1f2937; /* gray-800 */
+    --cor-texto-principal: #f9fafb; /* gray-50 */
+    --cor-texto-secundario: #9ca3af; /* gray-400 */
+    --cor-borda: #374151; /* gray-700 */
+    --sombra-padrao: 0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.2);
 }
 
-/* --- ESTILOS DE BASE E RESET --- */
 * {
     margin: 0;
     padding: 0;
@@ -46,15 +36,8 @@ body {
     padding-bottom: var(--altura-nav); 
 }
 
-/* --- CORREÇÃO DE LAYOUT VERTICAL --- */
 .tab-content {
     min-height: calc(100vh - var(--altura-nav) - 4rem);
-    display: flex;
-    flex-direction: column;
-}
-
-#bottom-nav {
-    grid-template-columns: repeat(5, 1fr);
 }
 
 .nav-btn {
@@ -66,10 +49,10 @@ body {
     background: none;
     border: none;
     cursor: pointer;
-    color: #888;
     transition: color 0.2s ease, border-top-color 0.2s ease;
     border-top: 3px solid transparent;
     padding: 4px 0;
+    color: var(--cor-texto-secundario);
 }
 
 .nav-btn .lni {
@@ -87,8 +70,6 @@ body {
     border-top: 3px solid var(--cor-primaria);
 }
 
-/* --- COMPONENTES DE UI --- */
-
 .fab {
     position: fixed;
     bottom: calc(var(--altura-nav) + 20px);
@@ -97,7 +78,7 @@ body {
     width: 56px;
     height: 56px;
     background-color: var(--cor-primaria);
-    color: var(--cor-texto-claro);
+    color: var(--cor-fundo-secundario);
     border-radius: 50%;
     display: flex;
     justify-content: center;
@@ -110,50 +91,6 @@ body {
     transition: transform 0.2s ease-in-out;
 }
 
-/* --- ESTILOS PARA INVENTÁRIO --- */
-#swiper-inventario {
-    width: 100%;
-    padding-bottom: 30px; 
-}
-
-.product-card {
-    background-color: #f3f4f6;
-    border-radius: 1rem;
-    padding: 1.5rem;
-    box-shadow: var(--sombra-padrao);
-    border: 1px solid #e5e7eb;
-    min-height: 240px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
-.stock-column {
-    text-align: center;
-}
-.stock-column .label {
-    font-size: 0.875rem;
-    color: #6b7280;
-    font-weight: 500;
-    text-transform: uppercase;
-}
-.stock-column .value {
-    font-size: 3rem;
-    font-weight: 700;
-    color: var(--cor-texto-principal);
-    line-height: 1;
-    margin: 0.5rem 0;
-}
-.btn-add-stock-small {
-    background-color: #10b981;
-    color: white;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 20px;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
+.pagamento-metodo-btn.border-blue-500 {
+    border-color: var(--cor-primaria) !important;
 }

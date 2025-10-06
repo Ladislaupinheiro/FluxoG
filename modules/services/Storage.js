@@ -2,7 +2,7 @@
 'use strict';
 
 const DB_NAME = 'GestorBarDB';
-const DB_VERSION = 2; // Versão incrementada para adicionar a tabela de clientes
+const DB_VERSION = 4; // CORRIGIDO: Versão incrementada para forçar a recriação do schema.
 
 let db = null;
 
@@ -56,10 +56,16 @@ export function initDB() {
                 database.createObjectStore('config', { keyPath: 'key' });
             }
 
-            // 5. Object Store para os Clientes (NOVO NA v2)
+            // 5. Object Store para os Clientes
             if (!database.objectStoreNames.contains('clientes')) {
                 const clientesStore = database.createObjectStore('clientes', { keyPath: 'id' });
                 clientesStore.createIndex('nome', 'nome', { unique: false });
+            }
+
+            // 6. Object Store para as Despesas
+            if (!database.objectStoreNames.contains('despesas')) {
+                const despesasStore = database.createObjectStore('despesas', { keyPath: 'id' });
+                despesasStore.createIndex('data', 'data', { unique: false });
             }
         };
     });

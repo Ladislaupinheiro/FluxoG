@@ -1,43 +1,46 @@
-// /service-worker.js - (v7.0 - Arquitetura Final)
+// /service-worker.js - (v10.0 - Arquitetura SPA)
 'use strict';
 
-// A versão do cache é incrementada para garantir que o service worker seja atualizado.
-const CACHE_NAME = 'gestorbar-v20';
+// A versão do cache é incrementada para forçar a atualização de todos os ficheiros.
+const CACHE_NAME = 'gestorbar-v21';
 
-// A lista de ficheiros foi completamente atualizada para a nova estrutura.
+// A lista de ficheiros foi atualizada para incluir os novos módulos da arquitetura SPA.
 const URLS_TO_CACHE = [
     './',
     './index.html',
     './style.css',
     './manifest.json',
-    './tips.json', // <-- ADICIONADO
+    './tips.json',
     './favicon.png',
     
     // Ícones
     './icons/logo-small-192.png',
     './icons/logo-big-512.png',
 
-    // Módulo Principal
+    // Módulo Principal e Roteador (NOVOS E CRÍTICOS)
     './modules/app.js',
+    './modules/Router.js',
 
     // Componentes
     './modules/components/Modals.js',
     './modules/components/Nav.js',
     './modules/components/Toast.js',
 
-    // Serviços
+    // Serviços (NOVOS E ATUALIZADOS)
     './modules/services/Store.js',
     './modules/services/Storage.js',
-    './modules/services/TipsService.js', // <-- ADICIONADO
+    './modules/services/ThemeService.js',
+    './modules/services/TipsService.js',
+    './modules/services/utils.js',
 
     // Views
     './modules/views/AtendimentoView.js',
     './modules/views/ClientesView.js',
-    './modules/views/ClienteDetalhesView.js', // <-- ADICIONADO (Correção)
+    './modules/views/ClienteDetalhesView.js',
     './modules/views/DashboardView.js',
     './modules/views/FluxoCaixaView.js',
     './modules/views/InventarioView.js',
-    './modules/views/SettingsView.js' // <-- ADICIONADO
+    './modules/views/SettingsView.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -72,29 +75,29 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// Estratégia: Network First (Tenta a rede primeiro, se falhar, usa a cache)
 self.addEventListener('fetch', (event) => {
-    // Ignora pedidos que não sejam GET (ex: POST, etc.)
-    if (event.request.method !== 'GET') return;
-    
-    // Ignora pedidos a CDNs externas para scripts (ex: tailwind, jspdf)
-    if (event.request.url.includes('cdn.')) {
+    // CORRIGIDO: Ignora pedidos que não sejam GET, pedidos a CDNs e pedidos que não sejam http (ex: chrome-extension://)
+    if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
         return;
     }
 
+    // Estratégia: Network First, com otimização para não colocar CDNs na cache desnecessariamente
     event.respondWith(
         fetch(event.request)
             .then(networkResponse => {
-                // Se a resposta da rede for bem-sucedida, clona-a e guarda na cache
-                return caches.open(CACHE_NAME).then(cache => {
-                    cache.put(event.request, networkResponse.clone());
-                    return networkResponse;
-                });
+                // Apenas coloca na cache os recursos da nossa própria origem
+                if (new URL(event.request.url).origin === location.origin) {
+                    return caches.open(CACHE_NAME).then(cache => {
+                        cache.put(event.request, networkResponse.clone());
+                        return networkResponse;
+                    });
+                }
+                return networkResponse;
             })
             .catch(() => {
                 // Se a rede falhar, tenta encontrar o recurso na cache
                 return caches.match(event.request).then(cachedResponse => {
-                    return cachedResponse || Response.error(); // Retorna a resposta da cache ou um erro
+                    return cachedResponse || Response.error();
                 });
             })
     );

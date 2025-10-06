@@ -1,56 +1,49 @@
-// /modules/components/Toast.js - Componente para Gestão de Notificações (v7.0)
+// /modules/components/Toast.js - (v9.0)
 'use strict';
 
 const sel = {};
 let filaDeNotificacoes = [];
 let notificacaoAtiva = false;
+let timeoutAtivo = null;
 
 const NOTIFICATION_QUEUE_LIMIT = 5;
 
 /**
  * Processa a fila de notificações, exibindo uma de cada vez.
  */
-function processarFilaDeNotificacoes() {
+function processarFila() {
     if (notificacaoAtiva || filaDeNotificacoes.length === 0) {
         return;
     }
     notificacaoAtiva = true;
-    const notificacao = filaDeNotificacoes.shift();
+    const { mensagem, tipo } = filaDeNotificacoes.shift();
 
-    sel.toastNotificacao.textContent = notificacao.mensagem;
-    sel.toastNotificacao.classList.remove('bg-green-500', 'bg-red-500', 'hidden', 'opacity-0');
-    
-    // Define a cor com base no tipo
-    const cor = notificacao.tipo === 'sucesso' ? 'bg-green-500' : 'bg-red-500';
-    sel.toastNotificacao.classList.add(cor);
-    
-    // Torna a notificação visível
-    sel.toastNotificacao.classList.remove('hidden');
-    setTimeout(() => sel.toastNotificacao.classList.remove('opacity-0'), 50);
+    sel.toast.textContent = mensagem;
+    // Reseta as classes de cor e visibilidade antes de aplicar as novas
+    sel.toast.className = 'fixed top-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-md text-white font-semibold shadow-lg transition-all duration-300 z-[200]';
 
-    // Esconde a notificação após um tempo
-    const tempoDeEspera = 3000;
-    setTimeout(() => {
-        sel.toastNotificacao.classList.add('opacity-0');
+    const cor = tipo === 'sucesso' ? 'bg-green-500' : 'bg-red-500';
+    sel.toast.classList.add(cor);
+
+    // Força um reflow para garantir que a animação de entrada funcione
+    void sel.toast.offsetWidth;
+
+    // Animação de entrada
+    sel.toast.classList.remove('opacity-0', '-translate-y-20');
+
+    // Animação de saída
+    timeoutAtivo = setTimeout(() => {
+        sel.toast.classList.add('opacity-0', '-translate-y-20');
         
-        const onTransitionEnd = () => {
-            sel.toastNotificacao.classList.add('hidden');
+        // Espera a transição CSS terminar antes de esconder e processar a próxima
+        const handleTransitionEnd = () => {
+            sel.toast.classList.add('hidden');
             notificacaoAtiva = false;
-            processarFilaDeNotificacoes();
+            processarFila();
         };
+        sel.toast.addEventListener('transitionend', handleTransitionEnd, { once: true });
 
-        // Fallback de segurança caso o evento 'transitionend' não dispare
-        const fallbackTimeout = setTimeout(() => {
-            sel.toastNotificacao.removeEventListener('transitionend', onTransitionEnd);
-            onTransitionEnd();
-        }, tempoDeEspera + 500); // 500ms de margem de segurança
-
-        sel.toastNotificacao.addEventListener('transitionend', () => {
-            clearTimeout(fallbackTimeout);
-            onTransitionEnd();
-        }, { once: true });
-
-    }, tempoDeEspera);
+    }, 3000);
 }
 
 /**
@@ -60,17 +53,15 @@ function processarFilaDeNotificacoes() {
  */
 export function mostrarNotificacao(mensagem, tipo = 'sucesso') {
     if (filaDeNotificacoes.length >= NOTIFICATION_QUEUE_LIMIT) {
-        // Evita que a fila cresça indefinidamente
-        return;
+        filaDeNotificacoes.shift();
     }
     filaDeNotificacoes.push({ mensagem, tipo });
-    processarFilaDeNotificacoes();
+    processarFila();
 }
-
 
 /**
  * Função de inicialização do componente de Toast.
  */
 export function init() {
-    sel.toastNotificacao = document.getElementById('toast-notificacao');
+    sel.toast = document.getElementById('toast-notificacao');
 }
