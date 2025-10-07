@@ -1,4 +1,4 @@
-/* /style.css - (v9.0) */
+/* /style.css - v2.0 (Refatorado após Auditoria) */
 
 :root {
     --cor-primaria: #0d6efd;
@@ -8,16 +8,19 @@
     --cor-texto-secundario: #6c757d;
     --cor-borda: #dee2e6;
     --sombra-padrao: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    
+    /* --- NOVAS VARIÁVEIS --- */
     --altura-nav: 60px;
+    --fab-bottom-margin: 20px; /* Variável para a margem do FAB */
 }
 
-html.dark {
+html[data-theme='dark'] {
     --cor-primaria: #3b82f6;
-    --cor-fundo-principal: #111827; /* gray-900 */
-    --cor-fundo-secundario: #1f2937; /* gray-800 */
-    --cor-texto-principal: #f9fafb; /* gray-50 */
-    --cor-texto-secundario: #9ca3af; /* gray-400 */
-    --cor-borda: #374151; /* gray-700 */
+    --cor-fundo-principal: #111827;
+    --cor-fundo-secundario: #1f2937;
+    --cor-texto-principal: #f9fafb;
+    --cor-texto-secundario: #9ca3af;
+    --cor-borda: #374151;
     --sombra-padrao: 0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.2);
 }
 
@@ -36,43 +39,10 @@ body {
     padding-bottom: var(--altura-nav); 
 }
 
-.tab-content {
-    min-height: calc(100vh - var(--altura-nav) - 4rem);
-}
-
-.nav-btn {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 2px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    transition: color 0.2s ease, border-top-color 0.2s ease;
-    border-top: 3px solid transparent;
-    padding: 4px 0;
-    color: var(--cor-texto-secundario);
-}
-
-.nav-btn .lni {
-    font-size: 1.3rem;
-}
-
-.nav-btn .nav-text {
-    font-size: 0.75rem;
-    font-weight: 500;
-    line-height: 1;
-}
-
-.nav-btn.active {
-    color: var(--cor-primaria);
-    border-top: 3px solid var(--cor-primaria);
-}
-
 .fab {
     position: fixed;
-    bottom: calc(var(--altura-nav) + 20px);
+    /* ALTERAÇÃO: Uso da nova variável */
+    bottom: calc(var(--altura-nav) + var(--fab-bottom-margin));
     left: 50%;
     transform: translateX(-50%);
     width: 56px;
@@ -91,6 +61,36 @@ body {
     transition: transform 0.2s ease-in-out;
 }
 
-.pagamento-metodo-btn.border-blue-500 {
-    border-color: var(--cor-primaria) !important;
+.nav-btn.active {
+    color: var(--cor-primaria);
+    border-top: 3px solid var(--cor-primaria);
+}
+
+/* --- ALTERAÇÃO: Refatoração do '!important' --- */
+/* A regra agora é mais específica, eliminando a necessidade do !important */
+#modal-pagamento-overlay .pagamento-metodo-btn.border-blue-500 {
+    border-color: var(--cor-primaria);
+}
+
+/* Estilos para o slider do tema em SettingsView */
+.theme-switch input { display: none; }
+.slider {
+    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #ccc; transition: .4s; border-radius: 26px;
+}
+.slider:before {
+    position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px;
+    background-color: white; transition: .4s; border-radius: 50%;
+}
+input:checked + .slider { background-color: var(--cor-primaria); }
+input:checked + .slider:before { transform: translateX(24px); }
+
+
+/* Regra para o "Modo de Foco" */
+#app-root.app-desfocada {
+    filter: blur(4px);
+    transform: scale(0.98);
+    pointer-events: none;
+    user-select: none;
+    transition: all 0.2s ease-out;
 }

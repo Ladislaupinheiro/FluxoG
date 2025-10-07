@@ -3,7 +3,7 @@
 
 import store from '../services/Store.js';
 import { abrirModalAddCliente } from '../components/Modals.js';
-import { getRankedClients } from '../services/utils.js'; // IMPORTADO
+import { getRankedClients } from '../services/AnalyticsService.js';
 import Router from '../Router.js'; // IMPORTADO
 
 let unsubscribe = null;

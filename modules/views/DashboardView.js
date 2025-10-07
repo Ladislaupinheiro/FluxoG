@@ -6,7 +6,7 @@ import * as TipsService from '../services/TipsService.js';
 import { abrirModalDicaDoDia, abrirModalEditBusinessName } from '../components/Modals.js';
 import { mostrarNotificacao } from '../components/Toast.js';
 import Router from '../Router.js';
-import { getRankedProductsBySales } from '../services/utils.js';
+import { getRankedProductsBySales } from '../services/AnalyticsService.js';
 
 let unsubscribe = null;
 let swiperAlertas = null;
