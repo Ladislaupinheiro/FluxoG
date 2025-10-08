@@ -1,10 +1,8 @@
-// /service-worker.js - (v11.0 - Arquitetura Refatorada com Serviços e Componentes)
+// /service-worker.js
 'use strict';
 
-// A versão do cache é incrementada para forçar a atualização de todos os ficheiros.
-const CACHE_NAME = 'gestorbar-v22';
+const CACHE_NAME = 'gestorbar-v26'; // Versão incrementada
 
-// A lista de ficheiros foi atualizada para refletir a nova arquitetura
 const URLS_TO_CACHE = [
     './',
     './index.html',
@@ -24,11 +22,12 @@ const URLS_TO_CACHE = [
     // Componentes Principais
     './modules/components/Nav.js',
     './modules/components/Toast.js',
-    './modules/components/Modals.js', // O novo Gestor de Modais
+    './modules/components/Modals.js',
 
-    // --- NOVOS Componentes de Modal ---
+    // --- Componentes de Modal ---
     './modules/components/modals/BackupRestoreModal.js',
     './modules/components/modals/ConfirmacaoModal.js',
+    './modules/components/modals/CustomerPerformanceModal.js', // NOVO
     './modules/components/modals/DicaDoDiaModal.js',
     './modules/components/modals/FechoGlobalModal.js',
     './modules/components/modals/FormAddClienteModal.js',
@@ -43,22 +42,24 @@ const URLS_TO_CACHE = [
     './modules/components/modals/FormNovaContaModal.js',
     './modules/components/modals/FormNovaDespesaModal.js',
     './modules/components/modals/FormPagamentoModal.js',
+    './modules/components/modals/ProductPerformanceModal.js',
 
-    // --- Serviços ATUALIZADOS ---
+    // --- Serviços ---
     './modules/services/Store.js',
     './modules/services/Storage.js',
     './modules/services/ThemeService.js',
     './modules/services/TipsService.js',
-    './modules/services/utils.js', // O utilitário simplificado
-    './modules/services/AnalyticsService.js', // NOVO
-    './modules/services/ReportingService.js', // NOVO
+    './modules/services/utils.js',
+    './modules/services/AnalyticsService.js',
+    './modules/services/ReportingService.js',
 
-    // Views (permanecem as mesmas)
+    // Views
     './modules/views/AtendimentoView.js',
     './modules/views/ClientesView.js',
     './modules/views/ClienteDetalhesView.js',
     './modules/views/DashboardView.js',
     './modules/views/FluxoCaixaView.js',
+    './modules/views/AnálisesView.js',
     './modules/views/InventarioView.js',
     './modules/views/SettingsView.js'
 ];
@@ -104,7 +105,6 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
         fetch(event.request)
             .then(networkResponse => {
-                // Apenas coloca na cache os recursos da nossa própria origem
                 if (new URL(event.request.url).origin === location.origin) {
                     return caches.open(CACHE_NAME).then(cache => {
                         cache.put(event.request, networkResponse.clone());
@@ -114,7 +114,6 @@ self.addEventListener('fetch', (event) => {
                 return networkResponse;
             })
             .catch(() => {
-                // Se a rede falhar, tenta encontrar o recurso na cache
                 return caches.match(event.request);
             })
     );

@@ -4,7 +4,12 @@
 import store from '../../services/Store.js';
 import * as Toast from '../Toast.js';
 
-export const render = () => `
+export const render = () => {
+    // NOVO: Pega as categorias existentes para popular a datalist
+    const categoriasExistentes = [...new Set(store.getState().inventario.map(p => p.categoria).filter(Boolean))];
+    const datalistOptions = categoriasExistentes.map(cat => `<option value="${cat}"></option>`).join('');
+
+    return `
 <div id="modal-add-produto-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] p-4">
     <form id="form-add-produto" class="bg-fundo-secundario rounded-lg shadow-xl w-full max-w-sm">
         <header class="flex justify-between items-center p-4 border-b border-borda">
@@ -14,39 +19,48 @@ export const render = () => `
         <div class="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
             <div>
                 <label for="input-produto-nome" class="block text-sm font-medium mb-1">Nome do Produto</label>
-                <input type="text" id="input-produto-nome" required class="w-full p-2 border border-borda rounded-md bg-fundo-principal" placeholder="Ex: Cerveja Cuca">
-            </div>
-            <div>
-                <label for="input-produto-preco-venda" class="block text-sm font-medium mb-1">Preço de Venda (Kz)</label>
-                <input type="number" id="input-produto-preco-venda" required min="0" step="any" class="w-full p-2 border border-borda rounded-md bg-fundo-principal" placeholder="1000">
+                <input type="text" id="input-produto-nome" required class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="Ex: Cerveja Cuca">
             </div>
 
-            <div class="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg space-y-3">
+            <div>
+                <label for="input-produto-categoria" class="block text-sm font-medium mb-1">Categoria</label>
+                <input type="text" id="input-produto-categoria" list="categorias-data" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="Ex: Bebidas, Petiscos">
+                <datalist id="categorias-data">
+                    ${datalistOptions}
+                </datalist>
+            </div>
+
+            <div>
+                <label for="input-produto-preco-venda" class="block text-sm font-medium mb-1">Preço de Venda (Kz)</label>
+                <input type="number" id="input-produto-preco-venda" required min="0" step="any" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="1000">
+            </div>
+
+            <div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-3">
                 <h4 class="text-sm font-bold text-center text-texto-secundario">CÁLCULO DE CUSTO</h4>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label for="input-produto-custo-grade" class="block text-sm font-medium mb-1">Custo da Grade</label>
-                        <input type="number" id="input-produto-custo-grade" min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-principal" placeholder="3000">
+                        <input type="number" id="input-produto-custo-grade" min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="3000">
                     </div>
                     <div>
                         <label for="input-produto-unidades-grade" class="block text-sm font-medium mb-1">Un. na Grade</label>
-                        <input type="number" id="input-produto-unidades-grade" min="1" class="w-full p-2 border border-borda rounded-md bg-fundo-principal" placeholder="12">
+                        <input type="number" id="input-produto-unidades-grade" min="1" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="12">
                     </div>
                 </div>
                 <div>
                     <label for="input-produto-custo-unitario" class="block text-sm font-medium mb-1">Custo por Unidade (Kz)</label>
-                    <input type="number" id="input-produto-custo-unitario" required min="0" step="any" class="w-full p-2 border-green-500 rounded-md bg-fundo-principal font-bold" placeholder="Custo por item">
+                    <input type="number" id="input-produto-custo-unitario" required min="0" step="any" class="w-full p-2 border-green-500 rounded-md bg-fundo-input font-bold" placeholder="Custo por item">
                 </div>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label for="input-produto-stock-armazem" class="block text-sm font-medium mb-1">Stock (Armazém)</label>
-                    <input type="number" id="input-produto-stock-armazem" required min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-principal" value="0">
+                    <input type="number" id="input-produto-stock-armazem" required min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-input" value="0">
                 </div>
                 <div>
                     <label for="input-produto-stock-minimo" class="block text-sm font-medium mb-1">Stock Mínimo</label>
-                    <input type="number" id="input-produto-stock-minimo" required min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-principal" value="0">
+                    <input type="number" id="input-produto-stock-minimo" required min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-input" value="0">
                 </div>
             </div>
         </div>
@@ -55,6 +69,7 @@ export const render = () => `
         </footer>
     </form>
 </div>`;
+};
 
 export const mount = (closeModal) => {
     const form = document.getElementById('form-add-produto');
@@ -79,6 +94,7 @@ export const mount = (closeModal) => {
     form.addEventListener('submit', (e) => {
         e.preventDefault();
         const nome = nomeInput.value.trim();
+        const categoria = form.querySelector('#input-produto-categoria').value.trim(); // DADO DA CATEGORIA CAPTURADO
         const precoVenda = parseFloat(form.querySelector('#input-produto-preco-venda').value);
         const custoUnitario = parseFloat(custoUnitarioInput.value);
         const stockArmazem = parseInt(form.querySelector('#input-produto-stock-armazem').value);
@@ -87,7 +103,13 @@ export const mount = (closeModal) => {
         if (!nome || isNaN(precoVenda) || isNaN(custoUnitario) || precoVenda < 0 || custoUnitario < 0) {
             return Toast.mostrarNotificacao("Nome, Preço de Venda e Custo Unitário são obrigatórios.", "erro");
         }
-        store.dispatch({ type: 'ADD_PRODUCT', payload: { nome, precoVenda, custoUnitario, stockArmazem, stockMinimo } });
+        
+        // PAYLOAD ATUALIZADO PARA INCLUIR A CATEGORIA
+        store.dispatch({ 
+            type: 'ADD_PRODUCT', 
+            payload: { nome, categoria, precoVenda, custoUnitario, stockArmazem, stockMinimo } 
+        });
+
         Toast.mostrarNotificacao(`Produto "${nome}" adicionado!`);
         closeModal();
     });

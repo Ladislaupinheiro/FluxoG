@@ -1,4 +1,4 @@
-// /modules/services/Store.js - ATUALIZADO com Configs de Negócio
+// /modules/services/Store.js
 'use strict';
 import * as Storage from './Storage.js';
 import { gerarEstadoAposArquivo } from './utils.js';
@@ -10,14 +10,13 @@ const initialState = {
     historicoFechos: [],
     clientes: [],
     despesas: [],
-    // ALTERAÇÃO: Adicionados novos campos de configuração com valores padrão
     config: {
         businessName: '',
         nif: '',
         endereco: '',
         telefone: '',
         email: '',
-        moeda: 'AOA' // Kwanza Angolano como padrão
+        moeda: 'AOA'
     }
 };
 
@@ -36,15 +35,23 @@ class Store {
 function reducer(state = initialState, action) {
     switch (action.type) {
         case 'SET_INITIAL_STATE':
-            // Garante que o estado carregado tenha todos os campos de config, mesmo os novos
             const mergedConfig = { ...initialState.config, ...(action.payload.config || {}) };
             return { ...state, ...action.payload, config: mergedConfig };
 
-        // --- AÇÕES DO INVENTÁRIO ---
         case 'ADD_PRODUCT':
             {
-                const { nome, precoVenda, custoUnitario, stockArmazem, stockMinimo } = action.payload;
-                const novoProduto = { id: crypto.randomUUID(), nome, precoVenda, custoUnitario, stockArmazem, stockLoja: 0, stockMinimo };
+                const { nome, categoria, precoVenda, custoUnitario, stockArmazem, stockMinimo } = action.payload; // ATUALIZADO
+                const novoProduto = { 
+                    id: crypto.randomUUID(), 
+                    nome, 
+                    categoria, // ATUALIZADO
+                    precoVenda, 
+                    custoUnitario, 
+                    stockArmazem, 
+                    stockLoja: 0, 
+                    stockMinimo,
+                    ultimaVenda: null
+                };
                 const novoInventario = [...state.inventario, novoProduto];
                 Storage.salvarItem('inventario', novoProduto);
                 return { ...state, inventario: novoInventario };
@@ -87,14 +94,18 @@ function reducer(state = initialState, action) {
             return { ...state, inventario: inventarioAtualizado };
         }
 
-        // --- AÇÕES DE ATENDIMENTO (CONTAS) ---
         case 'ADD_ORDER_ITEM':
             {
                 const { contaId, produto, quantidade } = action.payload;
+                const dataDaVenda = new Date().toISOString();
                 
                 const inventarioAtualizado = state.inventario.map(p => {
                     if (p.id === produto.id) {
-                        const pAtualizado = { ...p, stockLoja: p.stockLoja - quantidade };
+                        const pAtualizado = { 
+                            ...p, 
+                            stockLoja: p.stockLoja - quantidade,
+                            ultimaVenda: dataDaVenda
+                        };
                         Storage.salvarItem('inventario', pAtualizado);
                         return pAtualizado;
                     }

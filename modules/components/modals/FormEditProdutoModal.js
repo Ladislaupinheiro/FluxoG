@@ -4,7 +4,12 @@
 import store from '../../services/Store.js';
 import * as Toast from '../Toast.js';
 
-export const render = (produto) => `
+export const render = (produto) => {
+    // Pega as categorias existentes para popular a datalist
+    const categoriasExistentes = [...new Set(store.getState().inventario.map(p => p.categoria).filter(Boolean))];
+    const datalistOptions = categoriasExistentes.map(cat => `<option value="${cat}"></option>`).join('');
+
+    return `
 <div id="modal-edit-produto-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] p-4">
     <form id="form-edit-produto" class="bg-fundo-secundario rounded-lg shadow-xl w-full max-w-sm">
         <header class="flex justify-between items-center p-4 border-b border-borda">
@@ -14,34 +19,43 @@ export const render = (produto) => `
         <div class="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
             <div>
                 <label for="input-edit-produto-nome" class="block text-sm font-medium mb-1">Nome do Produto</label>
-                <input type="text" id="input-edit-produto-nome" required class="w-full p-2 border border-borda rounded-md bg-fundo-principal" value="${produto.nome}">
-            </div>
-            <div>
-                <label for="input-edit-produto-preco-venda" class="block text-sm font-medium mb-1">Preço de Venda (Kz)</label>
-                <input type="number" id="input-edit-produto-preco-venda" required min="0" step="any" class="w-full p-2 border border-borda rounded-md bg-fundo-principal" value="${produto.precoVenda}">
+                <input type="text" id="input-edit-produto-nome" required class="w-full p-2 border border-borda rounded-md bg-fundo-input" value="${produto.nome}">
             </div>
 
-            <div class="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg space-y-3">
+            <div>
+                <label for="input-edit-produto-categoria" class="block text-sm font-medium mb-1">Categoria</label>
+                <input type="text" id="input-edit-produto-categoria" list="categorias-data" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="Ex: Bebidas, Petiscos" value="${produto.categoria || ''}">
+                <datalist id="categorias-data">
+                    ${datalistOptions}
+                </datalist>
+            </div>
+
+            <div>
+                <label for="input-edit-produto-preco-venda" class="block text-sm font-medium mb-1">Preço de Venda (Kz)</label>
+                <input type="number" id="input-edit-produto-preco-venda" required min="0" step="any" class="w-full p-2 border border-borda rounded-md bg-fundo-input" value="${produto.precoVenda}">
+            </div>
+
+            <div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-3">
                 <h4 class="text-sm font-bold text-center text-texto-secundario">CÁLCULO DE CUSTO</h4>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label for="input-edit-produto-custo-grade" class="block text-sm font-medium mb-1">Custo da Grade</label>
-                        <input type="number" id="input-edit-produto-custo-grade" min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-principal" placeholder="3000">
+                        <input type="number" id="input-edit-produto-custo-grade" min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="3000">
                     </div>
                     <div>
                         <label for="input-edit-produto-unidades-grade" class="block text-sm font-medium mb-1">Un. na Grade</label>
-                        <input type="number" id="input-edit-produto-unidades-grade" min="1" class="w-full p-2 border border-borda rounded-md bg-fundo-principal" placeholder="12">
+                        <input type="number" id="input-edit-produto-unidades-grade" min="1" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="12">
                     </div>
                 </div>
                 <div>
                     <label for="input-edit-produto-custo-unitario" class="block text-sm font-medium mb-1">Custo por Unidade (Kz)</label>
-                    <input type="number" id="input-edit-produto-custo-unitario" required min="0" step="any" class="w-full p-2 border-green-500 rounded-md bg-fundo-principal font-bold" value="${produto.custoUnitario || 0}">
+                    <input type="number" id="input-edit-produto-custo-unitario" required min="0" step="any" class="w-full p-2 border-green-500 rounded-md bg-fundo-input font-bold" value="${produto.custoUnitario || 0}">
                 </div>
             </div>
             
             <div>
                 <label for="input-edit-produto-stock-minimo" class="block text-sm font-medium mb-1">Stock Mínimo</label>
-                <input type="number" id="input-edit-produto-stock-minimo" required min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-principal" value="${produto.stockMinimo}">
+                <input type="number" id="input-edit-produto-stock-minimo" required min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-input" value="${produto.stockMinimo}">
             </div>
         </div>
         <footer class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-b-lg">
@@ -49,6 +63,7 @@ export const render = (produto) => `
         </footer>
     </form>
 </div>`;
+};
 
 export const mount = (closeModal, produto) => {
     const form = document.getElementById('form-edit-produto');
@@ -72,6 +87,7 @@ export const mount = (closeModal, produto) => {
         const produtoAtualizado = {
             ...produto,
             nome: form.querySelector('#input-edit-produto-nome').value.trim(),
+            categoria: form.querySelector('#input-edit-produto-categoria').value.trim(), // DADO DA CATEGORIA CAPTURADO
             precoVenda: parseFloat(form.querySelector('#input-edit-produto-preco-venda').value),
             custoUnitario: parseFloat(custoUnitarioInput.value),
             stockMinimo: parseInt(form.querySelector('#input-edit-produto-stock-minimo').value)

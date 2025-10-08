@@ -1,73 +1,135 @@
-// /modules/components/Modals.js - ATUALIZADO (com "Modo de Foco")
+// /modules/components/Modals.js
 'use strict';
 
 import store from '../services/Store.js';
 
 let modalsContainer = null;
-let appRoot = null; // Referência para o contentor principal
-let activeModal = null;
+let appRoot = null;
+let activeModal = {
+    close: () => {}
+};
 
-// Função auxiliar para carregar, renderizar e montar um modal
-async function openModal(modalName, ...args) {
-    if (activeModal) {
+// Função auxiliar genérica para abrir qualquer modal dinamicamente
+async function openModal(modalName, renderArgs = [], mountArgs = []) {
+    if (typeof activeModal.close === 'function') {
         activeModal.close();
     }
 
-    // ATIVA O MODO DE FOCO
-    appRoot?.classList.add('app-desfocada');
-
+    appRoot.classList.add('app-desfocada');
+    
     try {
-        const modalComponent = await import(`./modals/${modalName}.js`);
-        modalsContainer.innerHTML = modalComponent.render(...args);
-        activeModal = modalComponent;
+        const component = await import(`./modals/${modalName}.js`);
         
-        modalComponent.mount(closeActiveModal, ...args);
+        modalsContainer.innerHTML = component.render(...renderArgs);
+        
+        const closeModal = () => {
+            if (typeof component.unmount === 'function') {
+                component.unmount();
+            }
+            modalsContainer.innerHTML = '';
+            appRoot.classList.remove('app-desfocada');
+            activeModal = { close: () => {} };
+        };
+        
+        activeModal.close = closeModal;
+        
+        component.mount(closeModal, ...mountArgs);
 
     } catch (error) {
         console.error(`Falha ao carregar o modal ${modalName}:`, error);
-        // Garante que o modo de foco é desativado em caso de erro
-        appRoot?.classList.remove('app-desfocada');
+        appRoot.classList.remove('app-desfocada');
     }
 }
 
-// Função para fechar e limpar o modal ativo
-function closeActiveModal() {
-    if (activeModal && typeof activeModal.unmount === 'function') {
-        activeModal.unmount();
-    }
-    modalsContainer.innerHTML = '';
-    activeModal = null;
-
-    // DESATIVA O MODO DE FOCO
-    appRoot?.classList.remove('app-desfocada');
-}
-
-// --- API PÚBLICA ---
-
-export function init() {
+function init() {
     modalsContainer = document.getElementById('modals-container');
-    appRoot = document.getElementById('app-root'); // Guarda a referência do app-root
-    if (!modalsContainer || !appRoot) {
-        console.error("Contentores '#modals-container' ou '#app-root' não encontrados.");
-    }
+    appRoot = document.getElementById('app-root');
 }
 
-// O resto da API pública permanece o mesmo
-export const abrirModalConfirmacao = (titulo, mensagem, callback) => openModal('ConfirmacaoModal', titulo, mensagem, callback);
-export const abrirModalNovaConta = () => openModal('FormNovaContaModal');
-export const abrirModalAddProduto = () => openModal('FormAddProdutoModal');
-export const abrirModalEditProduto = (produto) => openModal('FormEditProdutoModal', produto);
-export const abrirModalAddStock = (produto) => openModal('FormAddStockModal', produto);
-export const abrirModalMoverStock = (produto) => openModal('FormMoverStockModal', produto);
-export const abrirModalAddPedido = (contaId) => openModal('FormAddPedidoModal', contaId);
-export const abrirModalPagamento = (conta) => openModal('FormPagamentoModal', conta);
-export const abrirModalAddCliente = () => openModal('FormAddClienteModal');
-export const abrirModalAddDivida = (cliente) => openModal('FormAddDividaModal', cliente);
-export const abrirModalLiquidarDivida = (cliente) => openModal('FormLiquidarDividaModal', cliente);
-export const abrirModalFechoGlobal = (relatorio, isHistoric) => openModal('FechoGlobalModal', relatorio, isHistoric);
-export const abrirModalNovaDespesa = () => openModal('FormNovaDespesaModal');
-export const abrirModalBackupRestore = () => openModal('BackupRestoreModal');
-export const abrirModalDicaDoDia = (dica) => openModal('DicaDoDiaModal', dica);
-export const abrirModalEditBusinessName = (nomeAtual) => openModal('FormEditBusinessNameModal', nomeAtual);
+// --- API Pública de Modais ---
 
-export { closeActiveModal as fecharModal };
+export function abrirModalConfirmacao(titulo, mensagem, onConfirmCallback) {
+    openModal('ConfirmacaoModal', [titulo, mensagem], [titulo, mensagem, onConfirmCallback]);
+}
+
+export function abrirModalNovaConta() {
+    openModal('FormNovaContaModal', [], []);
+}
+
+export function abrirModalAddProduto() {
+    openModal('FormAddProdutoModal', [], []);
+}
+
+export function abrirModalEditProduto(produto) {
+    openModal('FormEditProdutoModal', [produto], [produto]);
+}
+
+export function abrirModalAddStock(produto) {
+    openModal('FormAddStockModal', [produto], [produto]);
+}
+
+export function abrirModalMoverStock(produto) {
+    openModal('FormMoverStockModal', [produto], [produto]);
+}
+
+export function abrirModalAddPedido(contaId) {
+    const conta = store.getState().contasAtivas.find(c => c.id === contaId);
+    if (!conta) {
+        console.error("Tentativa de abrir modal para uma conta que não existe:", contaId);
+        return;
+    }
+    openModal('FormAddPedidoModal', [conta], [contaId]);
+}
+
+export function abrirModalPagamento(conta) {
+    openModal('FormPagamentoModal', [conta], [conta]);
+}
+
+export function abrirModalAddCliente() {
+    openModal('FormAddClienteModal', [], []);
+}
+
+export function abrirModalNovaDespesa() {
+    openModal('FormNovaDespesaModal', [], []);
+}
+
+export function abrirModalAddDivida(cliente) {
+    openModal('FormAddDividaModal', [cliente], [cliente]);
+}
+
+export function abrirModalLiquidarDivida(cliente) {
+    openModal('FormLiquidarDividaModal', [cliente], [cliente]);
+}
+
+export function abrirModalFechoGlobal(relatorio, isHistoric) {
+    openModal('FechoGlobalModal', [relatorio], [relatorio, isHistoric]);
+}
+
+export function abrirModalBackupRestore() {
+    openModal('BackupRestoreModal', [], []);
+}
+
+export function abrirModalDicaDoDia(dica) {
+    openModal('DicaDoDiaModal', [dica], [dica]);
+}
+
+export function abrirModalEditBusinessName(nomeAtual) {
+    openModal('FormEditBusinessNameModal', [nomeAtual], [nomeAtual]);
+}
+
+export function abrirModalProductPerformance(performanceData, periodo) {
+    openModal('ProductPerformanceModal', [performanceData, periodo], [performanceData, periodo]);
+}
+
+/**
+ * NOVO: Abre o modal de relatório detalhado de performance de clientes.
+ * @param {object} customerInsights - O objeto retornado por AnalyticsService.getCustomerInsights.
+ * @param {string} periodo - A string que descreve o período (ex: "Últimos 30 dias").
+ */
+export function abrirModalCustomerPerformance(customerInsights, periodo) {
+    openModal('CustomerPerformanceModal', [customerInsights, periodo], [customerInsights, periodo]);
+}
+
+
+// Inicializa o serviço de modais
+export { init };

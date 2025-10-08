@@ -1,4 +1,4 @@
-/* /style.css - v2.0 (Refatorado após Auditoria) */
+/* /style.css - v2.1 (Refatorado com Correção de Contraste nos Modais) */
 
 :root {
     --cor-primaria: #0d6efd;
@@ -9,9 +9,11 @@
     --cor-borda: #dee2e6;
     --sombra-padrao: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     
-    /* --- NOVAS VARIÁVEIS --- */
+    /* --- NOVA VARIÁVEL --- */
+    --cor-fundo-input: #ffffff;
+
     --altura-nav: 60px;
-    --fab-bottom-margin: 20px; /* Variável para a margem do FAB */
+    --fab-bottom-margin: 20px;
 }
 
 html[data-theme='dark'] {
@@ -21,6 +23,10 @@ html[data-theme='dark'] {
     --cor-texto-principal: #f9fafb;
     --cor-texto-secundario: #9ca3af;
     --cor-borda: #374151;
+
+    /* --- NOVA VARIÁVEL --- */
+    --cor-fundo-input: #374151;
+
     --sombra-padrao: 0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.2);
 }
 
@@ -41,7 +47,6 @@ body {
 
 .fab {
     position: fixed;
-    /* ALTERAÇÃO: Uso da nova variável */
     bottom: calc(var(--altura-nav) + var(--fab-bottom-margin));
     left: 50%;
     transform: translateX(-50%);
@@ -66,13 +71,10 @@ body {
     border-top: 3px solid var(--cor-primaria);
 }
 
-/* --- ALTERAÇÃO: Refatoração do '!important' --- */
-/* A regra agora é mais específica, eliminando a necessidade do !important */
 #modal-pagamento-overlay .pagamento-metodo-btn.border-blue-500 {
     border-color: var(--cor-primaria);
 }
 
-/* Estilos para o slider do tema em SettingsView */
 .theme-switch input { display: none; }
 .slider {
     position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
@@ -85,6 +87,16 @@ body {
 input:checked + .slider { background-color: var(--cor-primaria); }
 input:checked + .slider:before { transform: translateX(24px); }
 
+
+/* --- NOVO: Correção de Contraste dos Inputs nos Modais --- */
+/* Esta regra aplica-se a todos os elementos de formulário dentro de 
+   qualquer div cujo ID comece com 'modal-', garantindo que apenas
+   os inputs dos modais sejam afetados. */
+div[id^="modal-"] input,
+div[id^="modal-"] select,
+div[id^="modal-"] textarea {
+    background-color: var(--cor-fundo-input);
+}
 
 /* Regra para o "Modo de Foco" */
 #app-root.app-desfocada {
