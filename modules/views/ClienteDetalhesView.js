@@ -5,45 +5,66 @@ import store from '../services/Store.js';
 import { abrirModalAddDivida, abrirModalLiquidarDivida } from '../components/Modals.js';
 import Router from '../Router.js';
 import { calcularEstatisticasCliente } from '../services/AnalyticsService.js';
-import { formatarMoeda } from '../services/utils.js'; // NOVO
+import { formatarMoeda } from '../services/utils.js';
+import * as Toast from '../components/Toast.js'; // NOVO: Importar o Toast
 
 let unsubscribe = null;
 let viewNode = null;
 let clienteAtivoId = null;
 
+/**
+ * ATUALIZADO: A lógica foi reestruturada para ser mais robusta.
+ */
 function handleViewClick(event) {
     const target = event.target;
-    const state = store.getState();
-    const cliente = state.clientes.find(c => c.id === clienteAtivoId);
-    if (!cliente) return;
 
+    // 1. Processa ações que não dependem do objeto 'cliente' primeiro.
     if (target.closest('#btn-voltar-lista-clientes')) {
         Router.navigateTo('#clientes');
+        return; // Ação concluída.
     }
+
+    // 2. Agora, obtém o cliente para as ações restantes.
+    const state = store.getState();
+    const cliente = state.clientes.find(c => c.id === clienteAtivoId);
+
+    // 3. Se o cliente não for encontrado, notifica e sai de forma segura.
+    if (!cliente) {
+        Toast.mostrarNotificacao("Erro ao encontrar dados do cliente. A recarregar.", "erro");
+        Router.navigateTo('#clientes');
+        return;
+    }
+    
+    // 4. Processa as ações que dependem do objeto 'cliente'.
     if (target.closest('#btn-abrir-modal-add-divida')) {
         abrirModalAddDivida(cliente);
     }
     if (target.closest('#btn-abrir-modal-liquidar-divida')) {
+        // Ação inteligente: Desativa o botão se não houver dívida a liquidar.
+        const dividaTotal = cliente.dividas.reduce((total, d) => total + d.valor, 0);
+        if (dividaTotal <= 0) {
+            Toast.mostrarNotificacao("Este cliente não tem dívidas para liquidar.", "erro");
+            return;
+        }
         abrirModalLiquidarDivida(cliente);
     }
 }
 
+
 function updateDOM() {
     if (!viewNode || !clienteAtivoId) return;
-
     const state = store.getState();
     const cliente = state.clientes.find(c => c.id === clienteAtivoId);
 
     if (!cliente) {
-        Router.navigateTo('#clientes');
+        // A navegação automática foi removida daqui para evitar loops indesejados.
+        // O handleViewClick agora trata o caso de cliente não encontrado de forma mais graciosa.
         return;
     }
 
     viewNode.querySelector('#detalhes-cliente-nome').textContent = cliente.nome;
-
     const estatisticas = calcularEstatisticasCliente(clienteAtivoId, state);
     
-    // ATUALIZADO: Usa a nova função de formatação
     viewNode.querySelector('#widget-gasto-total').textContent = formatarMoeda(estatisticas.gastoTotal);
     viewNode.querySelector('#widget-ticket-medio').textContent = formatarMoeda(estatisticas.ticketMedio);
     viewNode.querySelector('#widget-visitas').textContent = estatisticas.visitas;
@@ -70,8 +91,16 @@ function updateDOM() {
             if (divida.tipo === 'credito') return total - Math.abs(divida.valor);
             return total;
         }, 0);
-        // ATUALIZADO: Usa a nova função de formatação
         viewNode.querySelector('#divida-total-valor').textContent = formatarMoeda(dividaTotal);
+        
+        // Lógica para desativar botão se não houver dívida
+        const btnLiquidar = viewNode.querySelector('#btn-abrir-modal-liquidar-divida');
+        if (dividaTotal <= 0) {
+            btnLiquidar.classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+            btnLiquidar.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
 
         if (cliente.dividas.length === 0) {
             historicoEl.innerHTML = '<p class="text-center text-texto-secundario text-sm py-4">Nenhuma transação de dívida registada.</p>';
@@ -89,7 +118,7 @@ function updateDOM() {
                                 <p class="text-xs text-texto-secundario">${new Date(transacao.data).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                             </div>
                             <span class="font-bold text-lg ${corValor}">
-                                ${sinal} ${formatarMoeda(transacao.valor)} 
+                                ${sinal} ${formatarMoeda(Math.abs(transacao.valor))} 
                             </span>
                         </div>
                     `;
@@ -103,7 +132,7 @@ function render(clienteId) {
     if (!cliente) return `<p class="p-4 text-center text-red-500">Cliente não encontrado.</p>`;
 
     return `
-        <section id="view-cliente-detalhes" class="p-4 space-y-6">
+        <section id="view-cliente-detalhes" class="p-4 space-y-6 pb-20">
             <header class="flex items-center">
                 <button id="btn-voltar-lista-clientes" class="p-2 -ml-2 text-2xl text-texto-secundario hover:text-primaria">
                     <i class="lni lni-arrow-left"></i>
@@ -115,18 +144,9 @@ function render(clienteId) {
             <div class="bg-fundo-secundario p-4 rounded-lg shadow-md">
                 <h3 class="text-sm font-semibold text-texto-secundario mb-3">Resumo do Cliente</h3>
                 <div id="resumo-cliente-widgets" class="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                        <span id="widget-gasto-total" class="text-2xl font-bold block"></span>
-                        <span class="text-xs text-texto-secundario">Gasto Total</span>
-                    </div>
-                    <div>
-                        <span id="widget-ticket-medio" class="text-2xl font-bold block"></span>
-                        <span class="text-xs text-texto-secundario">Ticket Médio</span>
-                    </div>
-                    <div>
-                        <span id="widget-visitas" class="text-2xl font-bold block"></span>
-                        <span class="text-xs text-texto-secundario">Visitas</span>
-                    </div>
+                    <div><span id="widget-gasto-total" class="text-2xl font-bold block"></span><span class="text-xs text-texto-secundario">Gasto Total</span></div>
+                    <div><span id="widget-ticket-medio" class="text-2xl font-bold block"></span><span class="text-xs text-texto-secundario">Ticket Médio</span></div>
+                    <div><span id="widget-visitas" class="text-2xl font-bold block"></span><span class="text-xs text-texto-secundario">Visitas</span></div>
                 </div>
             </div>
 
@@ -142,7 +162,7 @@ function render(clienteId) {
                 </div>
                 <div class="grid grid-cols-2 gap-4 mb-4">
                     <button id="btn-abrir-modal-add-divida" class="bg-red-500 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-red-600">Adicionar Dívida</button>
-                    <button id="btn-abrir-modal-liquidar-divida" class="bg-green-500 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-green-600">Liquidar Dívida</button>
+                    <button id="btn-abrir-modal-liquidar-divida" class="bg-green-500 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-green-600 transition-opacity">Liquidar Dívida</button>
                 </div>
                 <h4 class="text-xs font-semibold text-texto-secundario mb-2 border-t border-borda pt-3">HISTÓRICO DE TRANSAÇÕES</h4>
                 <div id="detalhes-cliente-historico" class="space-y-2 max-h-48 overflow-y-auto"></div>
