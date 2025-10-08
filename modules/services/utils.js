@@ -1,4 +1,4 @@
-// /modules/services/utils.js - REATORADO E SIMPLIFICADO
+// /modules/services/utils.js
 'use strict';
 
 /**
@@ -19,7 +19,6 @@ export function debounce(func, delay = 300) {
 
 /**
  * Calcula o estado da aplicação após a ação de arquivar o dia.
- * Usado internamente pelo Store.js.
  * @param {object} state O estado atual completo da aplicação.
  * @returns {object} Um objeto contendo os novos arrays de estado.
  */
@@ -33,10 +32,22 @@ export function gerarEstadoAposArquivo(state) {
         stockLoja: 0
     }));
     
-    const contasFechadasComCliente = contasFechadasParaApagar.map(conta => {
-        const cliente = state.clientes.find(c => c.nome.toLowerCase() === conta.nome.toLowerCase());
-        return cliente ? { ...conta, clienteId: cliente.id } : conta;
-    });
+    return { 
+        contasAtivasAposArquivo, 
+        inventarioAtualizado, 
+        contasFechadasParaApagar 
+    };
+}
 
-    return { contasAtivasAposArquivo, inventarioAtualizado, contasFechadasParaApagar, contasFechadasComCliente };
+/**
+ * NOVO: Formata um número como moeda no padrão da aplicação.
+ * @param {number} valor O número a ser formatado.
+ * @returns {string} A string formatada (ex: "1.500,00 Kz").
+ */
+export function formatarMoeda(valor) {
+    const valorNumerico = Number(valor) || 0;
+    return valorNumerico.toLocaleString('pt-AO', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }) + ' Kz';
 }

@@ -1,7 +1,6 @@
 // /modules/services/AnalyticsService.js
 'use strict';
 
-// As funções getRankedProductsBySales, getRankedClients, e calcularEstatisticasCliente permanecem inalteradas.
 export function getRankedProductsBySales(state) {
     const hojeString = new Date().toDateString();
     const contasFechadasHoje = state.contasAtivas.filter(c => 
@@ -13,16 +12,38 @@ export function getRankedProductsBySales(state) {
     }, {});
     return Object.entries(produtosVendidos).sort(([, a], [, b]) => b - a);
 }
+
+/**
+ * ATUALIZADO E CORRIGIDO: Calcula o gasto total de cada cliente em tempo real.
+ * A função agora lê tanto do histórico arquivado quanto das contas fechadas no dia corrente.
+ * @param {object} state - O estado completo da aplicação.
+ * @returns {Array<object>} Uma lista de objetos de cliente com a propriedade `gastoTotal`.
+ */
 export function getRankedClients(state) {
-    const { clientes, historicoFechos } = state;
+    const { clientes, historicoFechos, contasAtivas } = state;
     const gastosPorCliente = {};
-    historicoFechos.forEach(fecho => {
-        (fecho.contasFechadas || []).forEach(conta => {
+
+    // 1. Função auxiliar para processar uma lista de contas
+    const processarContas = (contas) => {
+        contas.forEach(conta => {
             if (conta.clienteId) {
-                gastosPorCliente[conta.clienteId] = (gastosPorCliente[conta.clienteId] || 0) + conta.valorFinal;
+                if (!gastosPorCliente[conta.clienteId]) {
+                    gastosPorCliente[conta.clienteId] = 0;
+                }
+                gastosPorCliente[conta.clienteId] += conta.valorFinal || 0;
             }
         });
-    });
+    };
+
+    // 2. Processa as contas do histórico arquivado
+    const contasHistoricas = historicoFechos.flatMap(fecho => fecho.contasFechadas || []);
+    processarContas(contasHistoricas);
+
+    // 3. Processa as contas fechadas no dia corrente que ainda não foram arquivadas
+    const contasDeHoje = contasAtivas.filter(conta => conta.status === 'fechada');
+    processarContas(contasDeHoje);
+
+    // 4. Mapeia os totais para a lista de clientes
     return clientes
         .map(cliente => ({
             ...cliente,
@@ -30,31 +51,54 @@ export function getRankedClients(state) {
         }))
         .sort((a, b) => b.gastoTotal - a.gastoTotal);
 }
+
 export function calcularEstatisticasCliente(clienteId, state) {
-    const { historicoFechos } = state;
+    const { historicoFechos, contasAtivas } = state;
     const estatisticas = {
         gastoTotal: 0,
         visitas: 0,
         ticketMedio: 0,
         produtosPreferidos: {}
     };
-    const contasDoCliente = historicoFechos
+
+    const contasHistoricas = historicoFechos
         .flatMap(fecho => fecho.contasFechadas || [])
         .filter(conta => conta.clienteId === clienteId);
-    estatisticas.visitas = contasDoCliente.length;
-    contasDoCliente.forEach(conta => {
+
+    const contasDeHoje = contasAtivas
+        .filter(conta => conta.status === 'fechada' && conta.clienteId === clienteId);
+
+    const todasAsContasDoCliente = [...contasHistoricas, ...contasDeHoje];
+
+    if (todasAsContasDoCliente.length === 0) {
+        return estatisticas;
+    }
+
+    const diasDeVisita = new Set();
+    
+    todasAsContasDoCliente.forEach(conta => {
         estatisticas.gastoTotal += conta.valorFinal || 0;
-        conta.pedidos.forEach(pedido => {
+        
+        if (conta.dataFecho) {
+            diasDeVisita.add(new Date(conta.dataFecho).toDateString());
+        }
+
+        (conta.pedidos || []).forEach(pedido => {
             estatisticas.produtosPreferidos[pedido.nome] = (estatisticas.produtosPreferidos[pedido.nome] || 0) + pedido.qtd;
         });
     });
+
+    estatisticas.visitas = diasDeVisita.size;
+
     if (estatisticas.visitas > 0) {
         estatisticas.ticketMedio = estatisticas.gastoTotal / estatisticas.visitas;
     }
+
     estatisticas.produtosPreferidos = Object.entries(estatisticas.produtosPreferidos)
         .sort(([, a], [, b]) => b - a)
         .slice(0, 3)
         .map(([nome, qtd]) => ({ nome, qtd }));
+
     return estatisticas;
 }
 
@@ -80,6 +124,19 @@ export function getMetricsForPeriod(state, startDate, endDate, categoria = 'all'
                     resumo.lucroBrutoTotal += (pedido.preco - pedido.custo) * pedido.qtd;
                 }
             });
+        });
+    });
+
+    state.clientes.forEach(cliente => {
+        cliente.dividas.forEach(transacao => {
+            if (transacao.tipo === 'credito') {
+                const dataPagamento = new Date(transacao.data);
+                if (dataPagamento >= startDate && dataPagamento <= endDate) {
+                    const valorPago = Math.abs(transacao.valor);
+                    resumo.receitaTotal += valorPago;
+                    resumo.lucroBrutoTotal += valorPago;
+                }
+            }
         });
     });
 
@@ -139,7 +196,7 @@ export function getProductPerformance(state, startDate, endDate, categoria = 'al
 }
 
 export function getCustomerInsights(state, startDate, endDate, categoria = 'all') {
-    const { historicoFechos, clientes } = state;
+    const { historicoFechos, clientes, contasAtivas } = state;
     startDate.setHours(0, 0, 0, 0);
     endDate.setHours(23, 59, 59, 999);
     
@@ -150,44 +207,28 @@ export function getCustomerInsights(state, startDate, endDate, categoria = 'all'
     
     const gastosPorCliente = {};
 
-    historicoFechos.forEach(fecho => {
-        const dataFecho = new Date(fecho.data);
-        if (dataFecho >= startDate && dataFecho <= endDate) {
-            (fecho.contasFechadas || []).forEach(conta => {
-                if (conta.clienteId) {
-                    let gastoNaCategoria = 0;
-                    conta.pedidos.forEach(pedido => {
-                        if (!productIdsInCategory || productIdsInCategory.has(pedido.produtoId)) {
-                            gastoNaCategoria += pedido.preco * pedido.qtd;
-                        }
-                    });
-
-                    if (gastoNaCategoria > 0) {
-                        if (!gastosPorCliente[conta.clienteId]) {
-                            gastosPorCliente[conta.clienteId] = { id: conta.clienteId, gastoTotal: 0, visitas: 0 };
-                        }
-                        gastosPorCliente[conta.clienteId].gastoTotal += gastoNaCategoria;
-                    }
-                }
-            });
-        }
-    });
-    
-    Object.keys(gastosPorCliente).forEach(clienteId => {
-        const visitasUnicas = new Set();
-        historicoFechos.forEach(fecho => {
-            const dataFecho = new Date(fecho.data).toDateString();
-            if (new Date(fecho.data) >= startDate && new Date(fecho.data) <= endDate) {
-                (fecho.contasFechadas || []).forEach(conta => {
-                    if(conta.clienteId === clienteId) {
-                        const gastouNaCategoria = conta.pedidos.some(p => !productIdsInCategory || productIdsInCategory.has(p.produtoId));
-                        if(gastouNaCategoria) visitasUnicas.add(dataFecho);
+    const processarGastos = (contas) => {
+        contas.forEach(conta => {
+            if (conta.clienteId) {
+                let gastoNaCategoria = 0;
+                conta.pedidos.forEach(pedido => {
+                    if (!productIdsInCategory || productIdsInCategory.has(pedido.produtoId)) {
+                        gastoNaCategoria += pedido.preco * pedido.qtd;
                     }
                 });
+
+                if (gastoNaCategoria > 0) {
+                    if (!gastosPorCliente[conta.clienteId]) {
+                        gastosPorCliente[conta.clienteId] = { id: conta.clienteId, gastoTotal: 0 };
+                    }
+                    gastosPorCliente[conta.clienteId].gastoTotal += gastoNaCategoria;
+                }
             }
         });
-        gastosPorCliente[clienteId].visitas = visitasUnicas.size;
-    });
+    };
+    
+    processarGastos(historicoFechos.flatMap(f => f.contasFechadas || []).filter(c => new Date(c.dataFecho) >= startDate && new Date(c.dataFecho) <= endDate));
+    processarGastos(contasAtivas.filter(c => c.status === 'fechada' && new Date(c.dataFecho) >= startDate && new Date(c.dataFecho) <= endDate));
 
     const topSpenders = Object.values(gastosPorCliente)
         .sort((a, b) => b.gastoTotal - a.gastoTotal)
@@ -198,14 +239,6 @@ export function getCustomerInsights(state, startDate, endDate, categoria = 'all'
     return { topSpenders, newCustomersCount };
 }
 
-/**
- * NOVO: Agrega os dados de vendas por dia para alimentar um gráfico de tendências.
- * @param {object} state - O estado completo da aplicação.
- * @param {Date} startDate - A data de início do período.
- * @param {Date} endDate - A data de fim do período.
- * @param {string} categoria - A categoria de produto para filtrar.
- * @returns {object} Um objeto com { labels: [], data: [] } para o gráfico.
- */
 export function getSalesTrend(state, startDate, endDate, categoria = 'all') {
     startDate.setHours(0, 0, 0, 0);
     endDate.setHours(23, 59, 59, 999);
@@ -215,35 +248,30 @@ export function getSalesTrend(state, startDate, endDate, categoria = 'all') {
         productIdsInCategory = new Set(state.inventario.filter(p => p.categoria === categoria).map(p => p.id));
     }
 
-    const fechosNoPeriodo = state.historicoFechos.filter(fecho => new Date(fecho.data) >= startDate && new Date(fecho.data) <= endDate);
-    
     const salesByDay = {};
-
-    // Inicializa todos os dias no período com 0 vendas
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        const dayString = d.toISOString().split('T')[0];
-        salesByDay[dayString] = 0;
+        salesByDay[d.toISOString().split('T')[0]] = 0;
     }
 
-    fechosNoPeriodo.forEach(fecho => {
-        const dayString = new Date(fecho.data).toISOString().split('T')[0];
-        let dailyTotal = 0;
-
-        (fecho.contasFechadas || []).forEach(conta => {
+    const processarVendasParaTrend = (contas) => {
+        contas.forEach(conta => {
+            const dayString = new Date(conta.dataFecho).toISOString().split('T')[0];
+            let dailyTotal = 0;
             conta.pedidos.forEach(pedido => {
                 if (!productIdsInCategory || productIdsInCategory.has(pedido.produtoId)) {
                     dailyTotal += pedido.preco * pedido.qtd;
                 }
             });
+            if (salesByDay[dayString] !== undefined) {
+                salesByDay[dayString] += dailyTotal;
+            }
         });
-        
-        if (salesByDay[dayString] !== undefined) {
-            salesByDay[dayString] += dailyTotal;
-        }
-    });
+    };
+
+    processarVendasParaTrend(state.historicoFechos.flatMap(f => f.contasFechadas || []).filter(c => new Date(c.dataFecho) >= startDate && new Date(c.dataFecho) <= endDate));
+    processarVendasParaTrend(state.contasAtivas.filter(c => c.status === 'fechada' && new Date(c.dataFecho) >= startDate && new Date(c.dataFecho) <= endDate));
 
     const sortedDays = Object.keys(salesByDay).sort();
-
     const labels = sortedDays.map(day => new Date(day).toLocaleDateString('pt-PT', { day: 'd', month: 'short' }));
     const data = sortedDays.map(day => salesByDay[day]);
 

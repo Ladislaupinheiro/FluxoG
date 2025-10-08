@@ -121,15 +121,17 @@ export function abrirModalProductPerformance(performanceData, periodo) {
     openModal('ProductPerformanceModal', [performanceData, periodo], [performanceData, periodo]);
 }
 
-/**
- * NOVO: Abre o modal de relatório detalhado de performance de clientes.
- * @param {object} customerInsights - O objeto retornado por AnalyticsService.getCustomerInsights.
- * @param {string} periodo - A string que descreve o período (ex: "Últimos 30 dias").
- */
 export function abrirModalCustomerPerformance(customerInsights, periodo) {
     openModal('CustomerPerformanceModal', [customerInsights, periodo], [customerInsights, periodo]);
 }
 
+/**
+ * NOVO: Abre o modal de gestão de atalhos para um produto específico.
+ * @param {object} produto - O produto a ser gerido como atalho.
+ */
+export function abrirModalShortcutManagement(produto) {
+    openModal('ShortcutManagementModal', [produto], [produto]);
+}
 
 // Inicializa o serviço de modais
 export { init };

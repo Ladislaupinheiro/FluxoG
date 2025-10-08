@@ -16,7 +16,8 @@ const initialState = {
         endereco: '',
         telefone: '',
         email: '',
-        moeda: 'AOA'
+        moeda: 'AOA',
+        priorityProducts: []
     }
 };
 
@@ -40,11 +41,11 @@ function reducer(state = initialState, action) {
 
         case 'ADD_PRODUCT':
             {
-                const { nome, categoria, precoVenda, custoUnitario, stockArmazem, stockMinimo } = action.payload; // ATUALIZADO
+                const { nome, categoria, precoVenda, custoUnitario, stockArmazem, stockMinimo } = action.payload;
                 const novoProduto = { 
                     id: crypto.randomUUID(), 
                     nome, 
-                    categoria, // ATUALIZADO
+                    categoria,
                     precoVenda, 
                     custoUnitario, 
                     stockArmazem, 
@@ -70,8 +71,13 @@ function reducer(state = initialState, action) {
         case 'DELETE_PRODUCT': {
             const produtoId = action.payload;
             const inventarioAtualizado = state.inventario.filter(p => p.id !== produtoId);
+            const configAtualizada = {
+                ...state.config,
+                priorityProducts: state.config.priorityProducts.filter(id => id !== produtoId)
+            };
             Storage.apagarItem('inventario', produtoId);
-            return { ...state, inventario: inventarioAtualizado };
+            Storage.salvarItem('config', { key: 'appConfig', ...configAtualizada });
+            return { ...state, inventario: inventarioAtualizado, config: configAtualizada };
         }
         case 'ADD_STOCK': {
             const { produtoId, quantidade } = action.payload;
@@ -138,7 +144,15 @@ function reducer(state = initialState, action) {
             }
 
         case 'ADD_ACCOUNT': {
-            const novaConta = action.payload;
+            const { nome, clienteId } = action.payload;
+            const novaConta = { 
+                id: crypto.randomUUID(), 
+                nome, 
+                clienteId: clienteId || null,
+                pedidos: [], 
+                dataAbertura: new Date().toISOString(), 
+                status: 'ativa' 
+            };
             const novasContasAtivas = [...state.contasAtivas, novaConta];
             Storage.salvarItem('contas', novaConta);
             return { ...state, contasAtivas: novasContasAtivas };
@@ -182,20 +196,23 @@ function reducer(state = initialState, action) {
             Storage.salvarItem('clientes', novoCliente);
             return { ...state, clientes: novosClientes };
         }
-        case 'ADD_DEBT': case 'SETTLE_DEBT': {
+        case 'ADD_DEBT':
+        case 'SETTLE_DEBT': {
             const { clienteId, ...rest } = action.payload;
             const clientesAtualizados = state.clientes.map(cliente => {
                 if (cliente.id === clienteId) {
                     const transacao = action.type === 'ADD_DEBT'
                         ? { id: crypto.randomUUID(), data: new Date().toISOString(), valor: rest.valor, descricao: rest.descricao, tipo: 'debito' }
-                        : { id: crypto.randomUUID(), data: new Date().toISOString(), valor: -Math.abs(rest.valor), descricao: 'Pagamento', tipo: 'credito' };
+                        : { id: crypto.randomUUID(), data: new Date().toISOString(), valor: -Math.abs(rest.valor), descricao: 'Pagamento', tipo: 'credito', metodoPagamento: rest.metodoPagamento };
                     const clienteAtualizado = { ...cliente, dividas: [...cliente.dividas, transacao] };
                     Storage.salvarItem('clientes', clienteAtualizado);
                     return clienteAtualizado;
-                } return cliente;
+                } 
+                return cliente;
             });
             return { ...state, clientes: clientesAtualizados };
         }
+
         case 'ADD_EXPENSE': {
             const novaDespesa = action.payload;
             const novasDespesas = [...state.despesas, novaDespesa];
@@ -212,6 +229,12 @@ function reducer(state = initialState, action) {
         }
         case 'UPDATE_CONFIG': {
             const configAtualizada = { ...state.config, ...action.payload };
+            Storage.salvarItem('config', { key: 'appConfig', ...configAtualizada });
+            return { ...state, config: configAtualizada };
+        }
+        
+        case 'UPDATE_SHORTCUTS': {
+            const configAtualizada = { ...state.config, priorityProducts: action.payload };
             Storage.salvarItem('config', { key: 'appConfig', ...configAtualizada });
             return { ...state, config: configAtualizada };
         }

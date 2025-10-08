@@ -23,8 +23,17 @@ export const render = (cliente) => {
                 <p class="text-sm">Dívida Atual: <strong class="text-red-500">${dividaTotal.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</strong></p>
                 <div>
                     <label for="input-liquidar-valor" class="block text-sm font-medium mb-1">Valor a Pagar (Kz)</label>
-                    <input type="number" id="input-liquidar-valor" required min="1" max="${dividaTotal}" class="w-full p-2 border border-borda rounded-md bg-fundo-principal">
+                    <input type="number" id="input-liquidar-valor" required min="1" max="${dividaTotal}" class="w-full p-2 border border-borda rounded-md bg-fundo-input">
                 </div>
+                
+                <div>
+                    <label for="select-liquidar-metodo" class="block text-sm font-medium mb-1">Método de Pagamento</label>
+                    <select id="select-liquidar-metodo" class="w-full p-2 border border-borda rounded-md bg-fundo-input">
+                        <option value="Numerário">Numerário</option>
+                        <option value="TPA">TPA</option>
+                    </select>
+                </div>
+
             </div>
             <footer class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-b-lg">
                 <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Registar Pagamento</button>
@@ -41,6 +50,8 @@ export const mount = (closeModal, cliente) => {
     form.addEventListener('submit', (e) => {
         e.preventDefault();
         const valor = parseFloat(inputValor.value);
+        const metodoPagamento = form.querySelector('#select-liquidar-metodo').value; // DADO CAPTURADO
+
         if (!valor || valor <= 0) {
             return Toast.mostrarNotificacao("Insira um valor de pagamento válido.", "erro");
         }
@@ -55,7 +66,12 @@ export const mount = (closeModal, cliente) => {
             return Toast.mostrarNotificacao("O valor a pagar não pode ser maior que a dívida atual.", "erro");
         }
 
-        store.dispatch({ type: 'SETTLE_DEBT', payload: { clienteId: cliente.id, valor } });
+        // PAYLOAD ATUALIZADO
+        store.dispatch({ 
+            type: 'SETTLE_DEBT', 
+            payload: { clienteId: cliente.id, valor, metodoPagamento } 
+        });
+
         Toast.mostrarNotificacao("Pagamento de dívida registado.");
         closeModal();
     });

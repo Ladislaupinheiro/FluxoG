@@ -1,19 +1,21 @@
-// /modules/views/ClienteDetalhesView.js - (v11.1 - CORRIGIDO o bug de congelamento no unmount)
+// /modules/views/ClienteDetalhesView.js
 'use strict';
 
 import store from '../services/Store.js';
 import { abrirModalAddDivida, abrirModalLiquidarDivida } from '../components/Modals.js';
 import Router from '../Router.js';
+import { calcularEstatisticasCliente } from '../services/AnalyticsService.js';
+import { formatarMoeda } from '../services/utils.js'; // NOVO
 
 let unsubscribe = null;
 let viewNode = null;
 let clienteAtivoId = null;
 
-// CORREÇÃO: O event handler foi extraído para uma função nomeada
 function handleViewClick(event) {
     const target = event.target;
     const state = store.getState();
     const cliente = state.clientes.find(c => c.id === clienteAtivoId);
+    if (!cliente) return;
 
     if (target.closest('#btn-voltar-lista-clientes')) {
         Router.navigateTo('#clientes');
@@ -26,51 +28,6 @@ function handleViewClick(event) {
     }
 }
 
-/**
- * Calcula as estatísticas de um cliente a partir do estado da aplicação.
- * NOTA: Esta lógica será movida para um serviço de análise (utils.js) no futuro.
- * @param {string} clienteId - O ID do cliente.
- * @param {object} state - O estado completo da aplicação.
- * @returns {object} Um objeto com as estatísticas calculadas.
- */
-function calcularEstatisticasCliente(clienteId, state) {
-    const { historicoFechos } = state;
-    const estatisticas = {
-        gastoTotal: 0,
-        visitas: 0,
-        ticketMedio: 0,
-        produtosPreferidos: {}
-    };
-
-    const contasDoCliente = historicoFechos
-        .flatMap(fecho => fecho.contasFechadas || [])
-        .filter(conta => conta.clienteId === clienteId);
-
-    estatisticas.visitas = contasDoCliente.length;
-    
-    contasDoCliente.forEach(conta => {
-        estatisticas.gastoTotal += conta.valorFinal || 0;
-        conta.pedidos.forEach(pedido => {
-            estatisticas.produtosPreferidos[pedido.nome] = (estatisticas.produtosPreferidos[pedido.nome] || 0) + pedido.qtd;
-        });
-    });
-
-    if (estatisticas.visitas > 0) {
-        estatisticas.ticketMedio = estatisticas.gastoTotal / estatisticas.visitas;
-    }
-
-    estatisticas.produtosPreferidos = Object.entries(estatisticas.produtosPreferidos)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 3)
-        .map(([nome, qtd]) => ({ nome, qtd }));
-
-    return estatisticas;
-}
-
-
-/**
- * Atualiza o DOM com os detalhes do cliente ativo.
- */
 function updateDOM() {
     if (!viewNode || !clienteAtivoId) return;
 
@@ -82,17 +39,14 @@ function updateDOM() {
         return;
     }
 
-    const nomeClienteEl = viewNode.querySelector('#detalhes-cliente-nome');
-    if (nomeClienteEl) nomeClienteEl.textContent = cliente.nome;
+    viewNode.querySelector('#detalhes-cliente-nome').textContent = cliente.nome;
 
     const estatisticas = calcularEstatisticasCliente(clienteAtivoId, state);
-    const gastoTotalEl = viewNode.querySelector('#widget-gasto-total');
-    const ticketMedioEl = viewNode.querySelector('#widget-ticket-medio');
-    const visitasEl = viewNode.querySelector('#widget-visitas');
-
-    if (gastoTotalEl) gastoTotalEl.textContent = estatisticas.gastoTotal.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
-    if (ticketMedioEl) ticketMedioEl.textContent = estatisticas.ticketMedio.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
-    if (visitasEl) visitasEl.textContent = estatisticas.visitas;
+    
+    // ATUALIZADO: Usa a nova função de formatação
+    viewNode.querySelector('#widget-gasto-total').textContent = formatarMoeda(estatisticas.gastoTotal);
+    viewNode.querySelector('#widget-ticket-medio').textContent = formatarMoeda(estatisticas.ticketMedio);
+    viewNode.querySelector('#widget-visitas').textContent = estatisticas.visitas;
 
     const produtosPreferidosListaEl = viewNode.querySelector('#produtos-preferidos-lista');
     if (produtosPreferidosListaEl) {
@@ -111,8 +65,13 @@ function updateDOM() {
     
     const historicoEl = viewNode.querySelector('#detalhes-cliente-historico');
     if (historicoEl) {
-        const dividaTotal = cliente.dividas.reduce((total, divida) => total + divida.valor, 0);
-        viewNode.querySelector('#divida-total-valor').textContent = dividaTotal.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
+        const dividaTotal = cliente.dividas.reduce((total, divida) => {
+            if (divida.tipo === 'debito') return total + divida.valor;
+            if (divida.tipo === 'credito') return total - Math.abs(divida.valor);
+            return total;
+        }, 0);
+        // ATUALIZADO: Usa a nova função de formatação
+        viewNode.querySelector('#divida-total-valor').textContent = formatarMoeda(dividaTotal);
 
         if (cliente.dividas.length === 0) {
             historicoEl.innerHTML = '<p class="text-center text-texto-secundario text-sm py-4">Nenhuma transação de dívida registada.</p>';
@@ -123,7 +82,6 @@ function updateDOM() {
                     const isCredito = transacao.tipo === 'credito';
                     const corValor = isCredito ? 'text-green-500' : 'text-red-500';
                     const sinal = isCredito ? '' : '+';
-
                     return `
                         <div class="bg-fundo-principal p-3 rounded-lg flex justify-between items-center">
                             <div>
@@ -131,7 +89,7 @@ function updateDOM() {
                                 <p class="text-xs text-texto-secundario">${new Date(transacao.data).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                             </div>
                             <span class="font-bold text-lg ${corValor}">
-                                ${sinal} ${transacao.valor.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}
+                                ${sinal} ${formatarMoeda(transacao.valor)} 
                             </span>
                         </div>
                     `;
@@ -140,15 +98,9 @@ function updateDOM() {
     }
 }
 
-/**
- * Retorna o HTML do ecrã de Detalhes do Cliente.
- */
 function render(clienteId) {
     const cliente = store.getState().clientes.find(c => c.id === clienteId);
-
-    if (!cliente) {
-        return `<p class="p-4 text-center text-red-500">Cliente não encontrado.</p>`;
-    }
+    if (!cliente) return `<p class="p-4 text-center text-red-500">Cliente não encontrado.</p>`;
 
     return `
         <section id="view-cliente-detalhes" class="p-4 space-y-6">
@@ -164,15 +116,15 @@ function render(clienteId) {
                 <h3 class="text-sm font-semibold text-texto-secundario mb-3">Resumo do Cliente</h3>
                 <div id="resumo-cliente-widgets" class="grid grid-cols-3 gap-4 text-center">
                     <div>
-                        <span id="widget-gasto-total" class="text-2xl font-bold block">Kz 0,00</span>
+                        <span id="widget-gasto-total" class="text-2xl font-bold block"></span>
                         <span class="text-xs text-texto-secundario">Gasto Total</span>
                     </div>
                     <div>
-                        <span id="widget-ticket-medio" class="text-2xl font-bold block">Kz 0,00</span>
+                        <span id="widget-ticket-medio" class="text-2xl font-bold block"></span>
                         <span class="text-xs text-texto-secundario">Ticket Médio</span>
                     </div>
                     <div>
-                        <span id="widget-visitas" class="text-2xl font-bold block">0</span>
+                        <span id="widget-visitas" class="text-2xl font-bold block"></span>
                         <span class="text-xs text-texto-secundario">Visitas</span>
                     </div>
                 </div>
@@ -186,7 +138,7 @@ function render(clienteId) {
             <div class="bg-fundo-secundario p-4 rounded-lg shadow-md">
                  <div class="flex justify-between items-center mb-3">
                     <h3 class="text-sm font-semibold text-texto-secundario">Gestão de Dívidas</h3>
-                    <span id="divida-total-valor" class="text-xl font-bold text-red-500">Kz 0,00</span>
+                    <span id="divida-total-valor" class="text-xl font-bold text-red-500"></span>
                 </div>
                 <div class="grid grid-cols-2 gap-4 mb-4">
                     <button id="btn-abrir-modal-add-divida" class="bg-red-500 text-white font-bold py-3 px-4 rounded-lg shadow hover:bg-red-600">Adicionar Dívida</button>
@@ -199,36 +151,20 @@ function render(clienteId) {
     `;
 }
 
-/**
- * Adiciona os event listeners ao ecrã após ser renderizado.
- */
 function mount(clienteId) {
     viewNode = document.getElementById('app-root');
     clienteAtivoId = clienteId;
-
     updateDOM();
     unsubscribe = store.subscribe(updateDOM);
-
-    // CORREÇÃO: Adiciona o listener nomeado ao viewNode
     viewNode.addEventListener('click', handleViewClick);
 }
 
-/**
- * Remove os listeners e anula a inscrição no store.
- */
 function unmount() {
-    if (unsubscribe) {
-        unsubscribe();
-        unsubscribe = null;
-    }
-    
-    // CORREÇÃO: Remove o listener específico e não destrói o viewNode
-    if (viewNode) {
-        viewNode.removeEventListener('click', handleViewClick);
-    }
-
+    if (unsubscribe) unsubscribe();
+    if (viewNode) viewNode.removeEventListener('click', handleViewClick);
     viewNode = null;
     clienteAtivoId = null;
+    unsubscribe = null;
 }
 
 export default {
