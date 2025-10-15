@@ -1,7 +1,7 @@
 // /service-worker.js
 'use strict';
 
-const CACHE_NAME = 'gestorbar-v26'; // Versão incrementada
+const CACHE_NAME = 'gestorbar-v27'; // Versão incrementada para forçar a atualização do cache
 
 const URLS_TO_CACHE = [
     './',
@@ -15,53 +15,55 @@ const URLS_TO_CACHE = [
     './icons/logo-small-192.png',
     './icons/logo-big-512.png',
 
-    // Módulo Principal e Roteador
-    './modules/app.js',
-    './modules/Router.js',
+    // Core da App
+    './modules/app/app.js',
+    './modules/app/Router.js',
 
-    // Componentes Principais
-    './modules/components/Nav.js',
-    './modules/components/Toast.js',
-    './modules/components/Modals.js',
+    // Módulos Partilhados (Shared)
+    './modules/shared/components/Nav.js',
+    './modules/shared/components/Toast.js',
+    './modules/shared/components/Modals.js',
+    './modules/shared/ui/ConfirmacaoModal.js',
+    './modules/shared/services/Store.js',
+    './modules/shared/services/Storage.js',
+    './modules/shared/services/ThemeService.js',
+    './modules/shared/services/TipsService.js',
+    './modules/shared/lib/utils.js',
 
-    // --- Componentes de Modal ---
-    './modules/components/modals/BackupRestoreModal.js',
-    './modules/components/modals/ConfirmacaoModal.js',
-    './modules/components/modals/CustomerPerformanceModal.js', // NOVO
-    './modules/components/modals/DicaDoDiaModal.js',
-    './modules/components/modals/FechoGlobalModal.js',
-    './modules/components/modals/FormAddClienteModal.js',
-    './modules/components/modals/FormAddDividaModal.js',
-    './modules/components/modals/FormAddPedidoModal.js',
-    './modules/components/modals/FormAddProdutoModal.js',
-    './modules/components/modals/FormAddStockModal.js',
-    './modules/components/modals/FormEditBusinessNameModal.js',
-    './modules/components/modals/FormEditProdutoModal.js',
-    './modules/components/modals/FormLiquidarDividaModal.js',
-    './modules/components/modals/FormMoverStockModal.js',
-    './modules/components/modals/FormNovaContaModal.js',
-    './modules/components/modals/FormNovaDespesaModal.js',
-    './modules/components/modals/FormPagamentoModal.js',
-    './modules/components/modals/ProductPerformanceModal.js',
+    // Features -> Componentes de Modal
+    './modules/features/settings/components/BackupRestoreModal.js',
+    './modules/features/clientes/components/CustomerPerformanceModal.js',
+    './modules/features/dashboard/components/DicaDoDiaModal.js',
+    './modules/features/financas/components/FechoGlobalModal.js',
+    './modules/features/clientes/components/FormAddClienteModal.js',
+    './modules/features/clientes/components/FormAddDividaModal.js',
+    './modules/features/atendimento/components/FormAddPedidoModal.js',
+    './modules/features/inventario/components/FormAddProdutoModal.js',
+    './modules/features/inventario/components/FormAddStockModal.js',
+    './modules/features/dashboard/components/FormEditBusinessNameModal.js',
+    './modules/features/inventario/components/FormEditProdutoModal.js',
+    './modules/features/clientes/components/FormLiquidarDividaModal.js',
+    './modules/features/inventario/components/FormMoverStockModal.js',
+    './modules/features/atendimento/components/FormNovaContaModal.js',
+    './modules/features/financas/components/FormNovaDespesaModal.js',
+    './modules/features/atendimento/components/FormPagamentoModal.js',
+    './modules/features/inventario/components/ProductPerformanceModal.js',
 
-    // --- Serviços ---
-    './modules/services/Store.js',
-    './modules/services/Storage.js',
-    './modules/services/ThemeService.js',
-    './modules/services/TipsService.js',
-    './modules/services/utils.js',
-    './modules/services/AnalyticsService.js',
-    './modules/services/ReportingService.js',
+    // Features -> Serviços de Análise
+    './modules/features/clientes/services/ClientAnalyticsService.js',
+    './modules/features/financas/services/FinancialAnalyticsService.js',
+    './modules/features/inventario/services/ProductAnalyticsService.js',
+    './modules/features/financas/services/ReportingService.js',
 
-    // Views
-    './modules/views/AtendimentoView.js',
-    './modules/views/ClientesView.js',
-    './modules/views/ClienteDetalhesView.js',
-    './modules/views/DashboardView.js',
-    './modules/views/FluxoCaixaView.js',
-    './modules/views/AnálisesView.js',
-    './modules/views/InventarioView.js',
-    './modules/views/SettingsView.js'
+    // Features -> Vistas (Views)
+    './modules/features/atendimento/AtendimentoView.js',
+    './modules/features/clientes/ClientesView.js',
+    './modules/features/clientes/ClienteDetalhesView.js',
+    './modules/features/dashboard/DashboardView.js',
+    './modules/features/financas/FluxoCaixaView.js',
+    './modules/features/analises/AnálisesView.js',
+    './modules/features/inventario/InventarioView.js',
+    './modules/features/settings/SettingsView.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -69,9 +71,21 @@ self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then(async (cache) => {
             console.log('[Service Worker] Cache aberta. A guardar ficheiros essenciais...');
-            await cache.addAll(URLS_TO_CACHE);
+            // Usamos addAll com um objeto Request para ignorar o cache em caso de erro inicial
+            const cachePromises = URLS_TO_CACHE.map(url => {
+                const request = new Request(url, { cache: 'reload' });
+                return fetch(request).then(response => {
+                    if (response.ok) {
+                        return cache.put(url, response);
+                    }
+                    return Promise.reject(`Falha ao carregar: ${url}`);
+                }).catch(err => {
+                    console.warn(`[Service Worker] Não foi possível guardar em cache o ficheiro: ${url}`, err);
+                });
+            });
+            await Promise.all(cachePromises);
         }).then(() => {
-            console.log('[Service Worker] Todos os ficheiros guardados. A forçar ativação...');
+            console.log('[Service Worker] Ficheiros essenciais guardados. A forçar ativação...');
             return self.skipWaiting();
         })
     );
@@ -97,24 +111,35 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
+    // Ignora requisições que não sejam GET e requisições de extensões do Chrome
+    if (event.request.method !== 'GET' || event.request.url.startsWith('chrome-extension://')) {
         return;
     }
 
-    // Estratégia: Network First
+    // Estratégia: Cache first, caindo para a rede (Cache, falling back to network)
+    // É uma boa estratégia para os assets da app, garantindo carregamento rápido.
     event.respondWith(
-        fetch(event.request)
-            .then(networkResponse => {
-                if (new URL(event.request.url).origin === location.origin) {
+        caches.match(event.request)
+            .then((cachedResponse) => {
+                if (cachedResponse) {
+                    // Se encontrado na cache, retorna a resposta da cache
+                    return cachedResponse;
+                }
+                // Se não, vai à rede
+                return fetch(event.request).then(networkResponse => {
+                    // E guarda uma cópia na cache para a próxima vez
                     return caches.open(CACHE_NAME).then(cache => {
-                        cache.put(event.request, networkResponse.clone());
+                        // Apenas faz cache de respostas válidas
+                        if (networkResponse.ok) {
+                            cache.put(event.request, networkResponse.clone());
+                        }
                         return networkResponse;
                     });
-                }
-                return networkResponse;
-            })
-            .catch(() => {
-                return caches.match(event.request);
+                });
+            }).catch(error => {
+                console.error('[Service Worker] Erro no fetch:', error);
+                // Em caso de erro (ex: offline e não está na cache), podemos retornar uma página de fallback
+                // return caches.match('./offline.html');
             })
     );
 });
