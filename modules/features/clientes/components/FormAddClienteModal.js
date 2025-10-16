@@ -1,4 +1,4 @@
-// /modules/features/clientes/components/FormAddClienteModal.js (ATUALIZADO COM TAGS)
+// /modules/features/clientes/components/FormAddClienteModal.js (MODIFICADO)
 'use strict';
 
 import store from '../../../shared/services/Store.js';
@@ -21,8 +21,8 @@ export const render = () => `
                 <input type="tel" id="input-cliente-contacto" class="w-full p-2 border border-borda rounded-md bg-fundo-principal" placeholder="9xx xxx xxx">
             </div>
             <div>
-                <label for="input-cliente-tags" class="block text-sm font-medium mb-1">Rótulos (Tags)</label>
-                <input id="input-cliente-tags" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="ex: kilapeiro, VIP">
+                <label for="input-cliente-tags" class="block text-sm font-medium mb-1">Rótulos (Ex: VIP, Amigo)</label>
+                <input id="input-cliente-tags" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="Adicione rótulos...">
             </div>
         </div>
         <footer class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-b-lg">
@@ -37,9 +37,8 @@ export const mount = (closeModal, onClientAddedCallback) => {
     const tagsInput = form.querySelector('#input-cliente-tags');
     inputNome.focus();
     
-    // Inicializa o Tagify no campo de rótulos
     const state = store.getState();
-    const whitelistTags = state.tagsDeCliente.map(t => t.nome); // Pega tags existentes
+    const whitelistTags = state.tagsDeCliente.map(t => t.nome);
     const tagify = new Tagify(tagsInput, {
         whitelist: whitelistTags,
         dropdown: { enabled: 0 }
@@ -60,25 +59,25 @@ export const mount = (closeModal, onClientAddedCallback) => {
             contacto: form.querySelector('#input-cliente-contacto').value.trim(),
             dataRegisto: new Date().toISOString(),
             dividas: [],
-            tags: novasTags, // Inclui as tags
+            tags: novasTags, // A tag 'novo' foi removida. O estado é calculado dinamicamente.
             fotoDataUrl: null,
         };
 
         store.dispatch({ type: 'ADD_CLIENT', payload: novoCliente });
         Toast.mostrarNotificacao(`Cliente "${nome}" adicionado.`);
+        
+        // Adiciona novas tags à lista global de tags se não existirem
+        novasTags.forEach(tagName => {
+            if (!state.tagsDeCliente.some(t => t.nome.toLowerCase() === tagName)) {
+                store.dispatch({ type: 'ADD_CLIENT_TAG', payload: { nome: tagName } });
+            }
+        });
+
         closeModal();
         
-        // Se houver um callback, executa-o (usado na AtendimentoView para navegação)
         if (typeof onClientAddedCallback === 'function') {
             onClientAddedCallback(novoCliente);
         }
-
-        // TODO: Adicionar novas tags à tagsDeCliente se não existirem (melhoria futura)
-        novasTags.forEach(tagName => {
-            if (!state.tagsDeCliente.some(t => t.nome === tagName)) {
-                store.dispatch({ type: 'ADD_CLIENT_TAG', payload: { nome: tagName } }); // Nova ação a ser criada
-            }
-        });
     });
 
     form.querySelector('.btn-fechar-modal').addEventListener('click', closeModal);

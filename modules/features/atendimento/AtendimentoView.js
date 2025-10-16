@@ -1,4 +1,4 @@
-// /modules/features/atendimento/AtendimentoView.js (VERSÃO FINAL OTIMIZADA)
+// /modules/features/atendimento/AtendimentoView.js (CORRIGIDO)
 'use strict';
 
 import store from '../../shared/services/Store.js';
@@ -10,9 +10,10 @@ let viewNode = null;
 let activeFilter = 'todos';
 let searchTerm = '';
 
-const temDivida = cliente => cliente.dividas.reduce((total, d) => d.tipo === 'debito' ? total + d.valor : total - Math.abs(d.valor), 0) > 0;
 const isNovo = cliente => (new Date() - new Date(cliente.dataRegisto)) / (1000 * 60 * 60 * 24) <= 7;
 const isAtivo = (cliente, contasAtivas) => contasAtivas.some(c => c.clienteId === cliente.id && c.status === 'ativa');
+// CORREÇÃO: A função agora compara em minúsculas para ser insensível a 'case'.
+const temTag = (cliente, tag) => cliente.tags && cliente.tags.some(t => t.toLowerCase() === tag.toLowerCase());
 
 function renderClientList() {
     if (!viewNode) return;
@@ -26,11 +27,13 @@ function renderClientList() {
         case 'ativos':
             clientesFiltrados = clientes.filter(c => isAtivo(c, contasAtivas));
             break;
-        case 'kilapeiros':
-            clientesFiltrados = clientes.filter(temDivida);
-            break;
         case 'novos':
             clientesFiltrados = clientes.filter(isNovo);
+            break;
+        case 'todos':
+            break;
+        default:
+            clientesFiltrados = clientes.filter(c => temTag(c, activeFilter));
             break;
     }
 
@@ -60,25 +63,33 @@ function renderClientList() {
 function updateFilterButtons() {
     if(!viewNode) return;
     viewNode.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.filter === activeFilter);
+        // CORREÇÃO: Compara sempre em minúsculas
+        btn.classList.toggle('active', btn.dataset.filter.toLowerCase() === activeFilter);
     });
 }
 
 function render() {
+    const state = store.getState();
+    // CORREÇÃO: Garante que o data-filter é sempre em minúsculas
+    const userTagsHTML = state.tagsDeCliente.map(tag => 
+        `<button class="filter-btn" data-filter="${tag.nome.toLowerCase()}">${tag.nome}</button>`
+    ).join('');
+
     return `
         <style>
-            .filter-btn { padding: 0.5rem 1rem; border-radius: 9999px; font-weight: 600; background-color: var(--cor-fundo-principal); color: var(--cor-texto-secundario); border: 2px solid var(--cor-borda); }
+            .filter-btn { padding: 0.5rem 1rem; border-radius: 9999px; font-weight: 600; background-color: var(--cor-fundo-principal); color: var(--cor-texto-secundario); border: 2px solid var(--cor-borda); white-space: nowrap; text-transform: capitalize; }
             .filter-btn.active { background-color: var(--cor-primaria); color: white; border-color: var(--cor-primaria); }
         </style>
         <header class="p-4 space-y-4">
             <h2 class="text-2xl font-bold">Atendimento</h2>
-            <input type="search" id="input-busca-cliente" class="w-full p-3 border border-borda rounded-lg bg-fundo-principal" placeholder="Encontrar cliente...">
+          
+            <input type="search" id="input-busca-cliente" class="search-bar w-full p-3 border border-borda bg-fundo-principal" placeholder="Encontrar cliente...">
         </header>
-        <nav class="px-4 pb-4 flex gap-2 overflow-x-auto">
+        <nav class="filter-bar px-4 pb-4 flex gap-2 overflow-x-auto">
             <button class="filter-btn" data-filter="todos">Todos</button>
             <button class="filter-btn" data-filter="ativos">Ativos</button>
-            <button class="filter-btn" data-filter="kilapeiros">Kilapeiros</button>
             <button class="filter-btn" data-filter="novos">Novos</button>
+            ${userTagsHTML}
         </nav>
         <main class="p-4 space-y-3 pb-24">
             <div id="lista-clientes-atendimento"></div>
@@ -98,20 +109,16 @@ function mount() {
         const clienteCard = e.target.closest('[data-cliente-id]');
 
         if (filterBtn) {
-            activeFilter = filterBtn.dataset.filter;
+            // CORREÇÃO: Guarda o filtro sempre em minúsculas
+            activeFilter = filterBtn.dataset.filter.toLowerCase();
             updateFilterButtons();
             renderClientList();
             return;
         }
 
         if (fab) {
-            // Chama o modal e passa o callback para o fluxo rápido
             abrirModalAddCliente((novoCliente) => {
-                const novaConta = {
-                    id: crypto.randomUUID(),
-                    nome: novoCliente.nome,
-                    clienteId: novoCliente.id
-                };
+                const novaConta = { id: crypto.randomUUID(), nome: novoCliente.nome, clienteId: novoCliente.id };
                 store.dispatch({ type: 'ADD_ACCOUNT', payload: novaConta });
                 Router.navigateTo(`#conta-detalhes/${novaConta.id}`);
             });
@@ -140,16 +147,19 @@ function mount() {
         renderClientList();
     };
 
-    viewNode.addEventListener('click', handleViewClick);
-    viewNode.querySelector('#input-busca-cliente').addEventListener('input', handleSearch);
-    
-    const updateAll = () => {
+    const renderAll = () => {
+        const currentSearchTerm = viewNode.querySelector('#input-busca-cliente')?.value || '';
+        viewNode.innerHTML = render();
+        viewNode.querySelector('#input-busca-cliente').value = currentSearchTerm;
         updateFilterButtons();
         renderClientList();
     }
 
-    updateAll();
-    unsubscribe = store.subscribe(updateAll);
+    viewNode.addEventListener('click', handleViewClick);
+    viewNode.querySelector('#input-busca-cliente').addEventListener('input', handleSearch);
+    
+    renderAll();
+    unsubscribe = store.subscribe(renderAll);
 
     const originalUnmount = unmount;
     unmount = () => {

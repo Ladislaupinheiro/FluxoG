@@ -1,8 +1,8 @@
-// /modules/shared/services/Storage.js (REATORADO)
+// /modules/shared/services/Storage.js (ATUALIZADO)
 'use strict';
 
 const DB_NAME = 'GestorBarDB';
-const DB_VERSION = 5; // Versão incrementada para adicionar as novas tabelas
+const DB_VERSION = 6; // Versão incrementada para refletir a nova lógica de categorias
 
 let db = null;
 
@@ -35,56 +35,29 @@ export function initDB() {
             const database = event.target.result;
             console.log(`A atualizar a base de dados para a versão ${DB_VERSION}...`);
 
-            // --- Estruturas Existentes (verificadas para garantir a integridade) ---
-            if (!database.objectStoreNames.contains('inventario')) {
-                database.createObjectStore('inventario', { keyPath: 'id' });
-            }
-            if (!database.objectStoreNames.contains('contas')) {
-                database.createObjectStore('contas', { keyPath: 'id' });
-            }
-            if (!database.objectStoreNames.contains('historico')) {
-                database.createObjectStore('historico', { keyPath: 'id' });
-            }
-            if (!database.objectStoreNames.contains('config')) {
-                database.createObjectStore('config', { keyPath: 'key' });
-            }
-            if (!database.objectStoreNames.contains('clientes')) {
-                database.createObjectStore('clientes', { keyPath: 'id' });
-            }
-            if (!database.objectStoreNames.contains('despesas')) {
-                database.createObjectStore('despesas', { keyPath: 'id' });
-            }
-
-            // --- NOVOS OBJECT STORES PARA A VERSÃO 5 ---
-            if (!database.objectStoreNames.contains('fornecedores')) {
-                const fornecedoresStore = database.createObjectStore('fornecedores', { keyPath: 'id' });
-                fornecedoresStore.createIndex('nome', 'nome', { unique: false });
-                console.log('Object store "fornecedores" criado.');
-            }
-            if (!database.objectStoreNames.contains('historicoCompras')) {
-                const comprasStore = database.createObjectStore('historicoCompras', { keyPath: 'id' });
-                comprasStore.createIndex('data', 'data', { unique: false });
-                console.log('Object store "historicoCompras" criado.');
-            }
+            // --- Estruturas Existentes ---
+            if (!database.objectStoreNames.contains('inventario')) database.createObjectStore('inventario', { keyPath: 'id' });
+            if (!database.objectStoreNames.contains('contas')) database.createObjectStore('contas', { keyPath: 'id' });
+            if (!database.objectStoreNames.contains('historico')) database.createObjectStore('historico', { keyPath: 'id' });
+            if (!database.objectStoreNames.contains('config')) database.createObjectStore('config', { keyPath: 'key' });
+            if (!database.objectStoreNames.contains('clientes')) database.createObjectStore('clientes', { keyPath: 'id' });
+            if (!database.objectStoreNames.contains('despesas')) database.createObjectStore('despesas', { keyPath: 'id' });
+            if (!database.objectStoreNames.contains('fornecedores')) database.createObjectStore('fornecedores', { keyPath: 'id' });
+            if (!database.objectStoreNames.contains('historicoCompras')) database.createObjectStore('historicoCompras', { keyPath: 'id' });
+            if (!database.objectStoreNames.contains('tagsDeCliente')) database.createObjectStore('tagsDeCliente', { keyPath: 'id' });
+            
+            // A estrutura de categoriasDeProduto não precisa de um novo índice,
+            // mas versionar a DB garante que as mudanças sejam reconhecidas.
             if (!database.objectStoreNames.contains('categoriasDeProduto')) {
                 const categoriasStore = database.createObjectStore('categoriasDeProduto', { keyPath: 'id' });
                 categoriasStore.createIndex('nome', 'nome', { unique: false });
                 console.log('Object store "categoriasDeProduto" criado.');
             }
-            if (!database.objectStoreNames.contains('tagsDeCliente')) {
-                const tagsStore = database.createObjectStore('tagsDeCliente', { keyPath: 'id' });
-                tagsStore.createIndex('nome', 'nome', { unique: false });
-                console.log('Object store "tagsDeCliente" criado.');
-            }
         };
     });
 }
 
-/**
- * Carrega todos os itens de um Object Store.
- * @param {string} storeName - O nome do store (ex: 'inventario').
- * @returns {Promise<Array<any>>} Uma promessa que resolve com um array de itens.
- */
+// O resto do ficheiro (carregarTodos, salvarItem, etc.) permanece inalterado.
 export async function carregarTodos(storeName) {
     if (!db) await initDB();
     return new Promise((resolve, reject) => {
@@ -102,12 +75,6 @@ export async function carregarTodos(storeName) {
     });
 }
 
-/**
- * Salva (adiciona ou atualiza) um item num Object Store.
- * @param {string} storeName - O nome do store.
- * @param {object} item - O objeto a ser guardado.
- * @returns {Promise<IDBValidKey>} Uma promessa que resolve com a chave do item salvo.
- */
 export async function salvarItem(storeName, item) {
     if (!db) await initDB();
     return new Promise((resolve, reject) => {
@@ -125,12 +92,6 @@ export async function salvarItem(storeName, item) {
     });
 }
 
-/**
- * Apaga um item de um Object Store pela sua chave.
- * @param {string} storeName - O nome do store.
- * @param {IDBValidKey} key - A chave do item a ser apagado.
- * @returns {Promise<void>} Uma promessa que resolve quando o item é apagado.
- */
 export async function apagarItem(storeName, key) {
     if (!db) await initDB();
     return new Promise((resolve, reject) => {
@@ -148,12 +109,6 @@ export async function apagarItem(storeName, key) {
     });
 }
 
-/**
- * Apaga TODOS os itens de um Object Store.
- * Essencial para a funcionalidade de Restauro de Backup.
- * @param {string} storeName - O nome do store a ser limpo.
- * @returns {Promise<void>} Uma promessa que resolve quando o store é limpo.
- */
 export async function limparStore(storeName) {
     if (!db) await initDB();
     return new Promise((resolve, reject) => {

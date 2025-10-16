@@ -1,11 +1,11 @@
-// /modules/shared/services/Store.js (ATUALIZADO)
+// /modules/shared/services/Store.js (MODIFICADO)
 'use strict';
 import * as Storage from './Storage.js';
 import { gerarEstadoAposArquivo } from '../lib/utils.js';
 
+// ... initialState e a classe Store permanecem os mesmos ...
 const initialState = {
-    schema_version: 11, // Versão incrementada
-    
+    schema_version: 11,
     inventario: [],
     clientes: [],
     contasAtivas: [],
@@ -13,9 +13,8 @@ const initialState = {
     despesas: [],
     fornecedores: [],
     historicoCompras: [],
-    categoriasDeProduto: [],
+    categoriasDeProduto: [], // Agora terá objetos com { id, nome, cor, parentId: null | 'uuid' }
     tagsDeCliente: [],
-    
     config: {
         businessName: '',
         nif: '',
@@ -49,14 +48,14 @@ class Store {
 
 function reducer(state = initialState, action) {
     switch (action.type) {
+        // ... outras ações ...
         case 'SET_INITIAL_STATE':
             const mergedConfig = { ...initialState.config, ...(action.payload.config || {}) };
             return { ...state, ...action.payload, config: mergedConfig };
 
-        // --- AÇÕES DE GESTÃO DE CLIENTES ---
         case 'ADD_CLIENT': {
             const novoClientePayload = action.payload;
-            const novoCliente = { id: crypto.randomUUID(), dataRegisto: new Date().toISOString(), dividas: [], tags: ['novo'], fotoDataUrl: null, ...novoClientePayload };
+            const novoCliente = { ...novoClientePayload, id: crypto.randomUUID(), dataRegisto: new Date().toISOString(), dividas: [], fotoDataUrl: null };
             const novosClientes = [...state.clientes, novoCliente];
             Storage.salvarItem('clientes', novoCliente);
             return { ...state, clientes: novosClientes };
@@ -67,11 +66,10 @@ function reducer(state = initialState, action) {
             Storage.salvarItem('clientes', clienteAtualizado);
             return { ...state, clientes };
         }
-        case 'DELETE_CLIENT': { // NOVO
+        case 'DELETE_CLIENT': {
             const clienteId = action.payload;
             const clientes = state.clientes.filter(c => c.id !== clienteId);
             Storage.apagarItem('clientes', clienteId);
-            // Futuro: considerar o que fazer com contas/dívidas associadas
             return { ...state, clientes };
         }
         case 'ADD_CLIENT_TAG': {
@@ -81,7 +79,24 @@ function reducer(state = initialState, action) {
             return { ...state, tagsDeCliente };
         }
 
-        // --- LÓGICA DE COMPRA ---
+        // --- LÓGICA DE CATEGORIAS DE PRODUTO (MODIFICADA) ---
+        case 'ADD_PRODUCT_CATEGORY': {
+            const { nome, cor, parentId } = action.payload;
+            const novaCategoria = { id: crypto.randomUUID(), nome, cor, parentId: parentId || null };
+            const categoriasDeProduto = [...state.categoriasDeProduto, novaCategoria];
+            Storage.salvarItem('categoriasDeProduto', novaCategoria);
+            return { ...state, categoriasDeProduto };
+        }
+        case 'DELETE_PRODUCT_CATEGORY': {
+            const categoriaId = action.payload;
+            // Também apaga todas as categorias secundárias associadas
+            const categoriasDeProduto = state.categoriasDeProduto.filter(cat => cat.id !== categoriaId && cat.parentId !== categoriaId);
+            Storage.apagarItem('categoriasDeProduto', categoriaId);
+            // TODO: iterar e apagar as filhas também do Storage
+            return { ...state, categoriasDeProduto };
+        }
+
+        // --- LÓGICA DE COMPRA (sem alterações) ---
         case 'ADD_COMPRA': {
             const novaCompra = { id: crypto.randomUUID(), data: new Date().toISOString(), ...action.payload };
             const historicoCompras = [...state.historicoCompras, novaCompra];
@@ -106,11 +121,9 @@ function reducer(state = initialState, action) {
             }
             return { ...state, historicoCompras, inventario: inventarioAtualizado };
         }
-
-        // ... (restante do reducer, sem alterações) ...
         case 'ADD_ACCOUNT': {
             const novaContaPayload = action.payload;
-            const novaConta = { pedidos: [], dataAbertura: new Date().toISOString(), status: 'ativa', ...novaContaPayload };
+            const novaConta = { id: crypto.randomUUID(), pedidos: [], dataAbertura: new Date().toISOString(), status: 'ativa', ...novaContaPayload };
             const novasContasAtivas = [...state.contasAtivas, novaConta];
             Storage.salvarItem('contas', novaConta);
             return { ...state, contasAtivas: novasContasAtivas };
@@ -143,6 +156,7 @@ function reducer(state = initialState, action) {
 
 const store = new Store(reducer, initialState);
 
+// carregarEstadoInicial permanece inalterado
 export async function carregarEstadoInicial() {
     try {
         await Storage.initDB();

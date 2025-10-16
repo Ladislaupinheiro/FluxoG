@@ -1,4 +1,4 @@
-/* /style.css - v2.1 (Refatorado com Correção de Contraste nos Modais) */
+/* /style.css - v2.2 (Refatorado com Estilo de Busca e Filtros de Tag) */
 
 :root {
     --cor-primaria: #0d6efd;
@@ -9,7 +9,6 @@
     --cor-borda: #dee2e6;
     --sombra-padrao: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     
-    /* --- NOVA VARIÁVEL --- */
     --cor-fundo-input: #ffffff;
 
     --altura-nav: 60px;
@@ -18,15 +17,12 @@
 
 html[data-theme='dark'] {
     --cor-primaria: #3b82f6;
-    --cor-fundo-principal: #111827;
+    --cor-fundo-principal: #030407;
     --cor-fundo-secundario: #1f2937;
     --cor-texto-principal: #f9fafb;
     --cor-texto-secundario: #9ca3af;
     --cor-borda: #374151;
-
-    /* --- NOVA VARIÁVEL --- */
     --cor-fundo-input: #374151;
-
     --sombra-padrao: 0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.2);
 }
 
@@ -44,6 +40,21 @@ body {
     line-height: 1.6;
     padding-bottom: var(--altura-nav); 
 }
+
+/* --- NOVO: Estilo Unificado para Barra de Busca --- */
+.search-bar {
+    border-radius: 20px !important; /* Detalhe sutil solicitado */
+}
+
+/* --- NOVO: Estilo para a barra de filtros rolável --- */
+.filter-bar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+.filter-bar::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
+}
+
 
 .fab {
     position: fixed;
@@ -87,18 +98,12 @@ body {
 input:checked + .slider { background-color: var(--cor-primaria); }
 input:checked + .slider:before { transform: translateX(24px); }
 
-
-/* --- NOVO: Correção de Contraste dos Inputs nos Modais --- */
-/* Esta regra aplica-se a todos os elementos de formulário dentro de 
-   qualquer div cujo ID comece com 'modal-', garantindo que apenas
-   os inputs dos modais sejam afetados. */
 div[id^="modal-"] input,
 div[id^="modal-"] select,
 div[id^="modal-"] textarea {
     background-color: var(--cor-fundo-input);
 }
 
-/* Regra para o "Modo de Foco" */
 #app-root.app-desfocada {
     filter: blur(4px);
     transform: scale(0.98);

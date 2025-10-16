@@ -1,4 +1,4 @@
-// /modules/features/clientes/ClientesView.js (REATORADO)
+// /modules/features/clientes/ClientesView.js (CORRIGIDO)
 'use strict';
 
 import store from '../../shared/services/Store.js';
@@ -11,31 +11,30 @@ let viewNode = null;
 let activeFilter = 'todos';
 let searchTerm = '';
 
-const temDivida = cliente => cliente.dividas.reduce((total, d) => d.tipo === 'debito' ? total + d.valor : total - Math.abs(d.valor), 0) > 0;
+// Funções de filtro
 const isNovo = cliente => (new Date() - new Date(cliente.dataRegisto)) / (1000 * 60 * 60 * 24) <= 7;
+// CORREÇÃO: A função agora compara em minúsculas para ser insensível a 'case'.
+const temTag = (cliente, tag) => cliente.tags && cliente.tags.some(t => t.toLowerCase() === tag.toLowerCase());
 
 function renderClientList() {
     if (!viewNode) return;
 
     const state = store.getState();
-    const clientesRankeados = getRankedClients(state); // Usa o serviço para obter os clientes com gasto total calculado
+    const clientesRankeados = getRankedClients(state);
     
     let clientesFiltrados = clientesRankeados;
 
-    // Aplica o filtro por tag
     switch (activeFilter) {
-        case 'kilapeiros':
-            clientesFiltrados = clientesRankeados.filter(temDivida);
-            break;
         case 'novos':
             clientesFiltrados = clientesRankeados.filter(isNovo);
             break;
-        case 'pagantes':
-            clientesFiltrados = clientesRankeados.filter(c => !temDivida(c));
+        case 'todos':
+            break;
+        default:
+            clientesFiltrados = clientesRankeados.filter(c => temTag(c, activeFilter));
             break;
     }
 
-    // Aplica o filtro de busca por texto
     if (searchTerm) {
         clientesFiltrados = clientesFiltrados.filter(c => c.nome.toLowerCase().includes(searchTerm));
     }
@@ -54,12 +53,12 @@ function renderClientList() {
                 <img src="${cliente.fotoDataUrl || './icons/logo-small-192.png'}" alt="Foto de ${cliente.nome}" class="w-12 h-12 rounded-full object-cover bg-fundo-principal">
                 <div>
                     <p class="font-bold text-lg">${cliente.nome}</p>
-                    <div class="flex gap-2 mt-1">
-                        ${(cliente.tags || []).map(tag => `<span class="text-xs font-semibold bg-gray-200 dark:bg-gray-600 px-2 py-0.5 rounded-full">${tag}</span>`).join('')}
+                    <div class="flex gap-2 mt-1 flex-wrap">
+                        ${(cliente.tags || []).map(tag => `<span class="text-xs font-semibold bg-gray-200 dark:bg-gray-600 px-2 py-0.5 rounded-full capitalize">${tag}</span>`).join('')}
                     </div>
                 </div>
             </div>
-            <div class="text-right">
+            <div class="text-right flex-shrink-0 ml-2">
                 <span class="font-bold text-lg text-green-500">${(cliente.gastoTotal || 0).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</span>
                 <span class="text-xs text-texto-secundario block">Gasto Total</span>
             </div>
@@ -70,36 +69,43 @@ function renderClientList() {
 function updateFilterButtons() {
     if(!viewNode) return;
     viewNode.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.filter === activeFilter);
+        // CORREÇÃO: Compara sempre em minúsculas
+        btn.classList.toggle('active', btn.dataset.filter.toLowerCase() === activeFilter);
     });
 }
 
 function render() {
+    const state = store.getState();
+    // CORREÇÃO: Garante que o data-filter é sempre em minúsculas
+    const userTagsHTML = state.tagsDeCliente.map(tag => 
+        `<button class="filter-btn" data-filter="${tag.nome.toLowerCase()}">${tag.nome}</button>`
+    ).join('');
+
     return `
         <style>
-            .filter-btn { padding: 0.5rem 1rem; border-radius: 9999px; font-weight: 600; background-color: var(--cor-fundo-principal); color: var(--cor-texto-secundario); border: 2px solid transparent; }
-            .filter-btn.active { background-color: #16a34a; color: white; } /* Cor verde do wireframe */
+            .filter-btn { padding: 0.5rem 1rem; border-radius: 9999px; font-weight: 600; background-color: var(--cor-fundo-principal); color: var(--cor-texto-secundario); border: 2px solid var(--cor-borda); white-space: nowrap; text-transform: capitalize; }
+            .filter-btn.active { background-color: var(--cor-primaria); color: white; border-color: var(--cor-primaria); }
         </style>
         <header class="p-4 space-y-4">
             <h2 class="text-2xl font-bold">Clientes</h2>
-            <input type="search" id="input-busca-cliente-relatorio" class="w-full p-3 border border-borda rounded-lg bg-fundo-principal" placeholder="Encontrar cliente...">
+            
+            <input type="search" id="input-busca-cliente-relatorio" class="search-bar w-full p-3 border border-borda bg-fundo-principal" placeholder="Encontrar cliente...">
         </header>
-        <nav class="px-4 pb-4 flex gap-2 items-center">
-            <button class="text-2xl">+</button>
-            <button class="filter-btn" data-filter="pagantes">Pagantes</button>
-            <button class="filter-btn active" data-filter="kilapeiros">Kilapeiros</button>
+        <nav class="filter-bar px-4 pb-4 flex gap-2 overflow-x-auto">
+            <button class="filter-btn active" data-filter="todos">Todos</button>
             <button class="filter-btn" data-filter="novos">Novos</button>
+            ${userTagsHTML}
         </nav>
         <main class="p-4 space-y-3 pb-24">
             <div id="lista-clientes-relatorio"></div>
         </main>
-        <button id="btn-fab-add-cliente-relatorio" class="fab bg-green-500"><i class="lni lni-plus"></i></button>
+        <button id="btn-fab-add-cliente-relatorio" class="fab"><i class="lni lni-plus"></i></button>
     `;
 }
 
 function mount() {
     viewNode = document.getElementById('app-root');
-    activeFilter = 'kilapeiros'; // Filtro padrão conforme wireframe
+    activeFilter = 'todos';
     searchTerm = '';
 
     const handleViewClick = (e) => {
@@ -108,7 +114,8 @@ function mount() {
         const clienteCard = e.target.closest('[data-cliente-id]');
 
         if (filterBtn) {
-            activeFilter = filterBtn.dataset.filter;
+            // CORREÇÃO: Guarda o filtro sempre em minúsculas
+            activeFilter = filterBtn.dataset.filter.toLowerCase();
             updateFilterButtons();
             renderClientList();
             return;
@@ -129,18 +136,20 @@ function mount() {
         renderClientList();
     };
 
-    viewNode.addEventListener('click', handleViewClick);
-    viewNode.querySelector('#input-busca-cliente-relatorio').addEventListener('input', handleSearch);
-    
-    const updateAll = () => {
+    const renderAll = () => {
+        const currentSearchTerm = viewNode.querySelector('#input-busca-cliente-relatorio')?.value || '';
+        viewNode.innerHTML = render();
+        viewNode.querySelector('#input-busca-cliente-relatorio').value = currentSearchTerm;
         updateFilterButtons();
         renderClientList();
     }
 
-    updateAll();
-    unsubscribe = store.subscribe(updateAll);
+    viewNode.addEventListener('click', handleViewClick);
+    viewNode.querySelector('#input-busca-cliente-relatorio').addEventListener('input', handleSearch);
+    
+    renderAll();
+    unsubscribe = store.subscribe(renderAll);
 
-    // Lógica de limpeza
     const originalUnmount = unmount;
     unmount = () => {
         if(viewNode) {

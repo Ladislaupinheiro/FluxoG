@@ -1,7 +1,7 @@
 // /service-worker.js (ATUALIZADO)
 'use strict';
 
-const CACHE_NAME = 'gestorbar-v29'; // Versão incrementada para forçar a atualização da cache
+const CACHE_NAME = 'gestorbar-v30'; // Versão incrementada para forçar a atualização da cache
 
 const URLS_TO_CACHE = [
     './',
@@ -35,7 +35,7 @@ const URLS_TO_CACHE = [
     './modules/features/clientes/components/CustomerPerformanceModal.js',
     './modules/features/dashboard/components/DicaDoDiaModal.js',
     './modules/features/financas/components/FechoGlobalModal.js',
-    './modules/features/financas/components/FormExportarComprasModal.js',  // <-- NOVO
+    './modules/features/financas/components/FormExportarComprasModal.js',
     './modules/features/clientes/components/FormAddClienteModal.js',
     './modules/features/clientes/components/FormAddDividaModal.js',
     './modules/features/atendimento/components/FormAddPedidoModal.js',
@@ -63,7 +63,7 @@ const URLS_TO_CACHE = [
 
     // Features -> Vistas (Views)
     './modules/features/atendimento/AtendimentoView.js',
-    './modules/features/atendimento/ContaDetalhesView.js', // <-- NOVO
+    './modules/features/atendimento/ContaDetalhesView.js',
     './modules/features/clientes/ClientesView.js',
     './modules/features/clientes/ClienteDetalhesView.js',
     './modules/features/dashboard/DashboardView.js',
@@ -73,6 +73,7 @@ const URLS_TO_CACHE = [
     './modules/features/inventario/FornecedorDetalhesView.js',
     './modules/features/settings/SettingsView.js'
 ];
+// (O resto do ficheiro service-worker.js permanece inalterado)
 
 self.addEventListener('install', (event) => {
     console.log(`[Service Worker] A instalar ${CACHE_NAME}...`);
