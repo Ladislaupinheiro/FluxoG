@@ -1,4 +1,4 @@
-// /modules/features/financas/components/FechoGlobalModal.js
+// /modules/features/financas/components/FechoGlobalModal.js (CAMINHO VALIDADO)
 'use strict';
 
 import store from '../../../shared/services/Store.js';
@@ -6,6 +6,7 @@ import * as Toast from '../../../shared/components/Toast.js';
 import { abrirModalConfirmacao } from '../../../shared/components/Modals.js';
 import { exportarRelatorioPDF, exportarRelatorioXLS } from '../services/ReportingService.js';
 
+// ... (restante do ficheiro, sem alterações)
 export const render = (relatorio) => {
     const dataFormatada = new Date(relatorio.data).toLocaleDateString('pt-PT', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const produtosVendidosHTML = Object.entries(relatorio.produtosVendidos)
@@ -75,6 +76,7 @@ function handleArquivarDia(closeModal, relatorio) {
         }
     );
 }
+
 
 export const mount = (closeModal, relatorio, isHistoric) => {
     const footer = document.getElementById('footer-fecho-global');

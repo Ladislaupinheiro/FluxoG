@@ -1,9 +1,8 @@
-// /modules/features/clientes/components/FormAddClienteModal.js (CORRIGIDO)
+// /modules/features/clientes/components/FormAddClienteModal.js (ATUALIZADO COM TAGS)
 'use strict';
 
 import store from '../../../shared/services/Store.js';
 import * as Toast from '../../../shared/components/Toast.js';
-import Router from '../../../app/Router.js';
 
 export const render = () => `
 <div id="modal-add-cliente-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] p-4">
@@ -21,6 +20,10 @@ export const render = () => `
                 <label for="input-cliente-contacto" class="block text-sm font-medium mb-1">Contacto (Opcional)</label>
                 <input type="tel" id="input-cliente-contacto" class="w-full p-2 border border-borda rounded-md bg-fundo-principal" placeholder="9xx xxx xxx">
             </div>
+            <div>
+                <label for="input-cliente-tags" class="block text-sm font-medium mb-1">Rótulos (Tags)</label>
+                <input id="input-cliente-tags" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="ex: kilapeiro, VIP">
+            </div>
         </div>
         <footer class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-b-lg">
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Registar Cliente</button>
@@ -28,11 +31,20 @@ export const render = () => `
     </form>
 </div>`;
 
-export const mount = (closeModal) => {
+export const mount = (closeModal, onClientAddedCallback) => {
     const form = document.getElementById('form-add-cliente');
     const inputNome = form.querySelector('#input-cliente-nome');
+    const tagsInput = form.querySelector('#input-cliente-tags');
     inputNome.focus();
     
+    // Inicializa o Tagify no campo de rótulos
+    const state = store.getState();
+    const whitelistTags = state.tagsDeCliente.map(t => t.nome); // Pega tags existentes
+    const tagify = new Tagify(tagsInput, {
+        whitelist: whitelistTags,
+        dropdown: { enabled: 0 }
+    });
+
     form.addEventListener('submit', e => {
         e.preventDefault();
         const nome = inputNome.value.trim();
@@ -40,20 +52,33 @@ export const mount = (closeModal) => {
             return Toast.mostrarNotificacao("O nome do cliente é obrigatório.", "erro");
         }
 
+        const novasTags = tagify.value.map(t => t.value.toLowerCase());
+        
         const novoCliente = {
             id: crypto.randomUUID(),
             nome,
             contacto: form.querySelector('#input-cliente-contacto').value.trim(),
             dataRegisto: new Date().toISOString(),
             dividas: [],
+            tags: novasTags, // Inclui as tags
+            fotoDataUrl: null,
         };
 
         store.dispatch({ type: 'ADD_CLIENT', payload: novoCliente });
         Toast.mostrarNotificacao(`Cliente "${nome}" adicionado.`);
         closeModal();
         
-        // Navega para a página de detalhes do novo cliente
-        Router.navigateTo(`#cliente-detalhes/${novoCliente.id}`);
+        // Se houver um callback, executa-o (usado na AtendimentoView para navegação)
+        if (typeof onClientAddedCallback === 'function') {
+            onClientAddedCallback(novoCliente);
+        }
+
+        // TODO: Adicionar novas tags à tagsDeCliente se não existirem (melhoria futura)
+        novasTags.forEach(tagName => {
+            if (!state.tagsDeCliente.some(t => t.nome === tagName)) {
+                store.dispatch({ type: 'ADD_CLIENT_TAG', payload: { nome: tagName } }); // Nova ação a ser criada
+            }
+        });
     });
 
     form.querySelector('.btn-fechar-modal').addEventListener('click', closeModal);

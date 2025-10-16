@@ -1,4 +1,4 @@
-// /modules/features/inventario/components/FormAddProdutoCatalogoModal.js (NOVO FICHEIRO)
+// /modules/features/inventario/components/FormAddProdutoCatalogoModal.js (SIMPLIFICADO)
 'use strict';
 
 import store from '../../../shared/services/Store.js';
@@ -22,10 +22,6 @@ export const render = (fornecedor) => `
             <div>
                 <label for="input-catalogo-tags" class="block text-sm font-medium mb-1">Rótulos (Tags)</label>
                 <input id="input-catalogo-tags" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="cerveja, álcool, ...">
-            </div>
-            <div>
-                <label for="input-catalogo-preco" class="block text-sm font-medium mb-1">Preço de Venda Sugerido (Kz)</label>
-                <input type="number" id="input-catalogo-preco" min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="750">
             </div>
         </div>
         <footer class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-b-lg">
@@ -56,15 +52,17 @@ export const mount = (closeModal, fornecedor) => {
         e.preventDefault();
         
         const nome = nomeInput.value.trim();
-        const precoVenda = parseFloat(form.querySelector('#input-catalogo-preco').value) || 0;
-        // Obtém os valores do Tagify, que é um array de objetos
         const tags = tagify.value.map(tag => tag.value.toLowerCase());
 
         if (!nome) {
             return Toast.mostrarNotificacao("O nome do produto é obrigatório.", "erro");
         }
 
-        const produto = { nome, tags, precoVenda };
+        const produto = { 
+            nome, 
+            tags, 
+            precoVenda: 0 // O preço de venda será definido no produto principal, não aqui.
+        };
         
         store.dispatch({ 
             type: 'ADD_PRODUCT_TO_CATALOG', 

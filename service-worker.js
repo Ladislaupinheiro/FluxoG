@@ -1,7 +1,7 @@
 // /service-worker.js (ATUALIZADO)
 'use strict';
 
-const CACHE_NAME = 'gestorbar-v28'; // Versão incrementada para forçar a atualização da cache
+const CACHE_NAME = 'gestorbar-v29'; // Versão incrementada para forçar a atualização da cache
 
 const URLS_TO_CACHE = [
     './',
@@ -30,28 +30,29 @@ const URLS_TO_CACHE = [
     './modules/shared/services/TipsService.js',
     './modules/shared/lib/utils.js',
 
-    // Features -> Componentes de Modal (Antigos e Novos)
+    // Features -> Componentes de Modal
     './modules/features/settings/components/BackupRestoreModal.js',
     './modules/features/clientes/components/CustomerPerformanceModal.js',
     './modules/features/dashboard/components/DicaDoDiaModal.js',
     './modules/features/financas/components/FechoGlobalModal.js',
+    './modules/features/financas/components/FormExportarComprasModal.js',  // <-- NOVO
     './modules/features/clientes/components/FormAddClienteModal.js',
     './modules/features/clientes/components/FormAddDividaModal.js',
     './modules/features/atendimento/components/FormAddPedidoModal.js',
-    './modules/features/inventario/components/FormAddFornecedorModal.js',      // <-- NOVO
-    './modules/features/inventario/components/FormAddProdutoCatalogoModal.js', // <-- NOVO
+    './modules/features/inventario/components/FormAddFornecedorModal.js',
+    './modules/features/inventario/components/FormAddProdutoCatalogoModal.js',
     './modules/features/inventario/components/FormAddProdutoModal.js',
     './modules/features/inventario/components/FormAddStockModal.js',
     './modules/features/dashboard/components/FormEditBusinessNameModal.js',
     './modules/features/inventario/components/FormEditProdutoModal.js',
-    './modules/features/inventario/components/FormGerirCategoriasModal.js',   // <-- NOVO
+    './modules/features/inventario/components/FormGerirCategoriasModal.js',
     './modules/features/clientes/components/FormLiquidarDividaModal.js',
     './modules/features/inventario/components/FormMoverStockModal.js',
     './modules/features/atendimento/components/FormNovaContaModal.js',
     './modules/features/financas/components/FormNovaDespesaModal.js',
     './modules/features/atendimento/components/FormPagamentoModal.js',
     './modules/features/inventario/components/ProductPerformanceModal.js',
-    './modules/features/inventario/components/FormRegistarCompraModal.js',     // <-- NOVO
+    './modules/features/inventario/components/FormRegistarCompraModal.js',
     './modules/features/inventario/components/ShortcutManagementModal.js',
 
     // Features -> Serviços de Análise
@@ -62,13 +63,14 @@ const URLS_TO_CACHE = [
 
     // Features -> Vistas (Views)
     './modules/features/atendimento/AtendimentoView.js',
+    './modules/features/atendimento/ContaDetalhesView.js', // <-- NOVO
     './modules/features/clientes/ClientesView.js',
     './modules/features/clientes/ClienteDetalhesView.js',
     './modules/features/dashboard/DashboardView.js',
     './modules/features/financas/FluxoCaixaView.js',
     './modules/features/analises/AnálisesView.js',
     './modules/features/inventario/InventarioView.js',
-    './modules/features/inventario/FornecedorDetalhesView.js', // <-- NOVO
+    './modules/features/inventario/FornecedorDetalhesView.js',
     './modules/features/settings/SettingsView.js'
 ];
 

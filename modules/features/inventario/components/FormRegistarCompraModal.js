@@ -1,27 +1,25 @@
-// /modules/features/inventario/components/FormRegistarCompraModal.js (CORRIGIDO)
+// /modules/features/inventario/components/FormRegistarCompraModal.js (ATUALIZADO COM ATALHOS)
 'use strict';
 
 import store from '../../../shared/services/Store.js';
 import * as Toast from '../../../shared/components/Toast.js';
 
-// Função para atualizar as opções de produto com base no fornecedor selecionado
 function updateProductOptions(fornecedorId) {
     const produtoSelect = document.getElementById('select-compra-produto');
     if (!produtoSelect) return;
 
-    // <-- ALTERAÇÃO PRINCIPAL: Busca o estado mais recente diretamente do store
     const state = store.getState(); 
     
     const fornecedor = state.fornecedores.find(f => f.id === fornecedorId);
     const produtosDoCatalogo = fornecedor ? fornecedor.catalogo : [];
     
-    produtoSelect.innerHTML = '<option value="" disabled selected>Selecione um produto</option>'; // Reset
+    produtoSelect.innerHTML = '<option value="" disabled selected>Selecione um produto</option>';
     produtoSelect.innerHTML += produtosDoCatalogo.map(p => `<option value="${p.id}">${p.nome}</option>`).join('');
     produtoSelect.disabled = produtosDoCatalogo.length === 0;
 }
 
 export const render = (fornecedorPreSelecionado) => {
-    const state = store.getState(); // Busca o estado para renderização inicial
+    const state = store.getState();
     const fornecedoresOptions = state.fornecedores.map(f => 
         `<option value="${f.id}" ${fornecedorPreSelecionado && f.id === fornecedorPreSelecionado.id ? 'selected' : ''}>${f.nome}</option>`
     ).join('');
@@ -50,7 +48,11 @@ export const render = (fornecedorPreSelecionado) => {
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label for="input-compra-qtd" class="block text-sm font-medium mb-1">Quantidade</label>
-                    <input type="number" id="input-compra-qtd" required min="1" class="w-full p-2 border border-borda rounded-md bg-fundo-input">
+                    <div class="flex items-center gap-1">
+                        <input type="number" id="input-compra-qtd" required min="1" class="w-full p-2 border border-borda rounded-md bg-fundo-input">
+                        <button type="button" class="btn-qty-shortcut p-2 border border-borda rounded-md font-bold" data-qty="12">12</button>
+                        <button type="button" class="btn-qty-shortcut p-2 border border-borda rounded-md font-bold" data-qty="24">24</button>
+                    </div>
                 </div>
                 <div>
                     <label for="input-compra-custo-total" class="block text-sm font-medium mb-1">Custo Total</label>
@@ -92,7 +94,6 @@ export const mount = (closeModal, fornecedorPreSelecionado) => {
         produtoSelect.classList.remove('opacity-50');
     });
     
-    // Se um fornecedor já veio pré-selecionado, atualiza a lista de produtos
     if(fornecedorPreSelecionado) {
         updateProductOptions(fornecedorPreSelecionado.id);
     }
@@ -110,12 +111,21 @@ export const mount = (closeModal, fornecedorPreSelecionado) => {
     qtdInput.addEventListener('input', calcularCustoUnitario);
     custoTotalInput.addEventListener('input', calcularCustoUnitario);
     
+    // Adiciona listener para os botões de atalho de quantidade
+    form.addEventListener('click', e => {
+        const qtyBtn = e.target.closest('.btn-qty-shortcut');
+        if (qtyBtn) {
+            qtdInput.value = qtyBtn.dataset.qty;
+            qtdInput.dispatchEvent(new Event('input')); // Dispara o evento para atualizar o custo unitário
+        }
+    });
+
     form.addEventListener('submit', e => {
         e.preventDefault();
         
         const payload = {
             fornecedorId: fornecedorSelect.value,
-            produtoCatalogoId: produtoSelect.value, // ID do produto no catálogo
+            produtoCatalogoId: produtoSelect.value,
             quantidade: parseFloat(qtdInput.value),
             valorTotal: parseFloat(custoTotalInput.value),
             metodoPagamento: form.querySelector('#select-compra-pagamento').value,
