@@ -4,15 +4,15 @@ import * as Storage from './Storage.js';
 import { gerarEstadoAposArquivo } from '../lib/utils.js';
 
 const initialState = {
-    schema_version: 7, // Versão incrementada para refletir a lógica de catálogos
+    schema_version: 9, // Versão incrementada para suportar fotos de cliente
     
     // --- Estruturas de Dados ---
     inventario: [],
-    clientes: [],
+    clientes: [], // Cada cliente terá agora uma propriedade `fotoDataUrl`
     contasAtivas: [],
     historicoFechos: [],
     despesas: [],
-    fornecedores: [], // Cada fornecedor terá agora um array `catalogo`
+    fornecedores: [],
     historicoCompras: [],
     categoriasDeProduto: [],
     tagsDeCliente: [],
@@ -72,35 +72,57 @@ function reducer(state = initialState, action) {
             const mergedConfig = { ...initialState.config, ...(action.payload.config || {}) };
             return { ...state, ...action.payload, config: mergedConfig };
 
+        case 'ADD_CLIENT': { // ATUALIZADO
+            const novoClientePayload = action.payload;
+            const novoCliente = {
+                id: crypto.randomUUID(),
+                dataRegisto: new Date().toISOString(),
+                dividas: [],
+                tags: ['novo'],
+                fotoDataUrl: null, // <-- Propriedade adicionada
+                ...novoClientePayload
+            };
+            const novosClientes = [...state.clientes, novoCliente];
+            Storage.salvarItem('clientes', novoCliente);
+            return { ...state, clientes: novosClientes };
+        }
+
+        case 'UPDATE_CLIENT': { // NOVO (mais flexível que apenas para a foto)
+            const clienteAtualizado = action.payload;
+            const clientes = state.clientes.map(c => 
+                c.id === clienteAtualizado.id ? clienteAtualizado : c
+            );
+            Storage.salvarItem('clientes', clienteAtualizado);
+            return { ...state, clientes };
+        }
+
+        // ... (restante do reducer, como ADD_PRODUCT, ADD_FORNECEDOR, etc., sem alterações) ...
+        case 'ADD_ACCOUNT': {
+            const novaContaPayload = action.payload;
+            const novaConta = { pedidos: [], dataAbertura: new Date().toISOString(), status: 'ativa', ...novaContaPayload };
+            const novasContasAtivas = [...state.contasAtivas, novaConta];
+            Storage.salvarItem('contas', novaConta);
+            return { ...state, contasAtivas: novasContasAtivas };
+        }
         case 'ADD_PRODUCT': {
             const novoProduto = action.payload;
             const novoInventario = [...state.inventario, novoProduto];
             Storage.salvarItem('inventario', novoProduto);
             return { ...state, inventario: novoInventario };
         }
-        
-        // --- AÇÕES DE GESTÃO DE CATEGORIAS DE PRODUTO ---
         case 'ADD_PRODUCT_CATEGORY': {
             const novaCategoria = { id: crypto.randomUUID(), ...action.payload };
             const categorias = [...state.categoriasDeProduto, novaCategoria];
             Storage.salvarItem('categoriasDeProduto', novaCategoria);
             return { ...state, categoriasDeProduto: categorias };
         }
-
-        // ... (UPDATE/DELETE CATEGORY sem alterações)
-
-        case 'ADD_FORNECEDOR': { // ATUALIZADO
-            const novoFornecedor = { 
-                id: crypto.randomUUID(), 
-                catalogo: [], // <-- Fornecedor agora nasce com um catálogo vazio
-                ...action.payload 
-            };
+        case 'ADD_FORNECEDOR': {
+            const novoFornecedor = { id: crypto.randomUUID(), catalogo: [], ...action.payload };
             const fornecedores = [...state.fornecedores, novoFornecedor];
             Storage.salvarItem('fornecedores', novoFornecedor);
             return { ...state, fornecedores };
         }
-        
-        case 'ADD_PRODUCT_TO_CATALOG': { // NOVO
+        case 'ADD_PRODUCT_TO_CATALOG': {
             const { fornecedorId, produto } = action.payload;
             const fornecedoresAtualizados = state.fornecedores.map(f => {
                 if (f.id === fornecedorId) {
@@ -114,31 +136,22 @@ function reducer(state = initialState, action) {
             });
             return { ...state, fornecedores: fornecedoresAtualizados };
         }
-
         case 'ADD_COMPRA': {
             const novaCompra = { id: crypto.randomUUID(), data: new Date().toISOString(), ...action.payload };
             const historicoCompras = [...state.historicoCompras, novaCompra];
             Storage.salvarItem('historicoCompras', novaCompra);
-            
             const inventarioAtualizado = state.inventario.map(p => {
                 if (p.id === novaCompra.produtoId) {
                     const pAtualizado = { ...p };
-                    const novoLote = {
-                        quantidade: novaCompra.quantidade,
-                        dataCompra: novaCompra.data,
-                        custoUnitario: novaCompra.valorTotal / novaCompra.quantidade
-                    };
+                    const novoLote = { quantidade: novaCompra.quantidade, dataCompra: novaCompra.data, custoUnitario: novaCompra.valorTotal / novaCompra.quantidade };
                     pAtualizado.stockArmazemLotes.push(novoLote);
                     Storage.salvarItem('inventario', pAtualizado);
                     return pAtualizado;
                 }
                 return p;
             });
-
             return { ...state, historicoCompras, inventario: inventarioAtualizado };
         }
-
-        // ... (restante do reducer sem alterações) ...
 
         default:
             return state;

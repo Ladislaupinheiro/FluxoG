@@ -1,4 +1,4 @@
-// /modules/app/Router.js (CORRIGIDO)
+// /modules/app/Router.js (ATUALIZADO)
 'use strict';
 
 import Nav from '../shared/components/Nav.js';
@@ -7,8 +7,8 @@ import InventarioView from '../features/inventario/InventarioView.js';
 import AtendimentoView from '../features/atendimento/AtendimentoView.js';
 import ClientesView from '../features/clientes/ClientesView.js';
 import ClienteDetalhesView from '../features/clientes/ClienteDetalhesView.js';
-// A CORREÇÃO ESTÁ AQUI: O caminho anterior estava incorreto. Este é o caminho validado.
 import FornecedorDetalhesView from '../features/inventario/FornecedorDetalhesView.js';
+import ContaDetalhesView from '../features/atendimento/ContaDetalhesView.js'; // <-- NOVO
 import FluxoCaixaView from '../features/financas/FluxoCaixaView.js';
 import AnálisesView from '../features/analises/AnálisesView.js';
 import SettingsView from '../features/settings/SettingsView.js';
@@ -23,6 +23,7 @@ const routes = {
     '#clientes': ClientesView,
     '#cliente-detalhes': ClienteDetalhesView,
     '#fornecedor-detalhes': FornecedorDetalhesView,
+    '#conta-detalhes': ContaDetalhesView, // <-- NOVO
     '#fluxo-caixa': FluxoCaixaView,
     '#analises': AnálisesView,
     '#settings': SettingsView
@@ -38,6 +39,9 @@ function loadRoute() {
         params = hash.split('/')[1];
     } else if (hash.startsWith('#fornecedor-detalhes/')) {
         viewModule = routes['#fornecedor-detalhes'];
+        params = hash.split('/')[1];
+    } else if (hash.startsWith('#conta-detalhes/')) { // <-- NOVO
+        viewModule = routes['#conta-detalhes'];
         params = hash.split('/')[1];
     } else if (hash.startsWith('#inventario/')) {
         viewModule = routes['#inventario'];

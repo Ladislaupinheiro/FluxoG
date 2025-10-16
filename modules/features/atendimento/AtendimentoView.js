@@ -1,198 +1,155 @@
-// /modules/features/atendimento/AtendimentoView.js
+// /modules/features/atendimento/AtendimentoView.js (VERSÃO FINAL INTERATIVA)
 'use strict';
 
 import store from '../../shared/services/Store.js';
-import { 
-    abrirModalNovaConta, 
-    abrirModalAddPedido,
-    abrirModalPagamento,
-    abrirModalConfirmacao
-} from '../../shared/components/Modals.js';
-import { mostrarNotificacao } from '../../shared/components/Toast.js';
+import Router from '../../app/Router.js';
+import { abrirModalAddCliente } from '../../shared/components/Modals.js';
 
 let unsubscribe = null;
 let viewNode = null;
+let activeFilter = 'todos';
+let searchTerm = '';
 
-/**
- * Função auxiliar para renderizar um único card de conta.
- * @param {object} conta - O objeto da conta a ser renderizado.
- * @returns {string} O HTML do card da conta.
- */
-function renderContaCard(conta) {
-    const subtotal = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0);
-    const contaEstaVazia = conta.pedidos.length === 0;
+// ... (Funções de filtro: temDivida, isNovo, isAtivo - sem alterações)
+const temDivida = cliente => cliente.dividas.reduce((total, d) => d.tipo === 'debito' ? total + d.valor : total - Math.abs(d.valor), 0) > 0;
+const isNovo = cliente => (new Date() - new Date(cliente.dataRegisto)) / (1000 * 60 * 60 * 24) <= 7;
+const isAtivo = (cliente, contasAtivas) => contasAtivas.some(c => c.clienteId === cliente.id && c.status === 'ativa');
 
-    const pedidosHTML = contaEstaVazia
-        ? '<p class="text-center text-texto-secundario py-4">Nenhum pedido nesta conta.</p>'
-        : conta.pedidos.map((pedido, index) => `
-            <div class="flex justify-between items-center py-2 border-b border-borda last:border-b-0">
-                <span>${pedido.qtd}x ${pedido.nome}</span>
-                <div class="flex items-center gap-4">
-                    <span class="font-semibold">${(pedido.preco * pedido.qtd).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</span>
-                    <button class="btn-icon btn-remover-item text-red-500 hover:text-red-700" data-index="${index}" title="Remover Item" aria-label="Remover Item">
-                        <i class="lni lni-trash-can"></i>
-                    </button>
-                </div>
-            </div>
-        `).join('');
 
-    return `
-        <div class="conta-card bg-fundo-secundario rounded-lg shadow-md overflow-hidden" data-id="${conta.id}">
-            <div class="card-header p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                <h3 class="text-xl font-bold">${conta.nome}</h3>
-                <div class="text-right">
-                    <span class="font-bold text-lg block">${subtotal.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</span>
-                    <span class="text-xs text-texto-secundario">${conta.pedidos.length} Itens</span>
-                </div>
-            </div>
-            <div class="card-body border-t border-borda" style="display: none;">
-                <div class="p-4">${pedidosHTML}</div>
-                <div class="p-4 bg-gray-50 dark:bg-gray-900/50 flex gap-2">
-                    <button class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded btn-adicionar-pedido">+ Pedido</button>
-                    <button class="w-full text-white font-bold py-2 px-4 rounded btn-finalizar-pagamento ${contaEstaVazia ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}" ${contaEstaVazia ? 'disabled' : ''}>Finalizar</button>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-/**
- * Renderiza a lista de contas ativas na UI.
- */
-function renderAccountList() {
+function renderClientList() {
     if (!viewNode) return;
-    
     const state = store.getState();
-    const contasAtivas = state.contasAtivas.filter(c => c.status === 'ativa');
-    const listaContasEl = viewNode.querySelector('#lista-contas-ativas');
-    const emptyStateEl = viewNode.querySelector('#atendimento-empty-state');
+    const { clientes, contasAtivas } = state;
+    let clientesFiltrados = clientes;
 
-    if (!listaContasEl || !emptyStateEl) return;
-
-    if (contasAtivas.length === 0) {
-        emptyStateEl.classList.remove('hidden');
-        listaContasEl.classList.add('hidden');
-        listaContasEl.innerHTML = '';
-    } else {
-        emptyStateEl.classList.add('hidden');
-        listaContasEl.classList.remove('hidden');
-        
-        const cardsAtuais = new Set([...listaContasEl.children].map(el => el.dataset.id));
-        const contasNoEstado = new Set(contasAtivas.map(c => c.id));
-
-        // Remove cards que já não existem no estado
-        cardsAtuais.forEach(id => {
-            if (!contasNoEstado.has(id)) {
-                listaContasEl.querySelector(`.conta-card[data-id="${id}"]`)?.remove();
-            }
-        });
-
-        // Atualiza ou adiciona cards
-        contasAtivas.forEach(conta => {
-            const elExistente = listaContasEl.querySelector(`.conta-card[data-id="${conta.id}"]`);
-            const cardHTML = renderContaCard(conta);
-            
-            if (elExistente) {
-                // Atualiza o conteúdo interno para preservar o estado de expansão
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = cardHTML;
-                elExistente.innerHTML = tempDiv.firstElementChild.innerHTML;
-            } else {
-                listaContasEl.insertAdjacentHTML('beforeend', cardHTML);
-            }
-        });
+    switch (activeFilter) {
+        case 'ativos':
+            clientesFiltrados = clientes.filter(c => isAtivo(c, contasAtivas));
+            break;
+        case 'kilapeiros':
+            clientesFiltrados = clientes.filter(temDivida);
+            break;
+        case 'novos':
+            clientesFiltrados = clientes.filter(isNovo);
+            break;
     }
+    if (searchTerm) {
+        clientesFiltrados = clientesFiltrados.filter(c => c.nome.toLowerCase().includes(searchTerm));
+    }
+
+    const listaContainer = viewNode.querySelector('#lista-clientes-atendimento');
+    if (!listaContainer) return;
+    if (clientesFiltrados.length === 0) {
+        listaContainer.innerHTML = `<p class="text-center text-texto-secundario p-8">Nenhum cliente encontrado.</p>`;
+        return;
+    }
+
+    listaContainer.innerHTML = clientesFiltrados.map(cliente => `
+        <div class="bg-fundo-secundario p-4 rounded-lg shadow-md flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700" data-cliente-id="${cliente.id}" data-cliente-nome="${cliente.nome}">
+            <p class="font-bold text-lg">${cliente.nome}</p>
+            <i class="lni lni-chevron-right text-texto-secundario"></i>
+        </div>
+    `).join('');
 }
 
-
-function render() {
-    return `
-        <section id="view-atendimento" class="p-4">
-            <div id="lista-contas-ativas" class="space-y-4"></div>
-            <div id="atendimento-empty-state" class="hidden text-center text-texto-secundario py-16 px-4 flex flex-col items-center justify-center h-full">
-                <i class="lni lni-clipboard text-6xl text-gray-300 dark:text-gray-600"></i>
-                <h2 class="text-xl font-semibold mt-4">Nenhuma Conta Ativa</h2>
-                <p class="mt-2 max-w-xs">Toque no botão '+' para iniciar um novo atendimento.</p>
-            </div>
-        </section>
-        <button id="btn-fab-add-conta" class="fab z-40">
-            <i class="lni lni-plus"></i>
-        </button>
-    `;
-}
-
-
-function mount() {
-    viewNode = document.getElementById('app-root');
-    
-    renderAccountList();
-
-    unsubscribe = store.subscribe(renderAccountList);
-
-    viewNode.querySelector('#btn-fab-add-conta')?.addEventListener('click', abrirModalNovaConta);
-
-    const listaContasEl = viewNode.querySelector('#lista-contas-ativas');
-    listaContasEl?.addEventListener('click', (event) => {
-        const card = event.target.closest('.conta-card');
-        if (!card) return;
-
-        const contaId = card.dataset.id;
-        
-        const cardHeader = event.target.closest('.card-header');
-        const targetButton = event.target.closest('button');
-
-        if (cardHeader) {
-            const cardBody = card.querySelector('.card-body');
-            const isExpanded = card.classList.contains('expanded');
-
-            document.querySelectorAll('.conta-card.expanded').forEach(otherCard => {
-                if (otherCard !== card) {
-                    const otherBody = otherCard.querySelector('.card-body');
-                    gsap.to(otherBody, { height: 0, duration: 0.3, onComplete: () => { otherBody.style.display = 'none'; } });
-                    otherCard.classList.remove('expanded');
-                }
-            });
-
-            if (isExpanded) {
-                gsap.to(cardBody, { height: 0, duration: 0.3, onComplete: () => { cardBody.style.display = 'none'; } });
-                card.classList.remove('expanded');
-            } else {
-                card.classList.add('expanded');
-                cardBody.style.display = 'block';
-                gsap.fromTo(cardBody, { height: 0 }, { height: 'auto', duration: 0.3 });
-            }
-            return; 
-        }
-
-        if (!targetButton) return;
-        
-        const conta = store.getState().contasAtivas.find(c => c.id === contaId);
-        if (!conta) return;
-
-        if (targetButton.classList.contains('btn-adicionar-pedido')) {
-            abrirModalAddPedido(contaId);
-        } else if (targetButton.classList.contains('btn-finalizar-pagamento')) {
-            abrirModalPagamento(conta);
-        } else if (targetButton.classList.contains('btn-remover-item')) {
-            const itemIndex = parseInt(targetButton.dataset.index, 10);
-            abrirModalConfirmacao(
-                "Remover Item?",
-                `Tem a certeza que deseja remover este item? O stock será devolvido à Loja.`,
-                () => {
-                    store.dispatch({ type: 'REMOVE_ORDER_ITEM', payload: { contaId, itemIndex } });
-                    mostrarNotificacao("Item removido com sucesso.");
-                }
-            );
+function updateFilterButtons() {
+    if(!viewNode) return;
+    viewNode.querySelectorAll('.filter-btn').forEach(btn => {
+        if (btn.dataset.filter === activeFilter) {
+            btn.classList.add('bg-blue-600', 'text-white');
+            btn.classList.remove('bg-fundo-principal', 'text-texto-secundario');
+        } else {
+            btn.classList.remove('bg-blue-600', 'text-white');
+            btn.classList.add('bg-fundo-principal', 'text-texto-secundario');
         }
     });
 }
 
+function render() {
+    return `
+        <header class="p-4 space-y-4">
+            <h2 class="text-2xl font-bold">Atendimento</h2>
+            <input type="search" id="input-busca-cliente" class="w-full p-3 border border-borda rounded-lg bg-fundo-principal" placeholder="Encontrar cliente...">
+        </header>
+        <nav class="px-4 pb-4 flex gap-2">
+            <button class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm" data-filter="todos">Todos</button>
+            <button class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm" data-filter="ativos">Ativos</button>
+            <button class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm" data-filter="kilapeiros">Kilapeiros</button>
+            <button class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm" data-filter="novos">Novos</button>
+        </nav>
+        <main class="p-4 space-y-3 pb-24">
+            <div id="lista-clientes-atendimento"></div>
+        </main>
+        <button id="btn-fab-add-cliente" class="fab"><i class="lni lni-plus"></i></button>
+    `;
+}
+
+function mount() {
+    viewNode = document.getElementById('app-root');
+    activeFilter = 'todos';
+    searchTerm = '';
+
+    const inputBusca = viewNode.querySelector('#input-busca-cliente');
+    const filtersContainer = viewNode.querySelector('nav');
+    const fab = viewNode.querySelector('#btn-fab-add-cliente');
+    const listaContainer = viewNode.querySelector('#lista-clientes-atendimento');
+
+    inputBusca.addEventListener('input', e => {
+        searchTerm = e.target.value.toLowerCase();
+        renderClientList();
+    });
+
+    filtersContainer.addEventListener('click', e => {
+        const target = e.target.closest('.filter-btn');
+        if (target && target.dataset.filter) {
+            activeFilter = target.dataset.filter;
+            updateFilterButtons();
+            renderClientList();
+        }
+    });
+
+    fab.addEventListener('click', abrirModalAddCliente);
+    
+    listaContainer.addEventListener('click', e => {
+        const clienteCard = e.target.closest('[data-cliente-id]');
+        if (clienteCard) {
+            const { clienteId, clienteNome } = clienteCard.dataset;
+            const state = store.getState();
+            
+            // Procura por uma conta já ativa para este cliente
+            let contaAtiva = state.contasAtivas.find(c => c.clienteId === clienteId && c.status === 'ativa');
+            
+            let contaId;
+
+            if (contaAtiva) {
+                contaId = contaAtiva.id;
+            } else {
+                // Se não houver conta ativa, cria uma nova
+                const novaConta = {
+                    id: crypto.randomUUID(),
+                    nome: clienteNome,
+                    clienteId: clienteId
+                };
+                store.dispatch({ type: 'ADD_ACCOUNT', payload: novaConta });
+                contaId = novaConta.id;
+            }
+            
+            Router.navigateTo(`#conta-detalhes/${contaId}`);
+        }
+    });
+    
+    const updateAll = () => {
+        updateFilterButtons();
+        renderClientList();
+    }
+
+    updateAll();
+    unsubscribe = store.subscribe(updateAll);
+}
 
 function unmount() {
-    if (unsubscribe) {
-        unsubscribe();
-        unsubscribe = null;
-    }
+    if (unsubscribe) unsubscribe();
+    unsubscribe = null;
     viewNode = null;
 }
 

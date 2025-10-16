@@ -1,145 +1,165 @@
-// /modules/features/clientes/ClientesView.js
+// /modules/features/clientes/ClientesView.js (REATORADO)
 'use strict';
 
 import store from '../../shared/services/Store.js';
+import Router from '../../app/Router.js';
 import { abrirModalAddCliente } from '../../shared/components/Modals.js';
-import { getRankedClients } from './services/ClientAnalyticsService.js'; // <-- CAMINHO ATUALIZADO
-import Router from '../../app/Router.js'; // <-- CAMINHO ATUALIZADO
-import { formatarMoeda } from '../../shared/lib/utils.js'; // <-- CAMINHO ATUALIZADO
+import { getRankedClients } from './services/ClientAnalyticsService.js';
 
 let unsubscribe = null;
 let viewNode = null;
+let activeFilter = 'todos';
+let searchTerm = '';
 
-/**
- * Função principal de renderização para a View de Clientes.
- */
-function render() {
+const temDivida = cliente => cliente.dividas.reduce((total, d) => d.tipo === 'debito' ? total + d.valor : total - Math.abs(d.valor), 0) > 0;
+const isNovo = cliente => (new Date() - new Date(cliente.dataRegisto)) / (1000 * 60 * 60 * 24) <= 7;
+
+function renderClientList() {
     if (!viewNode) return;
-    
+
     const state = store.getState();
-    const inputBuscaClientes = viewNode.querySelector('#input-busca-clientes');
-    const termoBusca = inputBuscaClientes ? inputBuscaClientes.value.toLowerCase().trim() : '';
+    const clientesRankeados = getRankedClients(state); // Usa o serviço para obter os clientes com gasto total calculado
+    
+    let clientesFiltrados = clientesRankeados;
 
-    // Utiliza a função do novo serviço dedicado
-    const clientesRankeados = getRankedClients(state);
-
-    const clientesHeader = viewNode.querySelector('#clientes-header');
-    const clientesEmptyState = viewNode.querySelector('#clientes-empty-state');
-    const listaClientes = viewNode.querySelector('#lista-clientes');
-
-    if (clientesRankeados.length > 5) {
-        clientesHeader.classList.remove('hidden');
-    } else {
-        clientesHeader.classList.add('hidden');
+    // Aplica o filtro por tag
+    switch (activeFilter) {
+        case 'kilapeiros':
+            clientesFiltrados = clientesRankeados.filter(temDivida);
+            break;
+        case 'novos':
+            clientesFiltrados = clientesRankeados.filter(isNovo);
+            break;
+        case 'pagantes':
+            clientesFiltrados = clientesRankeados.filter(c => !temDivida(c));
+            break;
     }
 
-    if (clientesRankeados.length === 0) {
-        clientesEmptyState.classList.remove('hidden');
-        listaClientes.classList.add('hidden');
+    // Aplica o filtro de busca por texto
+    if (searchTerm) {
+        clientesFiltrados = clientesFiltrados.filter(c => c.nome.toLowerCase().includes(searchTerm));
+    }
+
+    const listaContainer = viewNode.querySelector('#lista-clientes-relatorio');
+    if (!listaContainer) return;
+
+    if (clientesFiltrados.length === 0) {
+        listaContainer.innerHTML = `<p class="text-center text-texto-secundario p-8">Nenhum cliente encontrado.</p>`;
         return;
     }
 
-    clientesEmptyState.classList.add('hidden');
-    listaClientes.classList.remove('hidden');
-    listaClientes.innerHTML = '';
-
-    const clientesFiltrados = clientesRankeados.filter(cliente => 
-        cliente.nome.toLowerCase().includes(termoBusca)
-    );
-
-    if (clientesFiltrados.length === 0 && termoBusca) {
-        listaClientes.innerHTML = `<p class="text-center text-texto-secundario p-4">Nenhum cliente encontrado para "${termoBusca}".</p>`;
-        return;
-    }
-
-    clientesFiltrados.forEach((cliente, index) => {
-        const dividaTotal = cliente.dividas.reduce((total, divida) => {
-            if (divida.tipo === 'debito') return total + divida.valor;
-            if (divida.tipo === 'credito') return total - Math.abs(divida.valor);
-            return total;
-        }, 0);
-        const corDivida = dividaTotal > 0 ? 'text-red-500' : 'text-green-500';
-        
-        const rankingBadge = index < 3 && cliente.gastoTotal > 0
-            ? `<span class="text-xl" title="Top ${index + 1} Cliente">👑</span>` 
-            : '<span class="text-xl w-6"></span>'; // Placeholder para alinhar
-
-        const card = document.createElement('div');
-        card.className = 'bg-fundo-secundario p-4 rounded-lg shadow-md flex justify-between items-center cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700';
-        card.dataset.clienteId = cliente.id;
-        card.innerHTML = `
+    listaContainer.innerHTML = clientesFiltrados.map(cliente => `
+        <div class="bg-fundo-secundario p-3 rounded-lg shadow-md flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700" data-cliente-id="${cliente.id}">
             <div class="flex items-center gap-3">
-                ${rankingBadge}
+                <img src="${cliente.fotoDataUrl || './icons/logo-small-192.png'}" alt="Foto de ${cliente.nome}" class="w-12 h-12 rounded-full object-cover bg-fundo-principal">
                 <div>
                     <p class="font-bold text-lg">${cliente.nome}</p>
-                    <p class="text-sm text-texto-secundario">Dívida: <span class="${corDivida}">${formatarMoeda(dividaTotal)}</span></p>
+                    <div class="flex gap-2 mt-1">
+                        ${(cliente.tags || []).map(tag => `<span class="text-xs font-semibold bg-gray-200 dark:bg-gray-600 px-2 py-0.5 rounded-full">${tag}</span>`).join('')}
+                    </div>
                 </div>
             </div>
             <div class="text-right">
-                <span class="font-semibold text-lg text-blue-500">${formatarMoeda(cliente.gastoTotal)}</span>
-                <p class="text-xs text-texto-secundario">Gasto Total</p>
+                <span class="font-bold text-lg text-green-500">${(cliente.gastoTotal || 0).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</span>
+                <span class="text-xs text-texto-secundario block">Gasto Total</span>
             </div>
-        `;
-        listaClientes.appendChild(card);
+        </div>
+    `).join('');
+}
+
+function updateFilterButtons() {
+    if(!viewNode) return;
+    viewNode.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === activeFilter);
     });
 }
 
-
-function getHTML() {
+function render() {
     return `
-        <header id="clientes-header" class="p-4 hidden">
-            <input type="search" id="input-busca-clientes" class="w-full p-2 border border-borda rounded-md bg-fundo-principal" placeholder="Buscar cliente...">
+        <style>
+            .filter-btn { padding: 0.5rem 1rem; border-radius: 9999px; font-weight: 600; background-color: var(--cor-fundo-principal); color: var(--cor-texto-secundario); border: 2px solid transparent; }
+            .filter-btn.active { background-color: #16a34a; color: white; } /* Cor verde do wireframe */
+        </style>
+        <header class="p-4 space-y-4">
+            <h2 class="text-2xl font-bold">Clientes</h2>
+            <input type="search" id="input-busca-cliente-relatorio" class="w-full p-3 border border-borda rounded-lg bg-fundo-principal" placeholder="Encontrar cliente...">
         </header>
-
-        <div id="clientes-empty-state" class="text-center p-8 hidden">
-            <i class="lni lni-users text-6xl text-gray-300 dark:text-gray-600"></i>
-            <h3 class="mt-4 text-xl font-semibold">Nenhum cliente registado</h3>
-            <p class="text-texto-secundario">Toque no botão '+' para começar.</p>
-        </div>
-
-        <div id="lista-clientes" class="p-4 space-y-3"></div>
-
-        <button id="btn-fab-add-cliente" class="fab z-50">
-            <i class="lni lni-plus"></i>
-        </button>
+        <nav class="px-4 pb-4 flex gap-2 items-center">
+            <button class="text-2xl">+</button>
+            <button class="filter-btn" data-filter="pagantes">Pagantes</button>
+            <button class="filter-btn active" data-filter="kilapeiros">Kilapeiros</button>
+            <button class="filter-btn" data-filter="novos">Novos</button>
+        </nav>
+        <main class="p-4 space-y-3 pb-24">
+            <div id="lista-clientes-relatorio"></div>
+        </main>
+        <button id="btn-fab-add-cliente-relatorio" class="fab bg-green-500"><i class="lni lni-plus"></i></button>
     `;
 }
 
 function mount() {
     viewNode = document.getElementById('app-root');
+    activeFilter = 'kilapeiros'; // Filtro padrão conforme wireframe
+    searchTerm = '';
+
+    const handleViewClick = (e) => {
+        const filterBtn = e.target.closest('.filter-btn');
+        const fab = e.target.closest('#btn-fab-add-cliente-relatorio');
+        const clienteCard = e.target.closest('[data-cliente-id]');
+
+        if (filterBtn) {
+            activeFilter = filterBtn.dataset.filter;
+            updateFilterButtons();
+            renderClientList();
+            return;
+        }
+        if (fab) {
+            abrirModalAddCliente();
+            return;
+        }
+        if (clienteCard) {
+            const clienteId = clienteCard.dataset.clienteId;
+            Router.navigateTo(`#cliente-detalhes/${clienteId}`);
+            return;
+        }
+    };
+
+    const handleSearch = e => {
+        searchTerm = e.target.value.toLowerCase();
+        renderClientList();
+    };
+
+    viewNode.addEventListener('click', handleViewClick);
+    viewNode.querySelector('#input-busca-cliente-relatorio').addEventListener('input', handleSearch);
     
-    unsubscribe = store.subscribe(render);
-
-    const inputBuscaClientes = viewNode.querySelector('#input-busca-clientes');
-    const listaClientes = viewNode.querySelector('#lista-clientes');
-    const btnFabAddCliente = viewNode.querySelector('#btn-fab-add-cliente');
-
-    if(inputBuscaClientes) inputBuscaClientes.addEventListener('input', render);
-    if(btnFabAddCliente) btnFabAddCliente.addEventListener('click', abrirModalAddCliente);
-
-    if(listaClientes) {
-        listaClientes.addEventListener('click', (event) => {
-            const card = event.target.closest('[data-cliente-id]');
-            if (card) {
-                const clienteId = card.dataset.clienteId;
-                Router.navigateTo(`#cliente-detalhes/${clienteId}`);
-            }
-        });
+    const updateAll = () => {
+        updateFilterButtons();
+        renderClientList();
     }
 
-    render();
+    updateAll();
+    unsubscribe = store.subscribe(updateAll);
+
+    // Lógica de limpeza
+    const originalUnmount = unmount;
+    unmount = () => {
+        if(viewNode) {
+            viewNode.removeEventListener('click', handleViewClick);
+            const searchInput = viewNode.querySelector('#input-busca-cliente-relatorio');
+            if(searchInput) searchInput.removeEventListener('input', handleSearch);
+        }
+        originalUnmount();
+    };
 }
 
 function unmount() {
-    if (unsubscribe) {
-        unsubscribe();
-        unsubscribe = null;
-    }
+    if (unsubscribe) unsubscribe();
+    unsubscribe = null;
     viewNode = null;
 }
 
 export default {
-    render: getHTML,
+    render,
     mount,
     unmount
 };

@@ -1,26 +1,30 @@
-// /modules/features/inventario/components/FormRegistarCompraModal.js (NOVO FICHEIRO)
+// /modules/features/inventario/components/FormRegistarCompraModal.js (CORRIGIDO)
 'use strict';
 
 import store from '../../../shared/services/Store.js';
 import * as Toast from '../../../shared/components/Toast.js';
 
-let state = null; // Cache do estado para evitar múltiplas chamadas
-
 // Função para atualizar as opções de produto com base no fornecedor selecionado
 function updateProductOptions(fornecedorId) {
     const produtoSelect = document.getElementById('select-compra-produto');
-    if (!produtoSelect || !state) return;
+    if (!produtoSelect) return;
 
-    const produtosDoFornecedor = state.inventario.filter(p => p.fornecedorId === fornecedorId);
+    // <-- ALTERAÇÃO PRINCIPAL: Busca o estado mais recente diretamente do store
+    const state = store.getState(); 
+    
+    const fornecedor = state.fornecedores.find(f => f.id === fornecedorId);
+    const produtosDoCatalogo = fornecedor ? fornecedor.catalogo : [];
     
     produtoSelect.innerHTML = '<option value="" disabled selected>Selecione um produto</option>'; // Reset
-    produtoSelect.innerHTML += produtosDoFornecedor.map(p => `<option value="${p.id}">${p.nome}</option>`).join('');
-    produtoSelect.disabled = false;
+    produtoSelect.innerHTML += produtosDoCatalogo.map(p => `<option value="${p.id}">${p.nome}</option>`).join('');
+    produtoSelect.disabled = produtosDoCatalogo.length === 0;
 }
 
-export const render = () => {
-    state = store.getState();
-    const fornecedoresOptions = state.fornecedores.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+export const render = (fornecedorPreSelecionado) => {
+    const state = store.getState(); // Busca o estado para renderização inicial
+    const fornecedoresOptions = state.fornecedores.map(f => 
+        `<option value="${f.id}" ${fornecedorPreSelecionado && f.id === fornecedorPreSelecionado.id ? 'selected' : ''}>${f.nome}</option>`
+    ).join('');
 
     return `
 <div id="modal-registar-compra-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] p-4">
@@ -33,7 +37,7 @@ export const render = () => {
             <div>
                 <label for="select-compra-fornecedor" class="block text-sm font-medium mb-1">Fornecedor</label>
                 <select id="select-compra-fornecedor" required class="w-full p-2 border border-borda rounded-md bg-fundo-input">
-                    <option value="" disabled selected>Selecione um fornecedor</option>
+                    <option value="" disabled ${!fornecedorPreSelecionado ? 'selected' : ''}>Selecione um fornecedor</option>
                     ${fornecedoresOptions}
                 </select>
             </div>
@@ -73,7 +77,7 @@ export const render = () => {
 </div>`;
 };
 
-export const mount = (closeModal) => {
+export const mount = (closeModal, fornecedorPreSelecionado) => {
     const form = document.getElementById('form-registar-compra');
     const fornecedorSelect = form.querySelector('#select-compra-fornecedor');
     const produtoSelect = form.querySelector('#select-compra-produto');
@@ -87,13 +91,18 @@ export const mount = (closeModal) => {
         updateProductOptions(fornecedorSelect.value);
         produtoSelect.classList.remove('opacity-50');
     });
+    
+    // Se um fornecedor já veio pré-selecionado, atualiza a lista de produtos
+    if(fornecedorPreSelecionado) {
+        updateProductOptions(fornecedorPreSelecionado.id);
+    }
 
     const calcularCustoUnitario = () => {
         const qtd = parseFloat(qtdInput.value) || 0;
         const custoTotal = parseFloat(custoTotalInput.value) || 0;
         if (qtd > 0 && custoTotal > 0) {
             const custoUnitario = (custoTotal / qtd);
-            custoUnitarioDisplay.value = `${custoUnitario.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}`;
+            custoUnitarioDisplay.value = custoUnitario.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA', minimumFractionDigits: 2 });
         } else {
             custoUnitarioDisplay.value = (0).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
         }
@@ -105,19 +114,18 @@ export const mount = (closeModal) => {
         e.preventDefault();
         
         const payload = {
-            fornecedorId: form.querySelector('#select-compra-fornecedor').value,
-            produtoId: form.querySelector('#select-compra-produto').value,
+            fornecedorId: fornecedorSelect.value,
+            produtoCatalogoId: produtoSelect.value, // ID do produto no catálogo
             quantidade: parseFloat(qtdInput.value),
             valorTotal: parseFloat(custoTotalInput.value),
             metodoPagamento: form.querySelector('#select-compra-pagamento').value,
         };
 
-        if (!payload.fornecedorId || !payload.produtoId || !payload.quantidade || !payload.valorTotal) {
+        if (!payload.fornecedorId || !payload.produtoCatalogoId || !payload.quantidade || !payload.valorTotal) {
             return Toast.mostrarNotificacao("Todos os campos são obrigatórios.", "erro");
         }
 
         store.dispatch({ type: 'ADD_COMPRA', payload });
-
         Toast.mostrarNotificacao(`Compra registada com sucesso.`);
         closeModal();
     });
@@ -128,6 +136,4 @@ export const mount = (closeModal) => {
     });
 };
 
-export const unmount = () => {
-    state = null; // Limpa o cache do estado
-};
+export const unmount = () => {};
