@@ -1,202 +1,147 @@
-// /modules/features/inventario/InventarioView.js
+// /modules/features/inventario/InventarioView.js (ATUALIZADO)
 'use strict';
 
 import store from '../../shared/services/Store.js';
+import Router from '../../app/Router.js'; // <-- NOVO
 import { 
-    abrirModalAddProduto, 
-    abrirModalEditProduto, 
-    abrirModalAddStock, 
-    abrirModalMoverStock, 
-    abrirModalConfirmacao,
-    abrirModalShortcutManagement
+    abrirModalAddProduto,
+    abrirModalAddFornecedor,
+    abrirModalRegistarCompra,
+    abrirModalGerirCategorias
 } from '../../shared/components/Modals.js';
-import * as Toast from '../../shared/components/Toast.js';
 
 let unsubscribe = null;
 let viewNode = null;
-let swiper = null;
+let activeTab = 'produtos';
+let activeCategoryFilter = 'all';
 
-function renderProductCards() {
-    if (!viewNode) return;
+// ... (todas as outras funções de renderização permanecem exatamente as mesmas) ...
+function getCategoryMap(categorias = []) {
+    return categorias.reduce((map, cat) => {
+        map[cat.nome.toLowerCase()] = cat;
+        return map;
+    }, {});
+}
 
+function renderFiltrosDeCategoria(categorias = []) {
+    const filtrosHTML = categorias.map(cat => `<button class="px-3 py-1 text-sm font-semibold rounded-full border-2 ${activeCategoryFilter === cat.id ? 'text-white' : ''}" style="${activeCategoryFilter === cat.id ? `background-color: ${cat.cor}; border-color: ${cat.cor};` : `border-color: ${cat.cor}; color: ${cat.cor};`}" data-category-id="${cat.id}">${cat.nome}</button>`).join('');
+    return `<div id="category-filters-container" class="py-2 flex gap-2 overflow-x-auto"><button class="px-3 py-1 text-sm font-semibold rounded-full border-2 ${activeCategoryFilter === 'all' ? 'bg-gray-700 dark:bg-gray-200 text-white dark:text-black border-gray-700 dark:border-gray-200' : 'border-gray-400 text-gray-400'}" data-category-id="all">Todas</button>${filtrosHTML}</div>`;
+}
+
+function renderListaProdutosFinal(inventario = [], categorias = []) {
+    const categoryMap = getCategoryMap(categorias);
+    const produtosFiltrados = activeCategoryFilter === 'all' ? inventario : inventario.filter(p => { const categoriaDoFiltro = categorias.find(c => c.id === activeCategoryFilter); return p.tags && categoriaDoFiltro && p.tags.includes(categoriaDoFiltro.nome.toLowerCase()); });
+    if (produtosFiltrados.length === 0) { return `<p class="text-center text-texto-secundario p-8">Nenhum produto encontrado para esta categoria.</p>`; }
+    return `<div class="space-y-4">${produtosFiltrados.map(p => { const stockArmazemTotal = p.stockArmazemLotes.reduce((total, lote) => total + lote.quantidade, 0); const primeiraTag = p.tags && p.tags[0] ? p.tags[0].toLowerCase() : ''; const corCategoria = categoryMap[primeiraTag] ? categoryMap[primeiraTag].cor : '#6c757d'; return `<div class="bg-fundo-secundario rounded-lg shadow-md overflow-hidden" data-produto-id="${p.id}" style="border-top: 4px solid ${corCategoria};"><div class="p-4"><div class="flex justify-between items-start"><div><h3 class="font-bold text-lg">${p.nome}</h3><p class="text-sm font-semibold" style="color: ${corCategoria};">${p.tags.join(', ')}</p></div><span class="font-extrabold text-xl">${(p.precoVenda || 0).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</span></div><div class="grid grid-cols-2 gap-4 text-center mt-4 border-t border-borda pt-2"><div><span class="text-2xl font-bold block">${p.stockLoja}</span><span class="text-xs text-texto-secundario">NA LOJA</span></div><div><span class="text-2xl font-bold block">${stockArmazemTotal}</span><span class="text-xs text-texto-secundario">NO ARMAZÉM</span></div></div></div><div class="bg-fundo-principal p-2 flex justify-end gap-2"><button class="text-sm font-semibold text-blue-600 hover:underline">Editar</button><button class="text-sm font-semibold text-blue-600 hover:underline">Mover Stock</button></div></div>` }).join('')}</div>`;
+}
+
+function renderConteudoAbaProdutos() {
     const state = store.getState();
-    const { inventario } = state;
-    const swiperWrapper = viewNode.querySelector('#inventario-swiper .swiper-wrapper');
-    const emptyStateEl = viewNode.querySelector('#inventario-empty-state');
-    
-    if (!swiperWrapper || !emptyStateEl) return;
+    const filtrosHTML = renderFiltrosDeCategoria(state.categoriasDeProduto);
+    const listaHTML = renderListaProdutosFinal(state.inventario, state.categoriasDeProduto);
+    viewNode.querySelector('#inventario-produtos-container').innerHTML = filtrosHTML + listaHTML;
+}
 
-    if (inventario.length === 0) {
-        emptyStateEl.classList.remove('hidden');
-        if (swiper) swiper.disable();
-        swiperWrapper.innerHTML = '';
-        return;
-    }
-    
-    emptyStateEl.classList.add('hidden');
-    if (swiper) swiper.enable();
+function renderListaFornecedores(fornecedores = []) {
+    if (fornecedores.length === 0) { return `<p class="text-center text-texto-secundario p-8">Nenhum fornecedor registado. Toque em '+' para adicionar o primeiro.</p>`; }
+    return `<div class="space-y-3">${fornecedores.map(f => `<div class="bg-fundo-secundario p-4 rounded-lg shadow-md flex justify-between items-center cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700" data-fornecedor-id="${f.id}"><div><p class="font-bold">${f.nome}</p><p class="text-sm text-texto-secundario">${f.contacto || 'Sem contacto'}</p></div><button class="btn-icon text-texto-secundario text-xl"><i class="lni lni-chevron-right"></i></button></div>`).join('')}</div>`;
+}
 
-    swiperWrapper.innerHTML = inventario.map(item => {
-        const isShortcut = state.config.priorityProducts.includes(item.id);
-        const shortcutIconClass = isShortcut ? 'lni-star-fill text-yellow-500' : 'lni-star';
-
-        return `
-            <div class="swiper-slide">
-                <div class="product-card" data-product-id="${item.id}">
-                    <div class="card-header">
-                        <div>
-                            <h3 class="card-title">${item.nome}</h3>
-                            <p class="card-price">${(item.precoVenda || 0).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</p>
-                        </div>
-                        <div class="card-menu-container">
-                             <button class="btn-icon btn-menu"><i class="lni lni-more-alt"></i></button>
-                             <div class="card-menu-dropdown">
-                                <button class="btn-edit-product">Editar</button>
-                                <button class="btn-delete-product">Apagar</button>
-                             </div>
-                        </div>
-                    </div>
-                    
-                    <button class="btn-shortcut"><i class="lni ${shortcutIconClass}"></i></button>
-
-                    <div class="card-stock-info">
-                        <div class="stock-column">
-                            <span class="stock-label">armazém</span>
-                            <span class="stock-value">${item.stockArmazem}</span>
-                            <button class="btn-add btn-add-armazem"><i class="lni lni-plus"></i></button>
-                        </div>
-                        <div class="stock-column">
-                            <span class="stock-label">loja</span>
-                            <span class="stock-value">${item.stockLoja}</span>
-                            <button class="btn-add btn-move-loja"><i class="lni lni-plus"></i></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    if (swiper) {
-        swiper.update();
-        swiper.pagination.render();
-        swiper.pagination.update();
+function renderContent() {
+    if (!viewNode) return;
+    renderConteudoAbaProdutos();
+    const fornecedoresContainer = viewNode.querySelector('#inventario-fornecedores-container');
+    if (fornecedoresContainer) {
+        fornecedoresContainer.innerHTML = renderListaFornecedores(store.getState().fornecedores);
     }
 }
 
-function handleViewClick(event) {
-    const target = event.target;
-    const productCard = target.closest('.product-card');
-
-    if (target.closest('#btn-fab-add-produto')) {
-        abrirModalAddProduto();
-        return;
-    }
-
-    // Fecha menus de contexto se clicar fora
-    if (!productCard) {
-        document.querySelectorAll('.card-menu-dropdown.visible').forEach(menu => {
-            menu.classList.remove('visible');
-        });
-        return;
-    }
-
-    const produtoId = productCard.dataset.productId;
-    const produto = store.getState().inventario.find(p => p.id === produtoId);
-    if (!produto) return;
-
-    if (target.closest('.btn-menu')) {
-        const dropdown = productCard.querySelector('.card-menu-dropdown');
-        // Fecha outros menus abertos antes de abrir o novo
-        document.querySelectorAll('.card-menu-dropdown.visible').forEach(menu => {
-            if (menu !== dropdown) menu.classList.remove('visible');
-        });
-        dropdown.classList.toggle('visible');
-        return; 
-    }
-
-    if (target.closest('.btn-add-armazem')) abrirModalAddStock(produto);
-    else if (target.closest('.btn-move-loja')) abrirModalMoverStock(produto);
-    else if (target.closest('.btn-shortcut')) abrirModalShortcutManagement(produto);
-    else if (target.closest('.btn-edit-product')) abrirModalEditProduto(produto);
-    else if (target.closest('.btn-delete-product')) {
-        abrirModalConfirmacao(`Apagar ${produto.nome}?`, "Esta ação não pode ser desfeita.", () => {
-            store.dispatch({ type: 'DELETE_PRODUCT', payload: produtoId });
-            Toast.mostrarNotificacao(`Produto "${produto.nome}" apagado.`);
-        });
-    }
+function switchTab(tabName) {
+    if (!viewNode || tabName === activeTab) return;
+    activeTab = tabName;
+    const tabProdutosBtn = viewNode.querySelector('#tab-produtos');
+    const tabFornecedoresBtn = viewNode.querySelector('#tab-fornecedores');
+    const produtosContainer = viewNode.querySelector('#inventario-produtos-container');
+    const fornecedoresContainer = viewNode.querySelector('#inventario-fornecedores-container');
+    tabProdutosBtn.classList.toggle('active', activeTab === 'produtos');
+    tabFornecedoresBtn.classList.toggle('active', activeTab === 'fornecedores');
+    produtosContainer.classList.toggle('hidden', activeTab !== 'produtos');
+    fornecedoresContainer.classList.toggle('hidden', activeTab !== 'fornecedores');
 }
 
 function render() {
     return `
         <style>
-            .product-card { background-color: var(--cor-fundo-secundario); border-radius: 12px; box-shadow: var(--sombra-padrao); padding: 1rem; display: flex; flex-direction: column; height: 100%; position: relative; }
-            .card-header { display: flex; justify-content: space-between; align-items: flex-start; }
-            .card-title { font-size: 1.5rem; font-weight: bold; line-height: 1.2; }
-            .card-price { color: var(--cor-texto-secundario); font-weight: 500;}
-            .btn-shortcut { background: none; border: none; font-size: 1.75rem; cursor: pointer; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--cor-texto-secundario); padding: 1rem; }
-            .card-stock-info { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; text-align: center; margin-top: auto; padding-top: 1rem; }
-            .stock-column { display: flex; flex-direction: column; align-items: center; }
-            .stock-label { font-size: 0.75rem; text-transform: uppercase; color: var(--cor-texto-secundario); }
-            .stock-value { font-size: 2rem; font-weight: bold; }
-            .btn-add { background-color: #28a745; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 1rem; cursor: pointer; display:flex; justify-content:center; align-items:center; }
-            .card-menu-container { position: relative; }
-            .card-menu-dropdown { display: none; position: absolute; right: 0; top: 100%; background-color: var(--cor-fundo-principal); border-radius: 8px; box-shadow: var(--sombra-padrao); z-index: 10; overflow: hidden; min-width: 100px; }
-            .card-menu-dropdown.visible { display: block; }
-            .card-menu-dropdown button { display: block; width: 100%; padding: 0.5rem 1rem; background: none; border: none; text-align: left; cursor: pointer; font-size: 0.875rem; }
-            .card-menu-dropdown button:hover { background-color: rgba(0,0,0,0.1); }
-            .swiper-pagination-bullet-active { background-color: var(--cor-primaria); }
+            .tab-btn { padding: 0.75rem 1rem; border: none; background: none; font-weight: 600; color: var(--cor-texto-secundario); border-bottom: 3px solid transparent; }
+            .tab-btn.active { color: var(--cor-primaria); border-bottom-color: var(--cor-primaria); }
+            #category-filters-container::-webkit-scrollbar { display: none; }
         </style>
-        <header class="flex justify-between items-center p-4">
+        <header class="p-4 flex justify-between items-center">
             <h2 class="text-2xl font-bold">Inventário</h2>
+            <div class="flex items-center gap-2">
+                <button id="btn-gerir-categorias" class="btn-icon text-xl text-texto-secundario hover:text-primaria" title="Gerir Categorias"><i class="lni lni-tag"></i></button>
+                <button id="btn-registar-compra" class="flex items-center gap-2 bg-green-600 text-white font-bold text-sm py-2 px-3 rounded-lg shadow-md hover:bg-green-700"><i class="lni lni-cart-full"></i><span>Registar Compra</span></button>
+            </div>
         </header>
-
-        <div id="inventario-empty-state" class="text-center p-8 hidden">
-            <i class="lni lni-dropbox text-6xl text-gray-300 dark:text-gray-600"></i>
-            <h3 class="mt-4 text-xl font-semibold">O seu inventário está vazio</h3>
-            <p class="text-texto-secundario">Toque no botão '+' para começar.</p>
-        </div>
-
-        <div id="inventario-swiper" class="swiper p-4">
-            <div class="swiper-wrapper pb-8">
-                </div>
-            <div class="swiper-pagination"></div>
-        </div>
-        
-        <button id="btn-fab-add-produto" class="fab">
-             <i class="lni lni-plus"></i>
-        </button>
+        <nav class="px-4 border-b border-borda"><div id="inventario-tabs" class="flex items-center gap-4"><button id="tab-produtos" class="tab-btn active" data-tab="produtos">Produtos</button><button id="tab-fornecedores" class="tab-btn" data-tab="fornecedores">Fornecedores</button></div></nav>
+        <main class="pb-24">
+            <div id="inventario-produtos-container" class="px-4"></div>
+            <div id="inventario-fornecedores-container" class="p-4 hidden"></div>
+        </main>
+        <button id="btn-fab-inventario" class="fab"><i class="lni lni-plus"></i></button>
     `;
 }
 
 function mount() {
     viewNode = document.getElementById('app-root');
-    
-    swiper = new Swiper('#inventario-swiper', {
-        slidesPerView: 'auto',
-        centeredSlides: true,
-        spaceBetween: 16,
-        pagination: {
-            el: '.swiper-pagination',
-            clickable: true,
-        },
+    activeTab = 'produtos';
+    activeCategoryFilter = 'all';
+
+    viewNode.addEventListener('click', (e) => {
+        const fab = e.target.closest('#btn-fab-inventario');
+        const btnRegistarCompra = e.target.closest('#btn-registar-compra');
+        const btnGerirCategorias = e.target.closest('#btn-gerir-categorias');
+        const tabBtn = e.target.closest('.tab-btn');
+        const categoryFilterBtn = e.target.closest('#category-filters-container button');
+        const fornecedorCard = e.target.closest('[data-fornecedor-id]'); // <-- NOVO
+
+        if (tabBtn) {
+            switchTab(tabBtn.dataset.tab);
+            return;
+        }
+        if (fab) {
+            if (activeTab === 'produtos') abrirModalAddProduto();
+            else abrirModalAddFornecedor();
+            return;
+        }
+        if (btnRegistarCompra) {
+            abrirModalRegistarCompra();
+            return;
+        }
+        if (btnGerirCategorias) {
+            abrirModalGerirCategorias();
+            return;
+        }
+        if (categoryFilterBtn) {
+            activeCategoryFilter = categoryFilterBtn.dataset.categoryId;
+            renderConteudoAbaProdutos();
+            return;
+        }
+        if (fornecedorCard) { // <-- NOVO
+            const fornecedorId = fornecedorCard.dataset.fornecedorId;
+            Router.navigateTo(`#fornecedor-detalhes/${fornecedorId}`);
+            return;
+        }
     });
 
-    unsubscribe = store.subscribe(renderProductCards);
-    
-    renderProductCards();
-
-    viewNode.addEventListener('click', handleViewClick);
+    renderContent();
+    unsubscribe = store.subscribe(renderContent);
 }
 
 function unmount() {
     if (unsubscribe) unsubscribe();
-    if (swiper) swiper.destroy(true, true);
-    
-    if (viewNode) viewNode.removeEventListener('click', handleViewClick);
-
     unsubscribe = null;
     viewNode = null;
-    swiper = null;
 }
 
 export default { render, mount, unmount };

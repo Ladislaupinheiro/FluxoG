@@ -1,19 +1,18 @@
-// /modules/features/inventario/components/FormAddProdutoModal.js (CORRIGIDO)
+// /modules/features/inventario/components/FormAddProdutoModal.js (REATORADO)
 'use strict';
 
 import store from '../../../shared/services/Store.js';
 import * as Toast from '../../../shared/components/Toast.js';
 
 export const render = () => {
-    // Pega as categorias existentes para popular a datalist
-    const categoriasExistentes = [...new Set(store.getState().inventario.map(p => p.categoria).filter(Boolean))];
-    const datalistOptions = categoriasExistentes.map(cat => `<option value="${cat}"></option>`).join('');
+    const state = store.getState();
+    const fornecedoresOptions = state.fornecedores.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
 
     return `
 <div id="modal-add-produto-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] p-4">
     <form id="form-add-produto" class="bg-fundo-secundario rounded-lg shadow-xl w-full max-w-sm">
         <header class="flex justify-between items-center p-4 border-b border-borda">
-            <h3 class="text-xl font-bold">Adicionar Produto</h3>
+            <h3 class="text-xl font-bold">Adicionar Novo Produto</h3>
             <button type="button" class="btn-fechar-modal text-2xl">&times;</button>
         </header>
         <div class="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
@@ -21,13 +20,18 @@ export const render = () => {
                 <label for="input-produto-nome" class="block text-sm font-medium mb-1">Nome do Produto</label>
                 <input type="text" id="input-produto-nome" required class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="Ex: Cerveja Cuca">
             </div>
+            
+            <div>
+                <label for="select-produto-fornecedor" class="block text-sm font-medium mb-1">Fornecedor</label>
+                <select id="select-produto-fornecedor" required class="w-full p-2 border border-borda rounded-md bg-fundo-input">
+                    <option value="" disabled selected>Selecione um fornecedor</option>
+                    ${fornecedoresOptions}
+                </select>
+            </div>
 
             <div>
-                <label for="input-produto-categoria" class="block text-sm font-medium mb-1">Categoria</label>
-                <input type="text" id="input-produto-categoria" list="categorias-data" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="Ex: Bebidas, Petiscos">
-                <datalist id="categorias-data">
-                    ${datalistOptions}
-                </datalist>
+                <label for="input-produto-tags" class="block text-sm font-medium mb-1">Rótulos (separados por vírgula)</label>
+                <input type="text" id="input-produto-tags" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="Ex: cerveja, álcool, nacional">
             </div>
 
             <div>
@@ -36,32 +40,24 @@ export const render = () => {
             </div>
 
             <div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-3">
-                <h4 class="text-sm font-bold text-center text-texto-secundario">CÁLCULO DE CUSTO</h4>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label for="input-produto-custo-grade" class="block text-sm font-medium mb-1">Custo da Grade</label>
-                        <input type="number" id="input-produto-custo-grade" min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="3000">
-                    </div>
-                    <div>
-                        <label for="input-produto-unidades-grade" class="block text-sm font-medium mb-1">Un. na Grade</label>
-                        <input type="number" id="input-produto-unidades-grade" min="1" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="12">
-                    </div>
+                <h4 class="text-sm font-bold text-center text-texto-secundario">Registo de Compra Inicial (Opcional)</h4>
+                <div>
+                    <label for="input-produto-compra-qtd" class="block text-sm font-medium mb-1">Quantidade Comprada</glabel>
+                    <input type="number" id="input-produto-compra-qtd" min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="Ex: 24 (uma grade)">
                 </div>
                 <div>
-                    <label for="input-produto-custo-unitario" class="block text-sm font-medium mb-1">Custo por Unidade (Kz)</label>
-                    <input type="number" id="input-produto-custo-unitario" required min="0" step="any" class="w-full p-2 border-green-500 rounded-md bg-fundo-input font-bold" placeholder="Custo por item">
+                    <label for="input-produto-compra-custo-total" class="block text-sm font-medium mb-1">Custo Total da Compra (Kz)</label>
+                    <input type="number" id="input-produto-compra-custo-total" min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="Ex: 5000">
+                </div>
+                 <div>
+                    <label class="block text-sm font-medium mb-1">Custo por Unidade (calculado)</label>
+                    <input type="number" id="input-produto-custo-unitario" readonly class="w-full p-2 border-green-500 rounded-md bg-fundo-principal font-bold" placeholder="0.00">
                 </div>
             </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label for="input-produto-stock-armazem" class="block text-sm font-medium mb-1">Stock (Armazém)</label>
-                    <input type="number" id="input-produto-stock-armazem" required min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-input" value="0">
-                </div>
-                <div>
-                    <label for="input-produto-stock-minimo" class="block text-sm font-medium mb-1">Stock Mínimo</label>
-                    <input type="number" id="input-produto-stock-minimo" required min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-input" value="0">
-                </div>
+            
+            <div>
+                <label for="input-produto-stock-minimo" class="block text-sm font-medium mb-1">Stock Mínimo de Alerta</label>
+                <input type="number" id="input-produto-stock-minimo" required min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-input" value="0">
             </div>
         </div>
         <footer class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-b-lg">
@@ -73,41 +69,78 @@ export const render = () => {
 
 export const mount = (closeModal) => {
     const form = document.getElementById('form-add-produto');
-    const custoGradeInput = form.querySelector('#input-produto-custo-grade');
-    const unidadesGradeInput = form.querySelector('#input-produto-unidades-grade');
-    const custoUnitarioInput = form.querySelector('#input-produto-custo-unitario');
     const nomeInput = form.querySelector('#input-produto-nome');
+    const qtdCompraInput = form.querySelector('#input-produto-compra-qtd');
+    const custoTotalInput = form.querySelector('#input-produto-compra-custo-total');
+    const custoUnitarioInput = form.querySelector('#input-produto-custo-unitario');
+    
     nomeInput.focus();
 
+    // Lógica para calcular o custo unitário em tempo real
     const calcularCustoUnitario = () => {
-        const custoGrade = parseFloat(custoGradeInput.value) || 0;
-        const unidadesGrade = parseInt(unidadesGradeInput.value) || 0;
-        if (custoGrade > 0 && unidadesGrade > 0) {
-            const custoUnitario = custoGrade / unidadesGrade;
-            custoUnitarioInput.value = custoUnitario.toFixed(2);
+        const qtd = parseFloat(qtdCompraInput.value) || 0;
+        const custoTotal = parseFloat(custoTotalInput.value) || 0;
+        if (qtd > 0 && custoTotal > 0) {
+            custoUnitarioInput.value = (custoTotal / qtd).toFixed(2);
+        } else {
+            custoUnitarioInput.value = "0.00";
         }
     };
 
-    custoGradeInput.addEventListener('input', calcularCustoUnitario);
-    unidadesGradeInput.addEventListener('input', calcularCustoUnitario);
+    qtdCompraInput.addEventListener('input', calcularCustoUnitario);
+    custoTotalInput.addEventListener('input', calcularCustoUnitario);
     
     form.addEventListener('submit', (e) => {
         e.preventDefault();
+        
         const nome = nomeInput.value.trim();
-        const categoria = form.querySelector('#input-produto-categoria').value.trim();
+        const fornecedorId = form.querySelector('#select-produto-fornecedor').value;
         const precoVenda = parseFloat(form.querySelector('#input-produto-preco-venda').value);
-        const custoUnitario = parseFloat(custoUnitarioInput.value);
-        const stockArmazem = parseInt(form.querySelector('#input-produto-stock-armazem').value);
         const stockMinimo = parseInt(form.querySelector('#input-produto-stock-minimo').value);
+        const tags = form.querySelector('#input-produto-tags').value.split(',')
+            .map(tag => tag.trim()).filter(Boolean);
 
-        if (!nome || isNaN(precoVenda) || isNaN(custoUnitario) || precoVenda < 0 || custoUnitario < 0) {
-            return Toast.mostrarNotificacao("Nome, Preço de Venda e Custo Unitário são obrigatórios.", "erro");
+        if (!nome || !fornecedorId || isNaN(precoVenda) || precoVenda < 0) {
+            return Toast.mostrarNotificacao("Nome, Fornecedor e Preço de Venda são obrigatórios.", "erro");
+        }
+
+        const quantidadeInicial = parseFloat(qtdCompraInput.value) || 0;
+        const custoUnitario = parseFloat(custoUnitarioInput.value) || 0;
+
+        let primeiroLote = null;
+        if (quantidadeInicial > 0 && custoUnitario > 0) {
+            primeiroLote = {
+                quantidade: quantidadeInicial,
+                dataCompra: new Date().toISOString(),
+                custoUnitario: custoUnitario
+            };
         }
         
-        store.dispatch({ 
-            type: 'ADD_PRODUCT', 
-            payload: { nome, categoria, precoVenda, custoUnitario, stockArmazem, stockMinimo } 
-        });
+        const novoProduto = {
+            id: crypto.randomUUID(),
+            nome,
+            fornecedorId,
+            tags,
+            precoVenda,
+            stockLoja: 0,
+            stockMinimo,
+            stockArmazemLotes: primeiroLote ? [primeiroLote] : [],
+            ultimaVenda: null
+        };
+        
+        // Esta ação agora precisa ser criada ou adaptada no reducer
+        store.dispatch({ type: 'ADD_PRODUCT', payload: novoProduto });
+
+        // Se houve uma compra inicial, também a registamos no histórico
+        if(primeiroLote) {
+             store.dispatch({ type: 'ADD_COMPRA', payload: {
+                produtoId: novoProduto.id,
+                fornecedorId: novoProduto.fornecedorId,
+                quantidade: primeiroLote.quantidade,
+                valorTotal: custoTotalInput.value,
+                metodoPagamento: 'N/A' // Ou um valor padrão
+             }});
+        }
 
         Toast.mostrarNotificacao(`Produto "${nome}" adicionado!`);
         closeModal();

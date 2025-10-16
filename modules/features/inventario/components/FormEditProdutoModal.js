@@ -1,13 +1,16 @@
-// /modules/components/modals/FormEditProdutoModal.js
+// /modules/features/inventario/components/FormEditProdutoModal.js (REATORADO)
 'use strict';
 
 import store from '../../../shared/services/Store.js';
 import * as Toast from '../../../shared/components/Toast.js';
 
 export const render = (produto) => {
-    // Pega as categorias existentes para popular a datalist
-    const categoriasExistentes = [...new Set(store.getState().inventario.map(p => p.categoria).filter(Boolean))];
-    const datalistOptions = categoriasExistentes.map(cat => `<option value="${cat}"></option>`).join('');
+    const state = store.getState();
+    const fornecedoresOptions = state.fornecedores.map(f => 
+        `<option value="${f.id}" ${f.id === produto.fornecedorId ? 'selected' : ''}>${f.nome}</option>`
+    ).join('');
+
+    const tagsComoString = produto.tags ? produto.tags.join(', ') : '';
 
     return `
 <div id="modal-edit-produto-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] p-4">
@@ -23,38 +26,24 @@ export const render = (produto) => {
             </div>
 
             <div>
-                <label for="input-edit-produto-categoria" class="block text-sm font-medium mb-1">Categoria</label>
-                <input type="text" id="input-edit-produto-categoria" list="categorias-data" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="Ex: Bebidas, Petiscos" value="${produto.categoria || ''}">
-                <datalist id="categorias-data">
-                    ${datalistOptions}
-                </datalist>
+                <label for="select-edit-produto-fornecedor" class="block text-sm font-medium mb-1">Fornecedor (não editável)</label>
+                <select id="select-edit-produto-fornecedor" disabled class="w-full p-2 border border-borda rounded-md bg-fundo-principal opacity-70">
+                    ${fornecedoresOptions}
+                </select>
+            </div>
+
+            <div>
+                <label for="input-edit-produto-tags" class="block text-sm font-medium mb-1">Rótulos (separados por vírgula)</label>
+                <input type="text" id="input-edit-produto-tags" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="Ex: cerveja, álcool" value="${tagsComoString}">
             </div>
 
             <div>
                 <label for="input-edit-produto-preco-venda" class="block text-sm font-medium mb-1">Preço de Venda (Kz)</label>
                 <input type="number" id="input-edit-produto-preco-venda" required min="0" step="any" class="w-full p-2 border border-borda rounded-md bg-fundo-input" value="${produto.precoVenda}">
             </div>
-
-            <div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-3">
-                <h4 class="text-sm font-bold text-center text-texto-secundario">CÁLCULO DE CUSTO</h4>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label for="input-edit-produto-custo-grade" class="block text-sm font-medium mb-1">Custo da Grade</label>
-                        <input type="number" id="input-edit-produto-custo-grade" min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="3000">
-                    </div>
-                    <div>
-                        <label for="input-edit-produto-unidades-grade" class="block text-sm font-medium mb-1">Un. na Grade</label>
-                        <input type="number" id="input-edit-produto-unidades-grade" min="1" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="12">
-                    </div>
-                </div>
-                <div>
-                    <label for="input-edit-produto-custo-unitario" class="block text-sm font-medium mb-1">Custo por Unidade (Kz)</label>
-                    <input type="number" id="input-edit-produto-custo-unitario" required min="0" step="any" class="w-full p-2 border-green-500 rounded-md bg-fundo-input font-bold" value="${produto.custoUnitario || 0}">
-                </div>
-            </div>
             
             <div>
-                <label for="input-edit-produto-stock-minimo" class="block text-sm font-medium mb-1">Stock Mínimo</label>
+                <label for="input-edit-produto-stock-minimo" class="block text-sm font-medium mb-1">Stock Mínimo de Alerta</label>
                 <input type="number" id="input-edit-produto-stock-minimo" required min="0" class="w-full p-2 border border-borda rounded-md bg-fundo-input" value="${produto.stockMinimo}">
             </div>
         </div>
@@ -67,31 +56,22 @@ export const render = (produto) => {
 
 export const mount = (closeModal, produto) => {
     const form = document.getElementById('form-edit-produto');
-    const custoGradeInput = form.querySelector('#input-edit-produto-custo-grade');
-    const unidadesGradeInput = form.querySelector('#input-edit-produto-unidades-grade');
-    const custoUnitarioInput = form.querySelector('#input-edit-produto-custo-unitario');
-
-    const calcularCustoUnitario = () => {
-        const custoGrade = parseFloat(custoGradeInput.value) || 0;
-        const unidadesGrade = parseInt(unidadesGradeInput.value) || 0;
-        if (custoGrade > 0 && unidadesGrade > 0) {
-            custoUnitarioInput.value = (custoGrade / unidadesGrade).toFixed(2);
-        }
-    };
-
-    custoGradeInput.addEventListener('input', calcularCustoUnitario);
-    unidadesGradeInput.addEventListener('input', calcularCustoUnitario);
 
     form.addEventListener('submit', (e) => {
         e.preventDefault();
+        
+        const tags = form.querySelector('#input-edit-produto-tags').value.split(',')
+            .map(tag => tag.trim()).filter(Boolean);
+
         const produtoAtualizado = {
             ...produto,
             nome: form.querySelector('#input-edit-produto-nome').value.trim(),
-            categoria: form.querySelector('#input-edit-produto-categoria').value.trim(), // DADO DA CATEGORIA CAPTURADO
             precoVenda: parseFloat(form.querySelector('#input-edit-produto-preco-venda').value),
-            custoUnitario: parseFloat(custoUnitarioInput.value),
-            stockMinimo: parseInt(form.querySelector('#input-edit-produto-stock-minimo').value)
+            stockMinimo: parseInt(form.querySelector('#input-edit-produto-stock-minimo').value),
+            tags: tags
         };
+
+        // Ação existente no reducer que simplesmente substitui o produto pelo ID
         store.dispatch({ type: 'UPDATE_PRODUCT', payload: produtoAtualizado });
         Toast.mostrarNotificacao(`Produto "${produtoAtualizado.nome}" atualizado!`);
         closeModal();

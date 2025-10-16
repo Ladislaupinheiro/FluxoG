@@ -1,8 +1,8 @@
-// /modules/services/Storage.js - Camada de Abstração para o IndexedDB (v7.0 - Final)
+// /modules/shared/services/Storage.js (REATORADO)
 'use strict';
 
 const DB_NAME = 'GestorBarDB';
-const DB_VERSION = 4; // CORRIGIDO: Versão incrementada para forçar a recriação do schema.
+const DB_VERSION = 5; // Versão incrementada para adicionar as novas tabelas
 
 let db = null;
 
@@ -35,37 +35,46 @@ export function initDB() {
             const database = event.target.result;
             console.log(`A atualizar a base de dados para a versão ${DB_VERSION}...`);
 
-            // 1. Object Store para o Inventário
+            // --- Estruturas Existentes (verificadas para garantir a integridade) ---
             if (!database.objectStoreNames.contains('inventario')) {
-                const inventarioStore = database.createObjectStore('inventario', { keyPath: 'id' });
-                inventarioStore.createIndex('nome', 'nome', { unique: false });
+                database.createObjectStore('inventario', { keyPath: 'id' });
             }
-
-            // 2. Object Store para as Contas
             if (!database.objectStoreNames.contains('contas')) {
                 database.createObjectStore('contas', { keyPath: 'id' });
             }
-
-            // 3. Object Store para o Histórico de Fechos
             if (!database.objectStoreNames.contains('historico')) {
-                database.createObjectStore('historico', { keyPath: 'id', autoIncrement: true });
+                database.createObjectStore('historico', { keyPath: 'id' });
             }
-            
-            // 4. Object Store para Configurações
-             if (!database.objectStoreNames.contains('config')) {
+            if (!database.objectStoreNames.contains('config')) {
                 database.createObjectStore('config', { keyPath: 'key' });
             }
-
-            // 5. Object Store para os Clientes
             if (!database.objectStoreNames.contains('clientes')) {
-                const clientesStore = database.createObjectStore('clientes', { keyPath: 'id' });
-                clientesStore.createIndex('nome', 'nome', { unique: false });
+                database.createObjectStore('clientes', { keyPath: 'id' });
+            }
+            if (!database.objectStoreNames.contains('despesas')) {
+                database.createObjectStore('despesas', { keyPath: 'id' });
             }
 
-            // 6. Object Store para as Despesas
-            if (!database.objectStoreNames.contains('despesas')) {
-                const despesasStore = database.createObjectStore('despesas', { keyPath: 'id' });
-                despesasStore.createIndex('data', 'data', { unique: false });
+            // --- NOVOS OBJECT STORES PARA A VERSÃO 5 ---
+            if (!database.objectStoreNames.contains('fornecedores')) {
+                const fornecedoresStore = database.createObjectStore('fornecedores', { keyPath: 'id' });
+                fornecedoresStore.createIndex('nome', 'nome', { unique: false });
+                console.log('Object store "fornecedores" criado.');
+            }
+            if (!database.objectStoreNames.contains('historicoCompras')) {
+                const comprasStore = database.createObjectStore('historicoCompras', { keyPath: 'id' });
+                comprasStore.createIndex('data', 'data', { unique: false });
+                console.log('Object store "historicoCompras" criado.');
+            }
+            if (!database.objectStoreNames.contains('categoriasDeProduto')) {
+                const categoriasStore = database.createObjectStore('categoriasDeProduto', { keyPath: 'id' });
+                categoriasStore.createIndex('nome', 'nome', { unique: false });
+                console.log('Object store "categoriasDeProduto" criado.');
+            }
+            if (!database.objectStoreNames.contains('tagsDeCliente')) {
+                const tagsStore = database.createObjectStore('tagsDeCliente', { keyPath: 'id' });
+                tagsStore.createIndex('nome', 'nome', { unique: false });
+                console.log('Object store "tagsDeCliente" criado.');
             }
         };
     });
