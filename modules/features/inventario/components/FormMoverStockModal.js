@@ -1,12 +1,12 @@
-// /modules/features/inventario/components/FormMoverStockModal.js (CORRIGIDO)
+// /modules/features/inventario/components/FormMoverStockModal.js (CORRIGIDO E COMPLETO)
 'use strict';
 
 import store from '../../../shared/services/Store.js';
 import * as Toast from '../../../shared/components/Toast.js';
 
 export const render = (produto) => {
-    // <-- CORREÇÃO: Calcula o stock total somando todos os lotes no armazém.
-    const stockArmazemTotal = produto.stockArmazemLotes.reduce((total, lote) => total + lote.quantidade, 0);
+    // LÓGICA SIMPLIFICADA: Lê diretamente do novo campo 'stockArmazem'.
+    const stockArmazemTotal = produto.stockArmazem || 0;
 
     return `
 <div id="modal-mover-stock-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] p-4">
@@ -33,8 +33,8 @@ export const mount = (closeModal, produto) => {
     const inputQtd = form.querySelector('#input-mover-stock-quantidade');
     inputQtd.focus();
 
-    // <-- CORREÇÃO: A validação também usa o total calculado.
-    const stockArmazemTotal = produto.stockArmazemLotes.reduce((total, lote) => total + lote.quantidade, 0);
+    // LÓGICA SIMPLIFICADA: A validação também usa o total do novo campo.
+    const stockArmazemTotal = produto.stockArmazem || 0;
 
     form.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -48,7 +48,7 @@ export const mount = (closeModal, produto) => {
         }
 
         store.dispatch({ type: 'MOVE_STOCK', payload: { produtoId: produto.id, quantidade } });
-        Toast.mostrarNotificacao(`${quantidade} un. movidas para o stock da loja.`);
+        Toast.mostrarNotificacao(`${quantidade} un. de "${produto.nome}" movidas para a loja.`);
         closeModal();
     });
 

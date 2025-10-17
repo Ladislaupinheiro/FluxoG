@@ -2,7 +2,7 @@
 'use strict';
 
 const DB_NAME = 'GestorBarDB';
-const DB_VERSION = 6; // Versão incrementada para refletir a nova lógica de categorias
+const DB_VERSION = 7; // Versão incrementada para refletir a nova estrutura de stock
 
 let db = null;
 
@@ -35,7 +35,6 @@ export function initDB() {
             const database = event.target.result;
             console.log(`A atualizar a base de dados para a versão ${DB_VERSION}...`);
 
-            // --- Estruturas Existentes ---
             if (!database.objectStoreNames.contains('inventario')) database.createObjectStore('inventario', { keyPath: 'id' });
             if (!database.objectStoreNames.contains('contas')) database.createObjectStore('contas', { keyPath: 'id' });
             if (!database.objectStoreNames.contains('historico')) database.createObjectStore('historico', { keyPath: 'id' });
@@ -46,8 +45,6 @@ export function initDB() {
             if (!database.objectStoreNames.contains('historicoCompras')) database.createObjectStore('historicoCompras', { keyPath: 'id' });
             if (!database.objectStoreNames.contains('tagsDeCliente')) database.createObjectStore('tagsDeCliente', { keyPath: 'id' });
             
-            // A estrutura de categoriasDeProduto não precisa de um novo índice,
-            // mas versionar a DB garante que as mudanças sejam reconhecidas.
             if (!database.objectStoreNames.contains('categoriasDeProduto')) {
                 const categoriasStore = database.createObjectStore('categoriasDeProduto', { keyPath: 'id' });
                 categoriasStore.createIndex('nome', 'nome', { unique: false });
@@ -57,7 +54,11 @@ export function initDB() {
     });
 }
 
-// O resto do ficheiro (carregarTodos, salvarItem, etc.) permanece inalterado.
+/**
+ * Carrega todos os itens de um Object Store.
+ * @param {string} storeName - O nome do store (ex: 'inventario').
+ * @returns {Promise<Array<any>>} Uma promessa que resolve com um array de itens.
+ */
 export async function carregarTodos(storeName) {
     if (!db) await initDB();
     return new Promise((resolve, reject) => {
@@ -75,6 +76,12 @@ export async function carregarTodos(storeName) {
     });
 }
 
+/**
+ * Salva (adiciona ou atualiza) um item num Object Store.
+ * @param {string} storeName - O nome do store.
+ * @param {object} item - O objeto a ser guardado.
+ * @returns {Promise<IDBValidKey>} Uma promessa que resolve com a chave do item salvo.
+ */
 export async function salvarItem(storeName, item) {
     if (!db) await initDB();
     return new Promise((resolve, reject) => {
@@ -92,6 +99,12 @@ export async function salvarItem(storeName, item) {
     });
 }
 
+/**
+ * Apaga um item de um Object Store pela sua chave.
+ * @param {string} storeName - O nome do store.
+ * @param {IDBValidKey} key - A chave do item a ser apagado.
+ * @returns {Promise<void>} Uma promessa que resolve quando o item é apagado.
+ */
 export async function apagarItem(storeName, key) {
     if (!db) await initDB();
     return new Promise((resolve, reject) => {
@@ -109,6 +122,12 @@ export async function apagarItem(storeName, key) {
     });
 }
 
+/**
+ * Apaga TODOS os itens de um Object Store.
+ * Essencial para a funcionalidade de Restauro de Backup.
+ * @param {string} storeName - O nome do store a ser limpo.
+ * @returns {Promise<void>} Uma promessa que resolve quando o store é limpo.
+ */
 export async function limparStore(storeName) {
     if (!db) await initDB();
     return new Promise((resolve, reject) => {

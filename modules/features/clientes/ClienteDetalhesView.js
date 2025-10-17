@@ -1,317 +1,366 @@
-// /modules/features/clientes/ClienteDetalhesView.js (VERSÃO FINAL COMPLETA)
+// /modules/features/atendimento/ContaDetalhesView.js (UI REFINADA E CORRIGIDA)
 'use strict';
 
 import store from '../../shared/services/Store.js';
 import Router from '../../app/Router.js';
-import { abrirModalAddDivida, abrirModalLiquidarDivida, abrirModalEditCliente, abrirModalConfirmacao } from '../../shared/components/Modals.js';
-import { calculateClientProfile } from './services/ClientAnalyticsService.js';
+import { 
+    abrirModalPagamento, 
+    abrirModalSeletorQuantidade, 
+    abrirModalAcoesPedido,
+    abrirModalAcoesFlutuantes,
+    abrirModalTrocarCliente,
+    abrirModalAddDivida
+} from '../../shared/components/Modals.js';
 import * as Toast from '../../shared/components/Toast.js';
 
 let unsubscribe = null;
 let viewNode = null;
-let clienteAtivoId = null;
-let swiper = null;
-let dataCalendarioDividas = new Date();
-let dataSelecionadaDividas = null;
-let dataCalendarioCompras = new Date();
-let dataSelecionadaCompras = null;
-let tagifyInstance = null;
+let contaAtivaId = null;
+let prateleiraSwiper = null;
 
-function toggleSection(sectionBodyId, chevronId) {
-    const body = viewNode.querySelector(`#${sectionBodyId}`);
-    const chevron = viewNode.querySelector(`#${chevronId}`);
-    if (!body || !chevron) return;
-    const isCollapsed = body.style.height === '0px' || body.style.height === '';
-    if (isCollapsed) {
-        gsap.to(body, { height: 'auto', duration: 0.3, ease: 'power1.out' });
-        gsap.to(chevron, { rotation: 0, duration: 0.3 });
-    } else {
-        gsap.to(body, { height: 0, duration: 0.3, ease: 'power1.in' });
-        gsap.to(chevron, { rotation: -90, duration: 0.3 });
-    }
-}
+let activePrimaryCategoryId = null;
+let activeSecondaryCategoryId = null;
 
-function renderDividasCalendar(cliente) {
-    const ano = dataCalendarioDividas.getFullYear();
-    const mes = dataCalendarioDividas.getMonth();
-    const calendarioTitulo = viewNode.querySelector('#calendario-dividas-titulo');
-    const calendarioGrid = viewNode.querySelector('#calendario-dividas-grid');
-    if (!calendarioTitulo || !calendarioGrid) return;
-
-    calendarioTitulo.textContent = new Date(ano, mes).toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
-    calendarioGrid.innerHTML = '';
-    const diasComTransacao = new Set((cliente.dividas || []).map(d => new Date(d.data).toDateString()));
-    const primeiroDiaSemana = new Date(ano, mes, 1).getDay();
-    const diasNoMes = new Date(ano, mes + 1, 0).getDate();
-
-    for (let i = 0; i < primeiroDiaSemana; i++) calendarioGrid.appendChild(document.createElement('div'));
-    for (let dia = 1; dia <= diasNoMes; dia++) {
-        const diaAtual = new Date(ano, mes, dia);
-        const diaAtualStr = diaAtual.toDateString();
-        const temTransacao = diasComTransacao.has(diaAtualStr);
-        const isSelected = dataSelecionadaDividas && diaAtualStr === dataSelecionadaDividas.toDateString();
-        const diaEl = document.createElement('div');
-        diaEl.textContent = dia;
-        let classes = 'p-1 text-center rounded-full text-sm transition-colors duration-200';
-        if (isSelected) classes += ' bg-blue-500 text-white font-bold ring-2 ring-blue-300';
-        else if (temTransacao) classes += ' bg-green-500 text-white font-bold cursor-pointer hover:bg-green-600';
-        else classes += ' text-texto-secundario opacity-50';
-        diaEl.className = classes;
-        if(temTransacao) diaEl.dataset.dia = dia;
-        calendarioGrid.appendChild(diaEl);
-    }
-}
-
-function renderListaDividas(cliente) {
-    const dividasContainer = viewNode.querySelector('#lista-dividas-container');
-    if (!dividasContainer) return;
-    let dividasParaMostrar = [...(cliente.dividas || [])];
-    if (dataSelecionadaDividas) {
-        dividasParaMostrar = dividasParaMostrar.filter(d => new Date(d.data).toDateString() === dataSelecionadaDividas.toDateString());
-    }
-    dividasParaMostrar.sort((a, b) => new Date(b.data) - new Date(a.data));
-
-    if (dividasParaMostrar.length === 0) {
-        dividasContainer.innerHTML = `<p class="text-center text-sm text-texto-secundario py-2">${dataSelecionadaDividas ? 'Nenhuma transação neste dia.' : 'Sem histórico de dívidas.'}</p>`;
-        return;
-    }
-    dividasContainer.innerHTML = dividasParaMostrar.map(transacao => {
-        const isCredito = transacao.tipo === 'credito';
-        return `<div class="bg-fundo-principal p-3 rounded-lg flex justify-between items-center"><div><p class="font-semibold">${transacao.descricao}</p><p class="text-xs text-texto-secundario">${new Date(transacao.data).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</p></div><span class="font-bold text-lg ${isCredito ? 'text-green-500' : 'text-red-500'}">${isCredito ? '' : '+'} ${(Math.abs(transacao.valor) || 0).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</span></div>`;
-    }).join('');
-}
-
-function renderComprasCalendar(cliente) { /* ... Lógica futura ... */ }
-function renderListaComprasDoDia(cliente) {
-    const comprasContainer = viewNode.querySelector('#lista-compras-container');
-    if (!comprasContainer) return;
-    comprasContainer.innerHTML = `<p class="text-center text-sm text-texto-secundario py-4">Sem histórico de compra.</p>`;
-}
-
-function updateDOM() {
-    if (!viewNode || !clienteAtivoId) return;
+function renderCategoryFilters() {
     const state = store.getState();
-    const cliente = state.clientes.find(c => c.id === clienteAtivoId);
-    if (!cliente) { Router.navigateTo('#clientes'); return; }
-
-    const estatisticas = calculateClientProfile(clienteAtivoId, state);
-    const dividaTotal = cliente.dividas.reduce((t, d) => d.tipo === 'debito' ? t + d.valor : t - Math.abs(d.valor), 0);
-
-    viewNode.querySelector('#cliente-foto').src = cliente.fotoDataUrl || './icons/logo-small-192.png';
-    viewNode.querySelector('#cliente-nome').textContent = cliente.nome;
-    if (tagifyInstance && JSON.stringify(tagifyInstance.value.map(t => t.value)) !== JSON.stringify(cliente.tags || [])) {
-        tagifyInstance.loadOriginalValues(cliente.tags || []);
-    }
-
-    viewNode.querySelector('#stat-gasto-total').textContent = (estatisticas.gastoTotal || 0).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
-    viewNode.querySelector('#stat-divida-total').textContent = (dividaTotal || 0).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
-    viewNode.querySelector('#stat-visitas').textContent = estatisticas.visitas;
-
-    const topProdutosContainer = viewNode.querySelector('#stat-top-produtos');
-    if (estatisticas.produtosPreferidos.length > 0) {
-        topProdutosContainer.innerHTML = estatisticas.produtosPreferidos.map(p => `<div class="text-sm font-semibold">${p.nome} <span class="text-texto-secundario">(${p.qtd}x)</span></div>`).join('');
-    } else {
-        topProdutosContainer.innerHTML = `<span class="text-sm text-texto-secundario">Sem histórico de consumo.</span>`;
-    }
-
-    renderDividasCalendar(cliente);
-    renderListaDividas(cliente);
-    renderComprasCalendar(cliente);
-    renderListaComprasDoDia(cliente);
-}
-
-function handleFotoChange(e, cliente) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        const clienteAtualizado = { ...cliente, fotoDataUrl: event.target.result };
-        store.dispatch({ type: 'UPDATE_CLIENT', payload: clienteAtualizado });
-        Toast.mostrarNotificacao("Foto de perfil atualizada!");
-    };
-    reader.readAsDataURL(file);
-}
-
-function render(clienteId) {
-    const cliente = store.getState().clientes.find(c => c.id === clienteId);
-    if (!cliente) return `<p class="p-4 text-center">Cliente não encontrado.</p>`;
+    const categoriasPrimarias = state.categoriasDeProduto.filter(c => c.isSystemDefault);
     
+    if (categoriasPrimarias.length > 0 && !activePrimaryCategoryId) {
+        activePrimaryCategoryId = categoriasPrimarias[0].id;
+    }
+
+    const categoriasSecundarias = state.categoriasDeProduto.filter(c => c.parentId === activePrimaryCategoryId);
+    
+    if (categoriasSecundarias.length > 0 && !activeSecondaryCategoryId) {
+        activeSecondaryCategoryId = categoriasSecundarias[0].id;
+    }
+
+    const primaryFiltersHTML = categoriasPrimarias.map(cat => `
+        <button class="primary-filter-btn px-4 py-1 text-sm font-semibold rounded-lg border-2 whitespace-nowrap ${activePrimaryCategoryId === cat.id ? 'text-white' : ''}" 
+                style="${activePrimaryCategoryId === cat.id ? `background-color: ${cat.cor}; border-color: ${cat.cor};` : `border-color: ${cat.cor}; color: ${cat.cor};`}"
+                data-category-id="${cat.id}">
+            ${cat.nome}
+        </button>
+    `).join('');
+
+    const secondaryFiltersHTML = categoriasSecundarias.map(cat => `
+        <button class="secondary-filter-btn px-4 py-1 text-sm font-semibold rounded-lg border whitespace-nowrap ${activeSecondaryCategoryId === cat.id ? 'bg-gray-200 dark:bg-gray-700 border-gray-400' : 'border-gray-300 dark:border-gray-600'}"
+                data-category-id="${cat.id}">
+            ${cat.nome}
+        </button>
+    `).join('');
+    
+    return { primaryFiltersHTML, secondaryFiltersHTML };
+}
+
+function renderPrateleira() {
+    if (!viewNode || !activeSecondaryCategoryId) return;
+
+    const state = store.getState();
+    const categoriaSecundaria = state.categoriasDeProduto.find(c => c.id === activeSecondaryCategoryId);
+    if (!categoriaSecundaria) return;
+
+    const produtosDaCategoria = state.inventario.filter(p => p.tags && p.tags.includes(categoriaSecundaria.nome.toLowerCase()));
+    const prateleiraWrapper = viewNode.querySelector('#prateleira-swiper-wrapper');
+
+    if (!prateleiraWrapper) return;
+    
+    if (produtosDaCategoria.length === 0) {
+        prateleiraWrapper.innerHTML = `<div class="swiper-slide flex items-center justify-center text-texto-secundario">Nenhum produto nesta categoria.</div>`;
+    } else {
+        prateleiraWrapper.innerHTML = produtosDaCategoria.map(p => `
+            <div class="swiper-slide">
+                <button class="prateleira-btn w-full h-full flex flex-col items-center justify-around rounded-lg p-2 text-center bg-fundo-principal border border-borda" data-product-id="${p.id}">
+                    <span class="font-bold text-sm leading-tight">${p.nome}</span>
+                    <div class="flex gap-2 items-center">
+                        <div class="stock-badge bg-green-500 text-white" title="Stock na Loja"><span>${p.stockLoja}</span></div>
+                        <div class="stock-badge bg-blue-500 text-white" title="Stock no Armazém"><span>${p.stockArmazem}</span></div>
+                    </div>
+                </button>
+            </div>
+        `).join('');
+    }
+    if (prateleiraSwiper) {
+        prateleiraSwiper.update();
+        prateleiraSwiper.slideTo(0);
+    }
+}
+
+function renderOrderList(conta) {
+    if (!conta || conta.pedidos.length === 0) {
+        return `<p class="text-center text-texto-secundario p-4">Nenhum pedido nesta conta.</p>`;
+    }
+
+    const state = store.getState();
+    const pedidosAgrupados = {};
+
+    conta.pedidos.forEach(item => {
+        const produto = state.inventario.find(p => p.id === item.produtoId);
+        if (!produto || !produto.tags || produto.tags.length === 0) return;
+
+        const tagSecundariaNome = produto.tags[0].toLowerCase();
+        const categoriaSecundaria = state.categoriasDeProduto.find(c => c.nome.toLowerCase() === tagSecundariaNome);
+        const categoriaPrimaria = categoriaSecundaria ? state.categoriasDeProduto.find(c => c.id === categoriaSecundaria.parentId) : null;
+        
+        const grupoId = categoriaPrimaria ? categoriaPrimaria.id : 'sem-categoria';
+
+        if (!pedidosAgrupados[grupoId]) {
+            pedidosAgrupados[grupoId] = { nome: categoriaPrimaria ? categoriaPrimaria.nome : 'Outros', cor: categoriaPrimaria ? categoriaPrimaria.cor : '#808080', items: [] };
+        }
+        pedidosAgrupados[grupoId].items.push(item);
+    });
+
+    return Object.values(pedidosAgrupados).map(grupo => {
+        const itemsHTML = grupo.items.map(item => `
+            <div class="p-3 rounded-lg flex justify-between items-center" style="background-color: ${grupo.cor}33;">
+                <div>
+                    <span class="font-bold">${item.qtd}x ${item.nome}</span>
+                    <p class="text-sm font-semibold">${(item.preco * item.qtd).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</p>
+                </div>
+                <button class="btn-item-actions text-xl p-2 -mr-2" data-pedido-id="${item.id}"><i class="lni lni-more-alt"></i></button>
+            </div>
+        `).join('');
+
+        return `
+            <div class="space-y-2">
+                <h3 class="font-bold text-texto-secundario">${grupo.nome}</h3>
+                ${itemsHTML}
+            </div>
+        `;
+    }).join('<hr class="my-3 border-borda">');
+}
+
+function render(contaId) {
+    const state = store.getState();
+    const conta = state.contasAtivas.find(c => c.id === contaId);
+    const cliente = conta ? state.clientes.find(c => c.id === conta.clienteId) : null;
+    if (!conta || !cliente) return `<p class="p-4 text-center">Conta ou cliente não encontrado.</p>`;
+
+    const { primaryFiltersHTML, secondaryFiltersHTML } = renderCategoryFilters();
+    const totalAPagar = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0);
+
     return `
         <style>
-            .section-header { cursor: pointer; }
-            .collapsible-body { height: 0; overflow: hidden; }
-            .tagify{ --tags-border-color: transparent; padding: 0; }
-            .tagify__input { text-align: center; }
-            .options-menu { display: none; }
-            .options-menu.visible { display: block; }
+            .category-filters::-webkit-scrollbar { display: none; }
+            .prateleira-btn { min-width: 100px; }
+            .stock-badge {
+                width: 28px; height: 28px; border-radius: 50%;
+                display: flex; align-items: center; justify-content: center;
+                font-size: 12px; font-weight: bold; font-family: monospace;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            }
+            .main-content {
+                /* Altura do rodapé: p-4(1rem*2) + h-20(5rem) + h-btn(3.25rem) + gap(0.5rem) ~= 11rem */
+                padding-bottom: 11rem; 
+            }
         </style>
-        <header class="p-4 flex items-center justify-between">
-            <button id="btn-voltar-clientes" class="p-2 -ml-2 text-2xl text-texto-secundario hover:text-primaria"><i class="lni lni-arrow-left"></i></button>
-            <div class="relative">
-                <button id="btn-options-cliente" class="p-2 text-2xl text-texto-secundario hover:text-primaria"><i class="lni lni-more-alt"></i></button>
-                <div id="options-menu-cliente" class="options-menu absolute right-0 mt-2 w-48 bg-fundo-principal rounded-md shadow-lg z-20">
-                    <button id="btn-edit-cliente" class="w-full text-left px-4 py-2 text-sm text-texto-principal hover:bg-gray-100 dark:hover:bg-gray-700">Editar Detalhes</button>
-                    <button id="btn-delete-cliente" class="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700">Apagar Cliente</button>
+
+        <header class="p-4 sticky top-0 bg-fundo-principal z-10 shadow-sm space-y-3">
+            <div class="flex items-center gap-2">
+                <button id="btn-voltar-atendimento" class="p-2 -ml-2 text-2xl text-texto-secundario"><i class="lni lni-arrow-left"></i></button>
+                <div id="primary-filters-container" class="category-filters flex gap-2 overflow-x-auto">
+                    ${primaryFiltersHTML}
                 </div>
             </div>
+            <div id="secondary-filters-container" class="category-filters flex gap-2 overflow-x-auto">
+                ${secondaryFiltersHTML}
+            </div>
         </header>
-        <main class="p-4 space-y-4 pb-24">
-            <section id="perfil-cliente" class="text-center space-y-3">
-                <div class="relative inline-block">
-                    <img id="cliente-foto" src="${cliente.fotoDataUrl || './icons/logo-small-192.png'}" alt="Foto de perfil" class="w-24 h-24 rounded-full object-cover mx-auto bg-fundo-secundario border-4 border-fundo-secundario shadow-md cursor-pointer">
-                    <input type="file" id="input-foto-cliente" class="hidden" accept="image/*">
-                    <div class="absolute bottom-0 right-0 bg-blue-500 rounded-full p-1 cursor-pointer"><i class="lni lni-pencil text-white text-xs"></i></div>
-                </div>
-                <h2 id="cliente-nome" class="text-2xl font-bold">${cliente.nome}</h2>
-                <input id="cliente-tags-input" class="w-full text-center bg-transparent" value="${(cliente.tags || []).join(',')}">
-            </section>
-            
-            <section id="stats-carousel" class="swiper bg-fundo-secundario rounded-lg shadow-md p-4">
-                <div class="swiper-wrapper">
-                    <div class="swiper-slide text-center"><span id="stat-gasto-total" class="text-3xl font-bold block text-green-500"></span><span class="text-xs text-texto-secundario">Gasto Total</span></div>
-                    <div class="swiper-slide text-center"><span id="stat-divida-total" class="text-3xl font-bold block text-red-500"></span><span class="text-xs text-texto-secundario">Dívida Atual</span></div>
-                    <div class="swiper-slide text-center"><span id="stat-visitas" class="text-3xl font-bold block"></span><span class="text-xs text-texto-secundario">Nº de Visitas</span></div>
-                    <div class="swiper-slide text-center space-y-1">
-                        <div id="stat-top-produtos"></div>
-                        <span class="text-xs text-texto-secundario">Top Produtos</span>
-                    </div>
-                </div>
-                <div class="swiper-pagination !-bottom-1"></div>
-            </section>
 
-            <section id="collapsible-compras">
-                <div class="section-header flex justify-between items-center py-2">
-                    <h3 class="font-bold">Histórico de Compras</h3>
-                    <i id="chevron-compras" class="lni lni-chevron-down transform -rotate-90"></i>
-                </div>
-                <div class="collapsible-body"><div class="collapsible-body-content bg-fundo-secundario rounded-lg shadow-md p-4 space-y-2">
-                    <div class="flex justify-between items-center mb-2">
-                        <button id="btn-mes-anterior-compras" class="p-1"><i class="lni lni-chevron-left"></i></button>
-                        <h4 id="calendario-compras-titulo" class="font-bold"></h4>
-                        <button id="btn-mes-seguinte-compras" class="p-1"><i class="lni lni-chevron-right"></i></button>
+        <main class="main-content p-4 space-y-4">
+            <div class="bg-fundo-secundario p-4 rounded-lg shadow-md">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <img src="${cliente.fotoDataUrl || './icons/logo-small-192.png'}" alt="Foto de ${cliente.nome}" class="w-10 h-10 rounded-full object-cover bg-fundo-principal">
+                        <span class="font-bold text-lg">${cliente.nome}</span>
+                        <button class="btn-client-actions text-texto-secundario p-1 -ml-1"><i class="lni lni-chevron-down"></i></button>
                     </div>
-                    <div id="calendario-compras-grid" class="grid grid-cols-7 gap-1 mb-4"></div>
-                    <div id="lista-compras-container" class="space-y-2"></div>
-                </div></div>
-            </section>
-
-            <section id="collapsible-dividas">
-                <div class="section-header flex justify-between items-center py-2">
-                    <h3 class="font-bold">Histórico de Dívidas</h3>
-                    <i id="chevron-dividas" class="lni lni-chevron-down transform -rotate-90"></i>
-                </div>
-                <div class="collapsible-body"><div class="collapsible-body-content bg-fundo-secundario rounded-lg shadow-md p-4 space-y-2">
-                    <div class="flex justify-between items-center mb-2">
-                        <button id="btn-mes-anterior-dividas" class="p-1"><i class="lni lni-chevron-left"></i></button>
-                        <h4 id="calendario-dividas-titulo" class="font-bold"></h4>
-                        <button id="btn-mes-seguinte-dividas" class="p-1"><i class="lni lni-chevron-right"></i></button>
+                    <div class="text-right">
+                         <span class="text-xs">Total a pagar</span>
+                         <span class="font-extrabold text-2xl block text-green-500">${totalAPagar.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</span>
                     </div>
-                    <div id="calendario-dividas-grid" class="grid grid-cols-7 gap-1 mb-4"></div>
-                    <div id="lista-dividas-container" class="space-y-2"></div>
-                </div></div>
-            </section>
+                </div>
+                <hr class="my-4 border-borda">
+                <div id="order-list-container" class="space-y-4">
+                    ${renderOrderList(conta)}
+                </div>
+            </div>
         </main>
-        <div class="fixed bottom-16 right-4 flex flex-col items-center gap-2 z-50">
-            <button id="btn-liquidar-divida" class="w-12 h-12 bg-green-500 text-white rounded-full shadow-lg flex items-center justify-center text-xl" title="Liquidar Dívida"><i class="lni lni-checkmark"></i></button>
-            <button id="btn-add-divida" class="w-14 h-14 bg-green-500 text-white rounded-full shadow-lg flex items-center justify-center text-2xl" title="Adicionar Dívida"><i class="lni lni-plus"></i></button>
-        </div>
+
+        <footer class="fixed bottom-0 left-0 w-full bg-fundo-secundario shadow-lg p-4 space-y-2 border-t border-borda z-20">
+            <div id="prateleira-swiper" class="swiper h-20">
+                <div id="prateleira-swiper-wrapper" class="swiper-wrapper"></div>
+            </div>
+            <div class="flex gap-2">
+                <button id="btn-pagar" class="flex-grow bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg">Pagar</button>
+                <button id="btn-pagar-actions" class="w-12 bg-blue-800 text-white font-bold py-3 rounded-lg shadow-lg"><i class="lni lni-chevron-down"></i></button>
+            </div>
+        </footer>
     `;
 }
 
-function mount(clienteId) {
+function mount(contaId) {
     viewNode = document.getElementById('app-root');
-    clienteAtivoId = clienteId;
-    dataCalendarioDividas = new Date();
-    dataSelecionadaDividas = null;
-    dataCalendarioCompras = new Date();
-    dataSelecionadaCompras = null;
+    contaAtivaId = contaId;
+    activePrimaryCategoryId = null;
+    activeSecondaryCategoryId = null;
 
-    const state = store.getState();
-    const cliente = state.clientes.find(c => c.id === clienteAtivoId);
-    if (!cliente) { Router.navigateTo('#clientes'); return; }
-
-    const optionsMenu = viewNode.querySelector('#options-menu-cliente');
-
-    const handleViewClick = (e) => {
-        const optionsBtn = e.target.closest('#btn-options-cliente');
-        if (optionsBtn) { optionsMenu.classList.toggle('visible'); return; }
-        if (!e.target.closest('#options-menu-cliente')) { optionsMenu.classList.remove('visible'); }
-
-        if (e.target.closest('#btn-edit-cliente')) {
-            abrirModalEditCliente(cliente);
-            optionsMenu.classList.remove('visible');
-            return;
-        }
-        if (e.target.closest('#btn-delete-cliente')) {
-            optionsMenu.classList.remove('visible');
-            abrirModalConfirmacao(`Apagar ${cliente.nome}?`, "Esta ação não pode ser desfeita.", () => {
-                store.dispatch({ type: 'DELETE_CLIENT', payload: cliente.id });
-                Toast.mostrarNotificacao(`Cliente "${cliente.nome}" apagado.`);
-                Router.navigateTo('#clientes');
-            });
-            return;
-        }
-
-        if (e.target.closest('#btn-voltar-clientes')) Router.navigateTo('#clientes');
-        if (e.target.closest('#cliente-foto, #perfil-cliente .lni-pencil')) viewNode.querySelector('#input-foto-cliente').click();
-        if (e.target.closest('#collapsible-compras .section-header')) toggleSection('collapsible-compras .collapsible-body-content', 'chevron-compras');
-        if (e.target.closest('#collapsible-dividas .section-header')) toggleSection('collapsible-dividas .collapsible-body-content', 'chevron-dividas');
+    const updateView = () => {
+        const state = store.getState();
+        const conta = state.contasAtivas.find(c => c.id === contaAtivaId);
+        if(!conta) { Router.navigateTo('#atendimento'); return; }
         
-        if (e.target.closest('#btn-mes-anterior-dividas')) { dataCalendarioDividas.setMonth(dataCalendarioDividas.getMonth() - 1); updateDOM(); }
-        if (e.target.closest('#btn-mes-seguinte-dividas')) { dataCalendarioDividas.setMonth(dataCalendarioDividas.getMonth() + 1); updateDOM(); }
-        const diaDividaBtn = e.target.closest('#calendario-dividas-grid [data-dia]');
-        if (diaDividaBtn) {
-            const dia = parseInt(diaDividaBtn.dataset.dia, 10);
-            const dataClicada = new Date(dataCalendarioDividas.getFullYear(), dataCalendarioDividas.getMonth(), dia);
-            dataSelecionadaDividas = (dataSelecionadaDividas && dataClicada.toDateString() === dataSelecionadaDividas.toDateString()) ? null : dataClicada;
-            updateDOM();
-        }
+        const currentPrimary = activePrimaryCategoryId;
+        const currentSecondary = activeSecondaryCategoryId;
 
-        if (e.target.closest('#btn-add-divida')) abrirModalAddDivida(cliente);
-        if (e.target.closest('#btn-liquidar-divida')) abrirModalLiquidarDivida(cliente);
+        viewNode.innerHTML = render(contaId);
+        
+        activePrimaryCategoryId = currentPrimary;
+        activeSecondaryCategoryId = currentSecondary;
+        
+        renderPrateleira();
+        
+        if(prateleiraSwiper) prateleiraSwiper.destroy(true, true);
+        prateleiraSwiper = new Swiper('#prateleira-swiper', {
+            slidesPerView: 'auto',
+            spaceBetween: 8,
+        });
     };
-
-    viewNode.addEventListener('click', handleViewClick);
-    viewNode.querySelector('#input-foto-cliente').addEventListener('change', (e) => handleFotoChange(e, cliente));
-
-    const tagsInput = viewNode.querySelector('#cliente-tags-input');
-    tagifyInstance = new Tagify(tagsInput, {
-        whitelist: (state.tagsDeCliente || []).map(t => t.nome),
-        dropdown: { enabled: 0 }
-    });
-    const onTagChange = () => {
-        const novasTags = tagifyInstance.value.map(t => t.value);
-        if(JSON.stringify(novasTags) !== JSON.stringify(cliente.tags || [])) {
-            const clienteAtualizado = { ...cliente, tags: novasTags };
-            store.dispatch({ type: 'UPDATE_CLIENT', payload: clienteAtualizado });
-        }
-    };
-    tagifyInstance.on('add', onTagChange).on('remove', onTagChange).on('blur', onTagChange);
-
-    updateDOM();
-    unsubscribe = store.subscribe(updateDOM);
-
-    swiper = new Swiper('#stats-carousel', {
-        pagination: { el: '.swiper-pagination', clickable: true },
-        autoplay: { delay: 5000, disableOnInteraction: false }
-    });
     
+    const handleViewClick = (e) => {
+        const state = store.getState();
+        const conta = state.contasAtivas.find(c => c.id === contaAtivaId);
+        const cliente = conta ? state.clientes.find(c => c.id === conta.clienteId) : null;
+        if (!conta || !cliente) return;
+
+        if (e.target.closest('#btn-voltar-atendimento')) { Router.navigateTo('#atendimento'); return; }
+        
+        const primaryFilterBtn = e.target.closest('.primary-filter-btn');
+        if (primaryFilterBtn) {
+            activePrimaryCategoryId = primaryFilterBtn.dataset.categoryId;
+            activeSecondaryCategoryId = null;
+            updateView();
+            return;
+        }
+
+        const secondaryFilterBtn = e.target.closest('.secondary-filter-btn');
+        if (secondaryFilterBtn) {
+            activeSecondaryCategoryId = secondaryFilterBtn.dataset.categoryId;
+            viewNode.querySelectorAll('.secondary-filter-btn').forEach(btn => {
+                const isActive = btn.dataset.categoryId === activeSecondaryCategoryId;
+                btn.classList.toggle('bg-gray-200', isActive);
+                btn.classList.toggle('dark:bg-gray-700', isActive);
+                btn.classList.toggle('border-gray-400', isActive);
+            });
+            renderPrateleira();
+            return;
+        }
+
+        const prateleiraBtn = e.target.closest('.prateleira-btn');
+        if (prateleiraBtn) {
+            const produtoId = prateleiraBtn.dataset.productId;
+            const produto = state.inventario.find(p => p.id === produtoId);
+            if (produto) {
+                abrirModalSeletorQuantidade(produto.nome, 0, (quantidade) => {
+                    store.dispatch({ type: 'ADD_ORDER_ITEM', payload: { contaId, produto, quantidade } });
+                    Toast.mostrarNotificacao(`${quantidade}x ${produto.nome} adicionado(s).`);
+                });
+            }
+            return;
+        }
+        
+        const itemActionsBtn = e.target.closest('.btn-item-actions');
+        if (itemActionsBtn) {
+            const pedidoId = itemActionsBtn.dataset.pedidoId;
+            const pedido = conta.pedidos.find(p => p.id === pedidoId);
+            if (pedido) {
+                abrirModalAcoesPedido(pedido,
+                    () => { // onEdit
+                        abrirModalSeletorQuantidade(pedido.nome, pedido.qtd, (novaQuantidade) => {
+                            store.dispatch({ type: 'UPDATE_ORDER_ITEM_QTD', payload: { contaId, pedidoId, novaQuantidade } });
+                            Toast.mostrarNotificacao(`Quantidade de ${pedido.nome} atualizada.`);
+                        });
+                    },
+                    () => { // onRemove
+                        store.dispatch({ type: 'REMOVE_ORDER_ITEM', payload: { contaId, pedidoId } });
+                        Toast.mostrarNotificacao(`${pedido.nome} removido da conta.`);
+                    }
+                );
+            }
+            return;
+        }
+
+        if (e.target.closest('.btn-client-actions')) {
+            const botoesCliente = [
+                { acao: 'ver_perfil', texto: 'Ver Perfil do Cliente', icone: 'lni-user', callback: () => Router.navigateTo(`#cliente-detalhes/${cliente.id}`) },
+                { acao: 'trocar_titular', texto: 'Trocar Titular da Conta', icone: 'lni-users', callback: () => {
+                    abrirModalTrocarCliente(conta, (novoTitular) => {
+                        store.dispatch({ type: 'CHANGE_ACCOUNT_CLIENT', payload: { contaId: conta.id, novoClienteId: novoTitular.clienteId, novoClienteNome: novoTitular.clienteNome } });
+                        Toast.mostrarNotificacao(`Conta transferida para ${novoTitular.clienteNome}.`);
+                    });
+                }}
+            ];
+            abrirModalAcoesFlutuantes('Ações do Cliente', botoesCliente);
+            return;
+        }
+
+        if (e.target.closest('#btn-pagar')) {
+            if(conta.pedidos.length > 0) abrirModalPagamento(conta);
+            else Toast.mostrarNotificacao("Adicione pedidos à conta antes de pagar.", "erro");
+            return;
+        }
+        
+        if (e.target.closest('#btn-pagar-actions')) {
+            const totalAPagar = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0);
+            if (totalAPagar <= 0) {
+                return Toast.mostrarNotificacao("Adicione pedidos à conta antes de escolher uma ação de pagamento.", "erro");
+            }
+            const botoesPagamento = [
+                { acao: 'add_divida', texto: 'Adicionar Total à Dívida', icone: 'lni-book', cor: '#EF4444', callback: () => {
+                    // Aqui seria ideal abrir uma confirmação antes de adicionar
+                    store.dispatch({ type: 'ADD_DEBT', payload: { clienteId: cliente.id, valor: totalAPagar, descricao: `Consumo da conta #${conta.id.substring(0,4)}` } });
+                    // Idealmente, a conta seria fechada após isso.
+                    Toast.mostrarNotificacao(`Dívida de ${totalAPagar} Kz adicionada a ${cliente.nome}.`);
+                }},
+                { acao: 'pagar_tpa', texto: 'Pagar com TPA', icone: 'lni-credit-cards', cor: '#3B82F6', callback: () => abrirModalPagamento(conta, 'TPA') },
+                { acao: 'pagar_numerario', texto: 'Pagar com Numerário', icone: 'lni-money-location', cor: '#10B981', callback: () => abrirModalPagamento(conta, 'Numerário') }
+            ];
+            abrirModalAcoesFlutuantes('Opções de Pagamento', botoesPagamento);
+            return;
+        }
+    };
+    
+    viewNode.addEventListener('click', handleViewClick);
+    
+    updateView();
+    unsubscribe = store.subscribe(() => {
+        const conta = store.getState().contasAtivas.find(c => c.id === contaAtivaId);
+        if(!conta) {
+            if(unsubscribe) unsubscribe();
+            Router.navigateTo('#atendimento');
+            return;
+        }
+        viewNode.querySelector('#order-list-container').innerHTML = renderOrderList(conta);
+        const totalEl = viewNode.querySelector('.font-extrabold.text-2xl');
+        if (totalEl) {
+            totalEl.textContent = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
+        }
+    });
+
     const originalUnmount = unmount;
     unmount = () => {
-        viewNode.removeEventListener('click', handleViewClick);
-        if (tagifyInstance) tagifyInstance.destroy();
+        if(viewNode) viewNode.removeEventListener('click', handleViewClick);
         originalUnmount();
     };
 }
 
 function unmount() {
     if (unsubscribe) unsubscribe();
-    if (swiper) swiper.destroy(true, true);
-    swiper = null;
+    if (prateleiraSwiper) prateleiraSwiper.destroy(true, true);
     unsubscribe = null;
     viewNode = null;
-    clienteAtivoId = null;
-    tagifyInstance = null;
+    contaAtivaId = null;
+    prateleiraSwiper = null;
 }
 
 export default { render, mount, unmount };

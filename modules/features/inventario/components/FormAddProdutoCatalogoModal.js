@@ -1,10 +1,17 @@
-// /modules/features/inventario/components/FormAddProdutoCatalogoModal.js (SIMPLIFICADO)
+// /modules/features/inventario/components/FormAddProdutoCatalogoModal.js (CORRIGIDO E COMPLETO)
 'use strict';
 
 import store from '../../../shared/services/Store.js';
 import * as Toast from '../../../shared/components/Toast.js';
 
-export const render = (fornecedor) => `
+export const render = (fornecedor) => {
+    const state = store.getState();
+    const categoriasPrimariasOptions = state.categoriasDeProduto
+        .filter(cat => cat.isSystemDefault)
+        .map(cat => `<option value="${cat.id}">${cat.nome}</option>`)
+        .join('');
+
+    return `
 <div id="modal-add-prod-catalogo-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] p-4">
     <form id="form-add-prod-catalogo" class="bg-fundo-secundario rounded-lg shadow-xl w-full max-w-sm">
         <header class="flex justify-between items-center p-4 border-b border-borda">
@@ -19,9 +26,27 @@ export const render = (fornecedor) => `
                 <label for="input-catalogo-nome" class="block text-sm font-medium mb-1">Nome do Produto</label>
                 <input type="text" id="input-catalogo-nome" required class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="Ex: Cerveja Tigra (Garrafa)">
             </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                 <div>
+                    <label for="select-catalogo-categoria-pai" class="block text-sm font-medium mb-1">Categoria Principal</label>
+                    <select id="select-catalogo-categoria-pai" required class="w-full p-2 border border-borda rounded-md bg-fundo-input">
+                        <option value="" disabled selected>Selecione...</option>
+                        ${categoriasPrimariasOptions}
+                    </select>
+                </div>
+                <div>
+                    <label for="select-catalogo-subcategoria" class="block text-sm font-medium mb-1">Subcategoria</label>
+                    <select id="select-catalogo-subcategoria" required disabled class="w-full p-2 border border-borda rounded-md bg-fundo-input opacity-50">
+                        <option value="" disabled selected>Primeiro selecione a Categoria</option>
+                    </select>
+                </div>
+            </div>
+            
+            {/* CAMPO DE PREÇO ADICIONADO */}
             <div>
-                <label for="input-catalogo-tags" class="block text-sm font-medium mb-1">Rótulos (Tags)</label>
-                <input id="input-catalogo-tags" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="cerveja, álcool, ...">
+                <label for="input-catalogo-preco" class="block text-sm font-medium mb-1">Preço de Venda (Kz)</label>
+                <input type="number" id="input-catalogo-preco" required min="0" step="any" class="w-full p-2 border border-borda rounded-md bg-fundo-input" placeholder="Ex: 1500">
             </div>
         </div>
         <footer class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-b-lg">
@@ -29,22 +54,31 @@ export const render = (fornecedor) => `
         </footer>
     </form>
 </div>`;
+};
 
 export const mount = (closeModal, fornecedor) => {
     const form = document.getElementById('form-add-prod-catalogo');
     const nomeInput = form.querySelector('#input-catalogo-nome');
-    const tagsInput = form.querySelector('#input-catalogo-tags');
+    const precoInput = form.querySelector('#input-catalogo-preco'); // NOVO
+    const selectCategoriaPai = form.querySelector('#select-catalogo-categoria-pai');
+    const selectSubcategoria = form.querySelector('#select-catalogo-subcategoria');
     
     nomeInput.focus();
 
-    // Inicializa o Tagify no campo de rótulos
-    const state = store.getState();
-    const whitelist = state.categoriasDeProduto.map(cat => cat.nome);
-    const tagify = new Tagify(tagsInput, {
-        whitelist: whitelist,
-        dropdown: {
-            enabled: 0, 
-            closeOnSelect: false
+    function popularSubcategorias(categoriaPaiId) {
+        if (!selectSubcategoria) return;
+        const state = store.getState();
+        const subcategoriasFiltradas = state.categoriasDeProduto.filter(cat => cat.parentId === categoriaPaiId);
+        selectSubcategoria.innerHTML = '<option value="" disabled selected>Selecione...</option>';
+        selectSubcategoria.innerHTML += subcategoriasFiltradas.map(cat => `<option value="${cat.nome}">${cat.nome}</option>`).join('');
+        selectSubcategoria.disabled = false;
+        selectSubcategoria.classList.remove('opacity-50');
+    }
+
+    selectCategoriaPai.addEventListener('change', (event) => {
+        const selectedParentId = event.target.value;
+        if (selectedParentId) {
+            popularSubcategorias(selectedParentId);
         }
     });
 
@@ -52,16 +86,17 @@ export const mount = (closeModal, fornecedor) => {
         e.preventDefault();
         
         const nome = nomeInput.value.trim();
-        const tags = tagify.value.map(tag => tag.value.toLowerCase());
+        const subcategoriaNome = selectSubcategoria.value;
+        const precoVenda = parseFloat(precoInput.value); // NOVO
 
-        if (!nome) {
-            return Toast.mostrarNotificacao("O nome do produto é obrigatório.", "erro");
-        }
+        if (!nome) { return Toast.mostrarNotificacao("O nome do produto é obrigatório.", "erro"); }
+        if (!subcategoriaNome) { return Toast.mostrarNotificacao("A seleção da subcategoria é obrigatória.", "erro"); }
+        if (isNaN(precoVenda) || precoVenda < 0) { return Toast.mostrarNotificacao("O preço de venda é obrigatório e deve ser um valor positivo.", "erro"); }
 
         const produto = { 
             nome, 
-            tags, 
-            precoVenda: 0 // O preço de venda será definido no produto principal, não aqui.
+            tags: [subcategoriaNome.toLowerCase()],
+            precoVenda: precoVenda // NOVO
         };
         
         store.dispatch({ 

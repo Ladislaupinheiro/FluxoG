@@ -1,7 +1,7 @@
 /* /style.css - v2.2 (Refatorado com Estilo de Busca e Filtros de Tag) */
 
 :root {
-    --cor-primaria: #0d6efd;
+    --cor-primaria: #fd590d;
     --cor-fundo-principal: #f8f9fa;
     --cor-fundo-secundario: #ffffff;
     --cor-texto-principal: #212529;
@@ -16,9 +16,9 @@
 }
 
 html[data-theme='dark'] {
-    --cor-primaria: #3b82f6;
+    --cor-primaria: #04DA60;
     --cor-fundo-principal: #030407;
-    --cor-fundo-secundario: #1f2937;
+    --cor-fundo-secundario: #ffffff;
     --cor-texto-principal: #f9fafb;
     --cor-texto-secundario: #9ca3af;
     --cor-borda: #374151;
@@ -43,7 +43,7 @@ body {
 
 /* --- NOVO: Estilo Unificado para Barra de Busca --- */
 .search-bar {
-    border-radius: 20px !important; /* Detalhe sutil solicitado */
+    border-radius: 30px !important; /* Detalhe sutil solicitado */
 }
 
 /* --- NOVO: Estilo para a barra de filtros rolável --- */
