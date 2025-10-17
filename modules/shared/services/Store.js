@@ -1,4 +1,4 @@
-// /modules/shared/services/Store.js (CORRIGIDO E COMPLETO)
+// /modules/shared/services/Store.js (LÓGICA DE PAGAMENTO CORRIGIDA E COMPLETA)
 'use strict';
 import * as Storage from './Storage.js';
 import { gerarEstadoAposArquivo } from '../lib/utils.js';
@@ -54,7 +54,6 @@ function reducer(state = initialState, action) {
             return { ...state, ...action.payload, config: mergedConfig };
         }
 
-        // --- LÓGICA DE COMPRA E STOCK (CORRIGIDA E EXPANDIDA) ---
         case 'ADD_COMPRA': {
             const novaCompra = { id: crypto.randomUUID(), data: new Date().toISOString(), ...action.payload };
             const historicoCompras = [...state.historicoCompras, novaCompra];
@@ -66,16 +65,14 @@ function reducer(state = initialState, action) {
             const produtoExistenteIndex = inventarioAtualizado.findIndex(p => p.catalogoId === novaCompra.produtoCatalogoId);
 
             if (produtoExistenteIndex > -1) {
-                // Cenário 1: O produto JÁ EXISTE no inventário. Apenas atualizamos o stock e o custo.
                 const produtoParaAtualizar = { ...inventarioAtualizado[produtoExistenteIndex] };
                 produtoParaAtualizar.stockArmazem += novaCompra.quantidade;
-                produtoParaAtualizar.custoUnitario = custoUnitario; // Atualiza o custo para o da última compra
+                produtoParaAtualizar.custoUnitario = custoUnitario;
                 
                 inventarioAtualizado[produtoExistenteIndex] = produtoParaAtualizar;
                 Storage.salvarItem('inventario', produtoParaAtualizar);
 
             } else {
-                // Cenário 2: O produto NÃO EXISTE. Criamos a entrada no inventário.
                 const fornecedor = state.fornecedores.find(f => f.id === novaCompra.fornecedorId);
                 const produtoCatalogo = fornecedor ? fornecedor.catalogo.find(p => p.id === novaCompra.produtoCatalogoId) : null;
 
@@ -88,7 +85,7 @@ function reducer(state = initialState, action) {
                         precoVenda: produtoCatalogo.precoVenda || 0,
                         fornecedorId: novaCompra.fornecedorId,
                         stockLoja: 0,
-                        stockArmazem: novaCompra.quantidade, // O stock inicial do armazém é a quantidade comprada
+                        stockArmazem: novaCompra.quantidade,
                         custoUnitario: custoUnitario,
                         stockMinimo: 0,
                         ultimaVenda: null
@@ -100,7 +97,6 @@ function reducer(state = initialState, action) {
             return { ...state, historicoCompras, inventario: inventarioAtualizado };
         }
 
-        // --- OUTRAS AÇÕES (inalteradas nesta refatoração) ---
         case 'ADD_CLIENT': {
             const novoClientePayload = action.payload;
             const novoCliente = { id: crypto.randomUUID(), dataRegisto: new Date().toISOString(), dividas: [], fotoDataUrl: null, ...novoClientePayload };
@@ -108,24 +104,28 @@ function reducer(state = initialState, action) {
             Storage.salvarItem('clientes', novoCliente);
             return { ...state, clientes: novosClientes };
         }
+
         case 'UPDATE_CLIENT': {
             const clienteAtualizado = action.payload;
             const clientes = state.clientes.map(c => c.id === clienteAtualizado.id ? clienteAtualizado : c);
             Storage.salvarItem('clientes', clienteAtualizado);
             return { ...state, clientes };
         }
+
         case 'DELETE_CLIENT': {
             const clienteId = action.payload;
             const clientes = state.clientes.filter(c => c.id !== clienteId);
             Storage.apagarItem('clientes', clienteId);
             return { ...state, clientes };
         }
+
         case 'ADD_CLIENT_TAG': {
             const novaTag = { id: crypto.randomUUID(), ...action.payload };
             const tagsDeCliente = [...state.tagsDeCliente, novaTag];
             Storage.salvarItem('tagsDeCliente', novaTag);
             return { ...state, tagsDeCliente };
         }
+
         case 'ADD_PRODUCT_CATEGORY': {
             const { nome, cor, parentId } = action.payload;
             const novaCategoria = { id: crypto.randomUUID(), nome, cor, parentId: parentId || null, isSystemDefault: false };
@@ -133,6 +133,7 @@ function reducer(state = initialState, action) {
             Storage.salvarItem('categoriasDeProduto', novaCategoria);
             return { ...state, categoriasDeProduto };
         }
+
         case 'DELETE_PRODUCT_CATEGORY': {
             const categoriaId = action.payload;
             const categoriaParaApagar = state.categoriasDeProduto.find(cat => cat.id === categoriaId);
@@ -143,6 +144,7 @@ function reducer(state = initialState, action) {
             categoriasADeletar.forEach(id => Storage.apagarItem('categoriasDeProduto', id));
             return { ...state, categoriasDeProduto };
         }
+
         case 'MOVE_STOCK': {
             const { produtoId, quantidade } = action.payload;
             const inventario = state.inventario.map(p => {
@@ -155,12 +157,14 @@ function reducer(state = initialState, action) {
             });
             return { ...state, inventario };
         }
+
         case 'ADD_FORNECEDOR': {
             const novoFornecedor = { id: crypto.randomUUID(), catalogo: [], ...action.payload };
             const fornecedores = [...state.fornecedores, novoFornecedor];
             Storage.salvarItem('fornecedores', novoFornecedor);
             return { ...state, fornecedores };
         }
+
         case 'ADD_PRODUCT_TO_CATALOG': {
             const { fornecedorId, produto } = action.payload;
             const fornecedoresAtualizados = state.fornecedores.map(f => {
@@ -175,6 +179,7 @@ function reducer(state = initialState, action) {
             });
             return { ...state, fornecedores: fornecedoresAtualizados };
         }
+
         case 'ADD_ACCOUNT': {
             const novaContaPayload = action.payload;
             const novaConta = { id: crypto.randomUUID(), pedidos: [], dataAbertura: new Date().toISOString(), status: 'ativa', ...novaContaPayload };
@@ -182,6 +187,7 @@ function reducer(state = initialState, action) {
             Storage.salvarItem('contas', novaConta);
             return { ...state, contasAtivas: novasContasAtivas };
         }
+
         case 'CHANGE_ACCOUNT_CLIENT': {
             const { contaId, novoClienteId, novoClienteNome } = action.payload;
             const contasAtivas = state.contasAtivas.map(conta => {
@@ -194,44 +200,149 @@ function reducer(state = initialState, action) {
             });
             return { ...state, contasAtivas };
         }
+
         case 'ADD_ORDER_ITEM': {
             const { contaId, produto, quantidade } = action.payload;
             const contasAtivas = state.contasAtivas.map(conta => {
                 if (conta.id === contaId) {
-                    const novoPedido = { id: crypto.randomUUID(), produtoId: produto.id, nome: produto.nome, preco: produto.precoVenda, custo: produto.custoUnitario || 0, qtd: quantidade };
-                    const contaAtualizada = { ...conta, pedidos: [...conta.pedidos, novoPedido] };
+                    const contaAtualizada = { ...conta, pedidos: [...conta.pedidos] };
+                    
+                    const pedidoExistenteIndex = contaAtualizada.pedidos.findIndex(p => p.produtoId === produto.id);
+
+                    if (pedidoExistenteIndex > -1) {
+                        const pedidoOriginal = contaAtualizada.pedidos[pedidoExistenteIndex];
+                        const pedidoAtualizado = { ...pedidoOriginal, qtd: pedidoOriginal.qtd + quantidade };
+                        contaAtualizada.pedidos[pedidoExistenteIndex] = pedidoAtualizado;
+                    } else {
+                        const novoPedido = { 
+                            id: crypto.randomUUID(), 
+                            produtoId: produto.id, 
+                            nome: produto.nome, 
+                            preco: produto.precoVenda, 
+                            custo: produto.custoUnitario || 0, 
+                            qtd: quantidade 
+                        };
+                        contaAtualizada.pedidos.push(novoPedido);
+                    }
+                    
                     Storage.salvarItem('contas', contaAtualizada);
                     return contaAtualizada;
                 }
                 return conta;
             });
+
             return { ...state, contasAtivas };
         }
+
         case 'REMOVE_ORDER_ITEM': {
             const { contaId, pedidoId } = action.payload;
-            const contasAtivas = state.contasAtivas.map(conta => {
-                if (conta.id === contaId) {
-                    const pedidosAtualizados = conta.pedidos.filter(p => p.id !== pedidoId);
-                    const contaAtualizada = { ...conta, pedidos: pedidosAtualizados };
+            // Primeiro, precisamos devolver o stock à loja
+            let inventario = [...state.inventario];
+            const conta = state.contasAtivas.find(c => c.id === contaId);
+            const pedido = conta ? conta.pedidos.find(p => p.id === pedidoId) : null;
+
+            if (pedido) {
+                inventario = inventario.map(p => {
+                    if (p.id === pedido.produtoId) {
+                        const produtoAtualizado = { ...p, stockLoja: p.stockLoja + pedido.qtd };
+                        Storage.salvarItem('inventario', produtoAtualizado);
+                        return produtoAtualizado;
+                    }
+                    return p;
+                });
+            }
+
+            const contasAtivas = state.contasAtivas.map(c => {
+                if (c.id === contaId) {
+                    const pedidosAtualizados = c.pedidos.filter(p => p.id !== pedidoId);
+                    const contaAtualizada = { ...c, pedidos: pedidosAtualizados };
                     Storage.salvarItem('contas', contaAtualizada);
                     return contaAtualizada;
                 }
-                return conta;
+                return c;
             });
-            return { ...state, contasAtivas };
+
+            return { ...state, contasAtivas, inventario };
         }
+
         case 'UPDATE_ORDER_ITEM_QTD': {
             const { contaId, pedidoId, novaQuantidade } = action.payload;
-            const contasAtivas = state.contasAtivas.map(conta => {
-                if (conta.id === contaId) {
-                    const pedidosAtualizados = conta.pedidos.map(p => p.id === pedidoId ? { ...p, qtd: novaQuantidade } : p);
-                    const contaAtualizada = { ...conta, pedidos: pedidosAtualizados };
+            let inventario = [...state.inventario];
+            const conta = state.contasAtivas.find(c => c.id === contaId);
+            const pedido = conta ? conta.pedidos.find(p => p.id === pedidoId) : null;
+
+            if (pedido) {
+                const diferenca = novaQuantidade - pedido.qtd; // Se > 0, vendeu mais. Se < 0, devolveu.
+                inventario = inventario.map(p => {
+                    if (p.id === pedido.produtoId) {
+                        const produtoAtualizado = { ...p, stockLoja: p.stockLoja - diferenca };
+                        Storage.salvarItem('inventario', produtoAtualizado);
+                        return produtoAtualizado;
+                    }
+                    return p;
+                });
+            }
+
+            const contasAtivas = state.contasAtivas.map(c => {
+                if (c.id === contaId) {
+                    const pedidosAtualizados = c.pedidos.map(p => p.id === pedidoId ? { ...p, qtd: novaQuantidade } : p);
+                    const contaAtualizada = { ...c, pedidos: pedidosAtualizados };
                     Storage.salvarItem('contas', contaAtualizada);
                     return contaAtualizada;
                 }
-                return conta;
+                return c;
             });
-            return { ...state, contasAtivas };
+            return { ...state, contasAtivas, inventario };
+        }
+
+        // ========================================================================
+        // === NOVA LÓGICA IMPLEMENTADA PARA FINALIZAR PAGAMENTO ===
+        // ========================================================================
+        case 'FINALIZE_PAYMENT': {
+            const { contaId, metodoPagamento } = action.payload;
+
+            let contaFinalizada = null;
+            const contasAtivas = state.contasAtivas.map(c => {
+                if (c.id === contaId && c.status === 'ativa') {
+                    const valorFinal = c.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0);
+                    contaFinalizada = {
+                        ...c,
+                        status: 'fechada',
+                        metodoPagamento: metodoPagamento,
+                        dataFecho: new Date().toISOString(),
+                        valorFinal: valorFinal
+                    };
+                    Storage.salvarItem('contas', contaFinalizada);
+                    return contaFinalizada;
+                }
+                return c;
+            });
+            
+            // Se nenhuma conta foi finalizada (já estava fechada ou não foi encontrada), retorna o estado sem alterações.
+            if (!contaFinalizada) {
+                return state;
+            }
+
+            // Abate do stock da loja
+            const vendasPorProduto = contaFinalizada.pedidos.reduce((acc, pedido) => {
+                acc[pedido.produtoId] = (acc[pedido.produtoId] || 0) + pedido.qtd;
+                return acc;
+            }, {});
+
+            const inventario = state.inventario.map(produto => {
+                if (vendasPorProduto[produto.id]) {
+                    const produtoAtualizado = {
+                        ...produto,
+                        stockLoja: produto.stockLoja - vendasPorProduto[produto.id],
+                        ultimaVenda: new Date().toISOString() // Atualiza a data da última venda
+                    };
+                    Storage.salvarItem('inventario', produtoAtualizado);
+                    return produtoAtualizado;
+                }
+                return produto;
+            });
+
+            return { ...state, contasAtivas, inventario };
         }
         
         default:

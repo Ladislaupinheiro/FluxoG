@@ -1,29 +1,29 @@
-/* /style.css - v2.2 (Refatorado com Estilo de Busca e Filtros de Tag) */
+/* /style.css - (v2.4 - REFINAMENTO FINAL DA CONTA DETALHES VIEW) */
 
 :root {
+    --cor-primaria: #04DA60; /* Verde do novo wireframe */
+    --cor-fundo-principal: #111827;
+    --cor-fundo-secundario: #1F2937;
+    --cor-texto-principal: #f9fafb;
+    --cor-texto-secundario: #9ca3af;
+    --cor-borda: #374151;
+    --sombra-padrao: 0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.2);
+    
+    --cor-fundo-input: #374151;
+
+    --altura-nav: 60px;
+    --fab-bottom-margin: 20px;
+}
+
+/* O tema claro é mantido para consistência, mas o dark é o foco do novo design */
+html[data-theme='light'] {
     --cor-primaria: #fd590d;
     --cor-fundo-principal: #f8f9fa;
     --cor-fundo-secundario: #ffffff;
     --cor-texto-principal: #212529;
     --cor-texto-secundario: #6c757d;
     --cor-borda: #dee2e6;
-    --sombra-padrao: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    
     --cor-fundo-input: #ffffff;
-
-    --altura-nav: 60px;
-    --fab-bottom-margin: 20px;
-}
-
-html[data-theme='dark'] {
-    --cor-primaria: #04DA60;
-    --cor-fundo-principal: #030407;
-    --cor-fundo-secundario: #ffffff;
-    --cor-texto-principal: #f9fafb;
-    --cor-texto-secundario: #9ca3af;
-    --cor-borda: #374151;
-    --cor-fundo-input: #374151;
-    --sombra-padrao: 0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.2);
 }
 
 * {
@@ -38,76 +38,139 @@ body {
     background-color: var(--cor-fundo-principal);
     color: var(--cor-texto-principal);
     line-height: 1.6;
-    padding-bottom: var(--altura-nav); 
 }
 
-/* --- NOVO: Estilo Unificado para Barra de Busca --- */
-.search-bar {
-    border-radius: 30px !important; /* Detalhe sutil solicitado */
-}
-
-/* --- NOVO: Estilo para a barra de filtros rolável --- */
-.filter-bar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
-}
-.filter-bar::-webkit-scrollbar {
-    display: none; /* Safari and Chrome */
-}
-
-
+/* --- Estilos Globais Inalterados --- */
+.search-bar { border-radius: 30px !important; }
+.filter-bar { -ms-overflow-style: none; scrollbar-width: none; }
+.filter-bar::-webkit-scrollbar { display: none; }
 .fab {
-    position: fixed;
-    bottom: calc(var(--altura-nav) + var(--fab-bottom-margin));
-    left: 50%;
-    transform: translateX(-50%);
-    width: 56px;
-    height: 56px;
-    background-color: var(--cor-primaria);
-    color: var(--cor-fundo-secundario);
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 24px;
-    border: none;
+    position: fixed; bottom: calc(var(--altura-nav) + var(--fab-bottom-margin)); left: 50%;
+    transform: translateX(-50%); width: 56px; height: 56px;
+    background-color: var(--cor-primaria); color: white; border-radius: 50%;
+    display: flex; justify-content: center; align-items: center; font-size: 24px;
+    border: none; box-shadow: var(--sombra-padrao); cursor: pointer; z-index: 80;
+}
+.nav-btn.active { color: var(--cor-primaria); border-top: 3px solid var(--cor-primaria); }
+#app-root.app-desfocada {
+    filter: blur(4px); transform: scale(0.98); pointer-events: none;
+    user-select: none; transition: all 0.2s ease-out;
+}
+
+/* ======================================================================== */
+/* === NOVOS ESTILOS E CORREÇÕES PARA CONTA DETALHES VIEW (vWireframe) === */
+/* ======================================================================== */
+
+/* CORREÇÃO 1: Filtros Primários (Segmented Control) */
+.segmented-control-container {
+    display: flex; background-color: var(--cor-fundo-secundario);
+    border-radius: 12px; padding: 4px; border: 1px solid var(--cor-borda);
+    flex-shrink: 0;
+}
+.segmented-control-btn {
+    padding: 4px 14px; /* Mais compacto */
+    border: none; background-color: transparent; border-radius: 8px;
+    font-weight: 600; color: var(--cor-texto-secundario);
+    transition: all 0.2s ease-in-out; white-space: nowrap;
+}
+.segmented-control-btn.active {
+    background-color: var(--cor-primaria); color: var(--cor-fundo-principal); /* Melhor contraste */
     box-shadow: var(--sombra-padrao);
+}
+
+/* --- Filtros Secundários (Pills) --- */
+.secondary-filter-btn {
+    padding: 6px 16px; border-radius: 20px; font-weight: 600;
+    background-color: var(--cor-fundo-secundario);
+    color: var(--cor-texto-secundario); border: 1px solid var(--cor-borda);
+    white-space: nowrap;
+}
+.secondary-filter-btn.active {
+    background-color: var(--cor-texto-principal);
+    color: var(--cor-fundo-principal); border-color: var(--cor-texto-principal);
+}
+
+/* --- Cartões de Pedido e Contraste --- */
+.order-card {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px; border-radius: 16px;
+    box-shadow: var(--sombra-padrao);
+}
+.order-card.text-gray-800 .price-badge {
+    background-color: rgba(0, 0, 0, 0.1); color: #374151;
+}
+.price-badge {
+    background-color: rgba(0, 0, 0, 0.2); padding: 2px 8px; border-radius: 12px;
+    font-size: 11px; font-weight: 600; margin-left: 8px; flex-shrink: 0;
+}
+
+/* CORREÇÃO 5: Estilização do Accordion para a Lista de Pedidos */
+.accordion-item summary {
+    list-style: none; /* Remove o marcador padrão */
     cursor: pointer;
-    z-index: 80;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+}
+.accordion-item summary::-webkit-details-marker { display: none; } /* Remove marcador no Chrome/Safari */
+.accordion-header {
+    flex-grow: 1;
+}
+.accordion-icon {
     transition: transform 0.2s ease-in-out;
 }
-
-.nav-btn.active {
-    color: var(--cor-primaria);
-    border-top: 3px solid var(--cor-primaria);
+.accordion-item[open] > summary .accordion-icon {
+    transform: rotate(180deg);
+}
+.accordion-content {
+    padding-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-#modal-pagamento-overlay .pagamento-metodo-btn.border-blue-500 {
-    border-color: var(--cor-primaria);
-}
 
-.theme-switch input { display: none; }
-.slider {
-    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-    background-color: #ccc; transition: .4s; border-radius: 26px;
+/* CORREÇÃO 3: Prateleira de Produtos (Swiper) mais compacta e eficiente */
+#prateleira-container {
+    border-radius: 20px; padding: 8px; /* Mais compacto */
+    background-color: var(--cor-fundo-principal);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
 }
-.slider:before {
-    position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px;
-    background-color: white; transition: .4s; border-radius: 50%;
+#prateleira-swiper .swiper-slide {
+    width: auto;
 }
-input:checked + .slider { background-color: var(--cor-primaria); }
-input:checked + .slider:before { transform: translateX(24px); }
-
-div[id^="modal-"] input,
-div[id^="modal-"] select,
-div[id^="modal-"] textarea {
-    background-color: var(--cor-fundo-input);
+.prateleira-item-container {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: flex-end; position: relative;
+    /* Reduz a altura total do container do item */
+    height: 80px; 
 }
-
-#app-root.app-desfocada {
-    filter: blur(4px);
-    transform: scale(0.98);
-    pointer-events: none;
-    user-select: none;
-    transition: all 0.2s ease-out;
+.stock-badges-container {
+    display: flex; gap: 6px; position: absolute; top: 0; left: 50%;
+    transform: translateX(-50%); z-index: 1;
+}
+.stock-badge {
+    width: 24px; height: 24px; /* Mais compacto */
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: bold; color: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.prateleira-btn {
+    width: 80px; /* Largura fixa para 3 itens */
+    height: 50px; /* Altura fixa */
+    background-color: var(--cor-fundo-secundario);
+    border: 1px solid var(--cor-borda); border-radius: 12px;
+    padding: 4px; /* Padding ajustado */
+    font-weight: 600; font-size: 12px;
+    text-align: center; white-space: normal; line-height: 1.2;
+    display: flex; align-items: center; justify-content: center;
+}
+.selection-indicator {
+    width: 6px; height: 6px; border-radius: 50%;
+    background-color: var(--cor-primaria); margin-top: 4px;
+    opacity: 0; transition: opacity 0.2s;
+}
+.selection-indicator.visible {
+    opacity: 1;
 }

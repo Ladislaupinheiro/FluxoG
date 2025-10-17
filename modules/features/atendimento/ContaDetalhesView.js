@@ -1,4 +1,4 @@
-// /modules/features/atendimento/ContaDetalhesView.js (FINAL COM UX CORRIGIDA)
+// /modules/features/atendimento/ContaDetalhesView.js (VERSÃO FINAL, COMPLETA E CORRIGIDA)
 'use strict';
 
 import store from '../../shared/services/Store.js';
@@ -8,10 +8,18 @@ import {
     abrirModalSeletorQuantidade, 
     abrirModalAcoesPedido,
     abrirModalAcoesFlutuantes,
-    abrirModalTrocarCliente,
-    abrirModalAddDivida
+    abrirModalTrocarCliente
 } from '../../shared/components/Modals.js';
 import * as Toast from '../../shared/components/Toast.js';
+
+function isColorLight(color) {
+    const hex = color.replace('#', '');
+    const c_r = parseInt(hex.substring(0, 2), 16);
+    const c_g = parseInt(hex.substring(2, 4), 16);
+    const c_b = parseInt(hex.substring(4, 6), 16);
+    const brightness = ((c_r * 299) + (c_g * 587) + (c_b * 114)) / 1000;
+    return brightness > 155;
+}
 
 let unsubscribe = null;
 let viewNode = null;
@@ -20,6 +28,7 @@ let prateleiraSwiper = null;
 
 let activePrimaryCategoryId = null;
 let activeSecondaryCategoryId = null;
+let selectedProductIdInSwiper = null;
 
 function renderCategoryFilters() {
     const state = store.getState();
@@ -33,18 +42,23 @@ function renderCategoryFilters() {
     
     if (categoriasSecundarias.length > 0 && !activeSecondaryCategoryId) {
         activeSecondaryCategoryId = categoriasSecundarias[0].id;
+    } else if (categoriasSecundarias.length === 0) {
+        activeSecondaryCategoryId = null;
     }
 
-    const primaryFiltersHTML = categoriasPrimarias.map(cat => `
-        <button class="primary-filter-btn px-4 py-1 text-sm font-semibold rounded-lg border-2 whitespace-nowrap ${activePrimaryCategoryId === cat.id ? 'text-white' : ''}" 
-                style="${activePrimaryCategoryId === cat.id ? `background-color: ${cat.cor}; border-color: ${cat.cor};` : `border-color: ${cat.cor}; color: ${cat.cor};`}"
-                data-category-id="${cat.id}">
-            ${cat.nome}
-        </button>
-    `).join('');
+    const primaryFiltersHTML = `
+        <div class="segmented-control-container">
+            ${categoriasPrimarias.map(cat => `
+                <button class="segmented-control-btn ${activePrimaryCategoryId === cat.id ? 'active' : ''}" 
+                        data-category-id="${cat.id}">
+                    ${cat.nome}
+                </button>
+            `).join('')}
+        </div>
+    `;
 
     const secondaryFiltersHTML = categoriasSecundarias.map(cat => `
-        <button class="secondary-filter-btn px-4 py-1 text-sm font-semibold rounded-lg border whitespace-nowrap ${activeSecondaryCategoryId === cat.id ? 'bg-gray-200 dark:bg-gray-700 border-gray-400' : 'border-gray-300 dark:border-gray-600'}"
+        <button class="secondary-filter-btn ${activeSecondaryCategoryId === cat.id ? 'active' : ''}"
                 data-category-id="${cat.id}">
             ${cat.nome}
         </button>
@@ -60,32 +74,29 @@ function renderPrateleira() {
     const categoriaSecundaria = state.categoriasDeProduto.find(c => c.id === activeSecondaryCategoryId);
     if (!categoriaSecundaria) return;
 
-    // LÓGICA CORRIGIDA: Usa um filtro direto em vez de analytics
-    const produtosDaCategoria = state.inventario.filter(p => p.tags && p.tags.includes(categoriaSecundaria.nome.toLowerCase()));
+    const produtosDaCategoria = state.inventario.filter(p => 
+        p.stockLoja > 0 && p.tags && p.tags.includes(categoriaSecundaria.nome.toLowerCase())
+    );
 
     const prateleiraWrapper = viewNode.querySelector('#prateleira-swiper-wrapper');
-
     if (!prateleiraWrapper) return;
     
     if (produtosDaCategoria.length === 0) {
-        prateleiraWrapper.innerHTML = `<div class="swiper-slide flex items-center justify-center text-texto-secundario">Nenhum produto nesta categoria.</div>`;
+        prateleiraWrapper.innerHTML = `<div class="swiper-slide flex items-center justify-center text-texto-secundario h-full">Nenhum produto disponível.</div>`;
     } else {
         prateleiraWrapper.innerHTML = produtosDaCategoria.map(p => `
-            <div class="swiper-slide">
-                <button class="prateleira-btn w-full h-full flex flex-col items-center justify-around rounded-lg p-2 text-center bg-fundo-principal border border-borda" data-product-id="${p.id}">
-                    <span class="font-bold text-sm leading-tight">${p.nome}</span>
-                    <div class="flex gap-2 items-center">
-                        <div class="stock-badge bg-green-500 text-white" title="Stock na Loja"><span>${p.stockLoja}</span></div>
-                        <div class="stock-badge bg-blue-500 text-white" title="Stock no Armazém"><span>${p.stockArmazem}</span></div>
-                    </div>
-                </button>
+            <div class="swiper-slide prateleira-item-container" data-product-id="${p.id}">
+                <div class="stock-badges-container">
+                    <div class="stock-badge bg-green-500" title="Stock na Loja"><span>${p.stockLoja}</span></div>
+                    <div class="stock-badge bg-blue-500" title="Stock no Armazém"><span>${p.stockArmazem}</span></div>
+                </div>
+                <button class="prateleira-btn">${p.nome}</button>
+                <div class="selection-indicator ${selectedProductIdInSwiper === p.id ? 'visible' : ''}"></div>
             </div>
         `).join('');
     }
-    if (prateleiraSwiper) {
-        prateleiraSwiper.update();
-        prateleiraSwiper.slideTo(0);
-    }
+
+    if (prateleiraSwiper) prateleiraSwiper.update();
 }
 
 function renderOrderList(conta) {
@@ -104,26 +115,36 @@ function renderOrderList(conta) {
         const categoriaPrimaria = categoriaSecundaria ? state.categoriasDeProduto.find(c => c.id === categoriaSecundaria.parentId) : null;
         const grupoId = categoriaPrimaria ? categoriaPrimaria.id : 'sem-categoria';
         if (!pedidosAgrupados[grupoId]) {
-            pedidosAgrupados[grupoId] = { nome: categoriaPrimaria ? categoriaPrimaria.nome : 'Outros', cor: categoriaPrimaria ? categoriaPrimaria.cor : '#808080', items: [] };
+            pedidosAgrupados[grupoId] = { nome: categoriaPrimaria ? categoriaPrimaria.nome : 'Outros', cor: categoriaPrimaria ? categoriaPrimaria.cor : '#6B7280', items: [] };
         }
         pedidosAgrupados[grupoId].items.push(item);
     });
 
     return Object.values(pedidosAgrupados).map(grupo => {
+        const textColorClass = isColorLight(grupo.cor) ? 'text-gray-800' : 'text-white';
         const itemsHTML = grupo.items.map(item => `
-            <div class="p-3 rounded-lg flex justify-between items-center" style="background-color: ${grupo.cor};">
-                <div class="text-white">
-                    <div class="flex items-center gap-2">
-                        <span class="font-bold">${item.qtd}x ${item.nome}</span>
-                        <span class="price-badge">${(item.preco).toLocaleString('pt-AO', { minimumFractionDigits: 0 })} Kz</span>
-                    </div>
+            <div class="order-card ${textColorClass}" style="background-color: ${grupo.cor};" data-pedido-id="${item.id}">
+                <div class="flex-grow">
+                    <span class="font-bold text-lg">${item.qtd}x ${item.nome}</span>
                     <p class="text-sm font-semibold opacity-90">${(item.preco * item.qtd).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</p>
                 </div>
-                <button class="btn-item-actions text-xl p-2 -mr-2 text-white"><i class="lni lni-more-alt"></i></button>
+                <span class="price-badge">${(item.preco).toLocaleString('pt-AO', { minimumFractionDigits: 0 })} Kz</span>
+                <button class="btn-item-actions text-xl p-2 -mr-2"><i class="lni lni-more-alt"></i></button>
             </div>
         `).join('');
-        return `<div class="space-y-2"><h3 class="font-bold text-texto-secundario">${grupo.nome}</h3>${itemsHTML}</div>`;
-    }).join('<hr class="my-3 border-borda">');
+
+        return `
+            <details class="accordion-item" open>
+                <summary class="accordion-header">
+                    <h3 class="font-bold text-texto-secundario text-lg">${grupo.nome}</h3>
+                    <i class="accordion-icon lni lni-chevron-down"></i>
+                </summary>
+                <div class="accordion-content">
+                    ${itemsHTML}
+                </div>
+            </details>
+        `;
+    }).join('');
 }
 
 function render(contaId) {
@@ -136,99 +157,75 @@ function render(contaId) {
     const totalAPagar = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0);
 
     return `
-        <style>
-            .category-filters::-webkit-scrollbar { display: none; }
-            .prateleira-btn { min-width: 100px; border-radius: 12px; }
-            .stock-badge { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; font-family: monospace; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
-            .price-badge { background-color: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 99px; font-size: 11px; font-weight: 600; }
-            #prateleira-swiper .swiper-pagination { bottom: -2px !important; }
-            #prateleira-swiper .swiper-pagination-bullet { background-color: var(--cor-borda); width: 6px; height: 6px; }
-            #prateleira-swiper .swiper-pagination-bullet-active { background-color: var(--cor-primaria); }
-            /* LAYOUT CORRIGIDO: O padding-bottom garante que o último item da lista role para cima do nav inferior */
-            .main-content { padding-bottom: 8rem; }
-        </style>
-
-        <header class="p-4 sticky top-0 bg-fundo-principal z-10 shadow-sm space-y-3">
-            <div class="flex items-center gap-2">
+        <header class="p-4 sticky top-0 bg-fundo-principal z-10 shadow-sm space-y-4">
+            <div class="flex items-center justify-between gap-2">
                 <button id="btn-voltar-atendimento" class="p-2 -ml-2 text-2xl text-texto-secundario"><i class="lni lni-arrow-left"></i></button>
-                <div id="primary-filters-container" class="category-filters flex gap-2 overflow-x-auto"> ${primaryFiltersHTML} </div>
+                ${primaryFiltersHTML}
             </div>
-            <div id="secondary-filters-container" class="category-filters flex gap-2 overflow-x-auto"> ${secondaryFiltersHTML} </div>
+            <div class="filter-bar flex gap-2 overflow-x-auto">
+                ${secondaryFiltersHTML}
+            </div>
         </header>
 
-        <main class="main-content p-4 space-y-4">
+        <main class="p-4 space-y-6 pb-40">
             <div class="bg-fundo-secundario p-4 rounded-lg shadow-md">
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center gap-2">
+                <div class="flex justify-between items-start">
+                    <div class="flex items-center gap-3">
                         <img src="${cliente.fotoDataUrl || './icons/logo-small-192.png'}" alt="Foto de ${cliente.nome}" class="w-10 h-10 rounded-full object-cover bg-fundo-principal">
-                        <span class="font-bold text-lg">${cliente.nome}</span>
+                        <span class="font-bold text-xl">${cliente.nome}</span>
                         <button class="btn-client-actions text-texto-secundario p-1 -ml-1"><i class="lni lni-chevron-down"></i></button>
                     </div>
                     <div class="text-right">
-                         <span class="text-xs">Total a pagar</span>
+                         <span class="text-xs font-semibold text-texto-secundario">Total a pagar</span>
                          <span class="font-extrabold text-2xl block text-green-500">${totalAPagar.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</span>
                     </div>
                 </div>
-                <hr class="my-4 border-borda">
-                <div id="order-list-container" class="space-y-4"> ${renderOrderList(conta)} </div>
+            </div>
+            <div id="order-list-container" class="space-y-4">
+                ${renderOrderList(conta)}
             </div>
         </main>
-        
-        {/* NOVO: BOTÕES DE AÇÃO FLUTUANTE (FAB) */}
-        <div class="fixed bottom-20 right-4 flex flex-col items-center gap-2 z-50">
-            <button id="btn-fab-pagar-actions" class="w-12 h-12 bg-blue-800 text-white rounded-full shadow-lg flex items-center justify-center text-xl" title="Mais Opções de Pagamento">
-                <i class="lni lni-chevron-up"></i>
-            </button>
-            <button id="btn-fab-pagar" class="w-16 h-16 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-2xl font-bold" title="Pagar">
-                Pagar
-            </button>
-        </div>
+
+        <footer class="fixed bottom-0 left-0 w-full bg-fundo-secundario shadow-lg p-4 space-y-3 border-t border-borda z-20">
+            <div id="prateleira-container" class="bg-fundo-principal">
+                <div id="prateleira-swiper" class="swiper h-20">
+                    <div id="prateleira-swiper-wrapper" class="swiper-wrapper"></div>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button id="btn-pagar" class="flex-grow bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg">Pagar</button>
+                <button id="btn-pagar-actions" class="w-12 bg-blue-800 text-white font-bold py-3 rounded-lg shadow-lg"><i class="lni lni-chevron-down"></i></button>
+            </div>
+        </footer>
     `;
 }
 
 export const mount = (contaId) => {
     viewNode = document.getElementById('app-root');
     contaAtivaId = contaId;
-    activePrimaryCategoryId = null;
-    activeSecondaryCategoryId = null;
+    
+    const bottomNav = document.getElementById('bottom-nav');
+    if (bottomNav) bottomNav.style.display = 'none';
 
     const updateView = () => { 
-const state = store.getState();
+        const state = store.getState();
         const conta = state.contasAtivas.find(c => c.id === contaAtivaId);
-        if(!conta) {
-            Router.navigateTo('#atendimento');
-            return;
-        }
+        if(!conta) { Router.navigateTo('#atendimento'); return; }
         
-        // Guarda o estado atual dos filtros antes da re-renderização
         const currentPrimary = activePrimaryCategoryId;
         const currentSecondary = activeSecondaryCategoryId;
-
-        // Re-renderiza a view inteira
         viewNode.innerHTML = render(contaId);
-        
-        // Restaura o estado dos filtros
         activePrimaryCategoryId = currentPrimary;
         activeSecondaryCategoryId = currentSecondary;
-        
-        // Popula a prateleira com base nos filtros restaurados
         renderPrateleira();
         
-        // Destrói a instância antiga do Swiper e cria uma nova
         if(prateleiraSwiper) prateleiraSwiper.destroy(true, true);
         prateleiraSwiper = new Swiper('#prateleira-swiper', {
             slidesPerView: 3,
             spaceBetween: 8,
-            pagination: {
-                el: '#prateleira-swiper .swiper-pagination',
-                clickable: true,
-            },
         });
-
-        
     };
     
-    // LÓGICA DE EVENTOS COMPLETA E RESTAURADA
     const handleViewClick = (e) => {
         const state = store.getState();
         const conta = state.contasAtivas.find(c => c.id === contaAtivaId);
@@ -237,11 +234,12 @@ const state = store.getState();
 
         if (e.target.closest('#btn-voltar-atendimento')) { Router.navigateTo('#atendimento'); return; }
         
-        const primaryFilterBtn = e.target.closest('.primary-filter-btn');
+        const primaryFilterBtn = e.target.closest('.segmented-control-btn');
         if (primaryFilterBtn) {
             activePrimaryCategoryId = primaryFilterBtn.dataset.categoryId;
             const subcategorias = state.categoriasDeProduto.filter(c => c.parentId === activePrimaryCategoryId);
             activeSecondaryCategoryId = subcategorias.length > 0 ? subcategorias[0].id : null;
+            selectedProductIdInSwiper = null;
             updateView();
             return;
         }
@@ -249,20 +247,22 @@ const state = store.getState();
         const secondaryFilterBtn = e.target.closest('.secondary-filter-btn');
         if (secondaryFilterBtn) {
             activeSecondaryCategoryId = secondaryFilterBtn.dataset.categoryId;
-            viewNode.querySelectorAll('.secondary-filter-btn').forEach(btn => {
-                const isActive = btn.dataset.categoryId === activeSecondaryCategoryId;
-                btn.classList.toggle('bg-gray-200', isActive);
-                btn.classList.toggle('dark:bg-gray-700', isActive);
-                btn.classList.toggle('border-gray-400', isActive);
-            });
+            selectedProductIdInSwiper = null;
+            viewNode.querySelectorAll('.secondary-filter-btn').forEach(btn => btn.classList.remove('active'));
+            secondaryFilterBtn.classList.add('active');
             renderPrateleira();
             return;
         }
 
-        const prateleiraBtn = e.target.closest('.prateleira-btn');
-        if (prateleiraBtn) {
-            const produtoId = prateleiraBtn.dataset.productId;
+        const prateleiraItem = e.target.closest('.prateleira-item-container');
+        if (prateleiraItem) {
+            const produtoId = prateleiraItem.dataset.productId;
             const produto = state.inventario.find(p => p.id === produtoId);
+
+            selectedProductIdInSwiper = produtoId;
+            viewNode.querySelectorAll('.selection-indicator').forEach(ind => ind.classList.remove('visible'));
+            prateleiraItem.querySelector('.selection-indicator').classList.add('visible');
+
             if (produto) {
                 abrirModalSeletorQuantidade(produto.nome, 0, (quantidade) => {
                     store.dispatch({ type: 'ADD_ORDER_ITEM', payload: { contaId, produto, quantidade } });
@@ -272,27 +272,27 @@ const state = store.getState();
             return;
         }
         
+        // --- LÓGICA RESTAURADA ---
         const itemActionsBtn = e.target.closest('.btn-item-actions');
         if (itemActionsBtn) {
-            const pedidoId = itemActionsBtn.dataset.pedidoId;
+            const pedidoId = itemActionsBtn.closest('.order-card').dataset.pedidoId;
             const pedido = conta.pedidos.find(p => p.id === pedidoId);
             if (pedido) {
                 abrirModalAcoesPedido(pedido,
-                    () => { // onEdit
+                    () => {
                         abrirModalSeletorQuantidade(pedido.nome, pedido.qtd, (novaQuantidade) => {
                             store.dispatch({ type: 'UPDATE_ORDER_ITEM_QTD', payload: { contaId, pedidoId, novaQuantidade } });
-                            Toast.mostrarNotificacao(`Quantidade de ${pedido.nome} atualizada.`);
                         });
                     },
-                    () => { // onRemove
+                    () => {
                         store.dispatch({ type: 'REMOVE_ORDER_ITEM', payload: { contaId, pedidoId } });
-                        Toast.mostrarNotificacao(`${pedido.nome} removido da conta.`);
                     }
                 );
             }
             return;
         }
 
+        // --- LÓGICA RESTAURADA ---
         if (e.target.closest('.btn-client-actions')) {
             const botoesCliente = [
                 { acao: 'ver_perfil', texto: 'Ver Perfil do Cliente', icone: 'lni-user', callback: () => Router.navigateTo(`#cliente-detalhes/${cliente.id}`) },
@@ -307,24 +307,29 @@ const state = store.getState();
             return;
         }
 
-        if (e.target.closest('#btn-fab-pagar')) {
+        // --- LÓGICA RESTAURADA ---
+        if (e.target.closest('#btn-pagar')) {
             if(conta.pedidos.length > 0) abrirModalPagamento(conta);
             else Toast.mostrarNotificacao("Adicione pedidos à conta antes de pagar.", "erro");
             return;
         }
         
-        if (e.target.closest('#btn-fab-pagar-actions')) {
+        if (e.target.closest('#btn-pagar-actions')) {
             const totalAPagar = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0);
             if (totalAPagar <= 0) {
-                return Toast.mostrarNotificacao("Adicione pedidos à conta antes de escolher uma ação de pagamento.", "erro");
+                return Toast.mostrarNotificacao("Adicione pedidos à conta antes de escolher uma ação.", "erro");
             }
             const botoesPagamento = [
-                { acao: 'add_divida', texto: 'Adicionar Total à Dívida', icone: 'lni-book', cor: '#EF4444', callback: () => {
-                    store.dispatch({ type: 'ADD_DEBT', payload: { clienteId: cliente.id, valor: totalAPagar, descricao: `Consumo da conta #${conta.nome}` } });
-                    Toast.mostrarNotificacao(`Dívida de ${totalAPagar.toLocaleString('pt-AO',{style:'currency', currency:'AOA'})} adicionada a ${cliente.nome}.`);
-                }},
-                { acao: 'pagar_tpa', texto: 'Pagar com TPA', icone: 'lni-credit-cards', cor: '#3B82F6', callback: () => abrirModalPagamento(conta, 'TPA') },
-                { acao: 'pagar_numerario', texto: 'Pagar com Numerário', icone: 'lni-money-location', cor: '#10B981', callback: () => abrirModalPagamento(conta, 'Numerário') }
+                { 
+                    acao: 'add_divida', 
+                    texto: 'Adicionar Total à Dívida', 
+                    icone: 'lni-book', 
+                    cor: '#EF4444', 
+                    callback: () => {
+                        store.dispatch({ type: 'ADD_DEBT', payload: { clienteId: cliente.id, valor: totalAPagar, descricao: `Consumo da conta #${conta.nome}` } });
+                        Toast.mostrarNotificacao(`Dívida de ${totalAPagar.toLocaleString('pt-AO',{style:'currency', currency:'AOA'})} adicionada a ${cliente.nome}.`);
+                    }
+                }
             ];
             abrirModalAcoesFlutuantes('Opções de Pagamento', botoesPagamento);
             return;
@@ -332,61 +337,41 @@ const state = store.getState();
     };
     
     viewNode.addEventListener('click', handleViewClick);
-    
-    viewNode.innerHTML = render(contaId);
-    renderPrateleira();
-    
-    prateleiraSwiper = new Swiper('#prateleira-swiper', {
-        slidesPerView: 3,
-        spaceBetween: 8,
-        pagination: { el: '#prateleira-swiper .swiper-pagination', clickable: true },
-    });
+    updateView();
 
-    unsubscribe = store.subscribe(() => { if (!viewNode) return;
-
+    unsubscribe = store.subscribe(() => { 
+        if (!viewNode) return;
         const conta = store.getState().contasAtivas.find(c => c.id === contaAtivaId);
         
-        // Se a conta foi fechada ou removida, limpa a subscrição e navega para fora
-        if(!conta) {
+        if(!conta || conta.status === 'fechada') {
+            Toast.mostrarNotificacao("Conta finalizada.", "sucesso");
             if(unsubscribe) unsubscribe(); 
             Router.navigateTo('#atendimento');
             return;
         }
         
-        // Atualização cirúrgica: re-renderiza apenas a lista de pedidos
         const orderListContainer = viewNode.querySelector('#order-list-container');
-        if(orderListContainer) {
-            orderListContainer.innerHTML = renderOrderList(conta);
-        }
+        if(orderListContainer) orderListContainer.innerHTML = renderOrderList(conta);
 
-        // Atualização cirúrgica: re-renderiza apenas o total a pagar
         const totalEl = viewNode.querySelector('.font-extrabold.text-2xl');
-        if (totalEl) {
-            totalEl.textContent = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
-        } });
-    const originalUnmount = unmount;
-    unmount = () => {
-        if(viewNode) viewNode.removeEventListener('click', handleViewClick);
-        originalUnmount();
-    };
-}
+        if (totalEl) totalEl.textContent = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
+    });
+};
 
-function unmount() { 
-if (unsubscribe) {
-        unsubscribe();
-    }
-    if (prateleiraSwiper) {
-        prateleiraSwiper.destroy(true, true);
-    }
-    // O event listener principal é removido no 'mount' através do encapsulamento, mas resetamos as variáveis globais aqui
+export const unmount = () => { 
+    if (unsubscribe) unsubscribe();
+    if (prateleiraSwiper) prateleiraSwiper.destroy(true, true);
+    
+    const bottomNav = document.getElementById('bottom-nav');
+    if (bottomNav) bottomNav.style.display = 'grid';
+
     unsubscribe = null;
     viewNode = null;
     contaAtivaId = null;
     prateleiraSwiper = null;
     activePrimaryCategoryId = null;
     activeSecondaryCategoryId = null;
-
-
- }
+    selectedProductIdInSwiper = null;
+ };
 
 export default { render, mount, unmount };

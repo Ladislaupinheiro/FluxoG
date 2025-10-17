@@ -1,352 +1,138 @@
-// /modules/features/atendimento/ContaDetalhesView.js (UI REFINADA E CORRIGIDA)
+// /modules/features/clientes/ClienteDetalhesView.js (VERSÃO CORRETA E FUNCIONAL)
 'use strict';
 
 import store from '../../shared/services/Store.js';
 import Router from '../../app/Router.js';
+import { calculateClientProfile } from './services/ClientAnalyticsService.js';
 import { 
-    abrirModalPagamento, 
-    abrirModalSeletorQuantidade, 
-    abrirModalAcoesPedido,
-    abrirModalAcoesFlutuantes,
-    abrirModalTrocarCliente,
-    abrirModalAddDivida
+    abrirModalAddDivida, 
+    abrirModalLiquidarDivida, 
+    abrirModalEditCliente,
+    abrirModalConfirmacao 
 } from '../../shared/components/Modals.js';
 import * as Toast from '../../shared/components/Toast.js';
 
 let unsubscribe = null;
 let viewNode = null;
-let contaAtivaId = null;
-let prateleiraSwiper = null;
 
-let activePrimaryCategoryId = null;
-let activeSecondaryCategoryId = null;
-
-function renderCategoryFilters() {
-    const state = store.getState();
-    const categoriasPrimarias = state.categoriasDeProduto.filter(c => c.isSystemDefault);
-    
-    if (categoriasPrimarias.length > 0 && !activePrimaryCategoryId) {
-        activePrimaryCategoryId = categoriasPrimarias[0].id;
+function renderDividas(cliente) {
+    if (!cliente.dividas || cliente.dividas.length === 0) {
+        return `<p class="text-center text-sm text-texto-secundario py-4">Nenhuma dívida ou pagamento registado.</p>`;
     }
-
-    const categoriasSecundarias = state.categoriasDeProduto.filter(c => c.parentId === activePrimaryCategoryId);
-    
-    if (categoriasSecundarias.length > 0 && !activeSecondaryCategoryId) {
-        activeSecondaryCategoryId = categoriasSecundarias[0].id;
-    }
-
-    const primaryFiltersHTML = categoriasPrimarias.map(cat => `
-        <button class="primary-filter-btn px-4 py-1 text-sm font-semibold rounded-lg border-2 whitespace-nowrap ${activePrimaryCategoryId === cat.id ? 'text-white' : ''}" 
-                style="${activePrimaryCategoryId === cat.id ? `background-color: ${cat.cor}; border-color: ${cat.cor};` : `border-color: ${cat.cor}; color: ${cat.cor};`}"
-                data-category-id="${cat.id}">
-            ${cat.nome}
-        </button>
-    `).join('');
-
-    const secondaryFiltersHTML = categoriasSecundarias.map(cat => `
-        <button class="secondary-filter-btn px-4 py-1 text-sm font-semibold rounded-lg border whitespace-nowrap ${activeSecondaryCategoryId === cat.id ? 'bg-gray-200 dark:bg-gray-700 border-gray-400' : 'border-gray-300 dark:border-gray-600'}"
-                data-category-id="${cat.id}">
-            ${cat.nome}
-        </button>
-    `).join('');
-    
-    return { primaryFiltersHTML, secondaryFiltersHTML };
-}
-
-function renderPrateleira() {
-    if (!viewNode || !activeSecondaryCategoryId) return;
-
-    const state = store.getState();
-    const categoriaSecundaria = state.categoriasDeProduto.find(c => c.id === activeSecondaryCategoryId);
-    if (!categoriaSecundaria) return;
-
-    const produtosDaCategoria = state.inventario.filter(p => p.tags && p.tags.includes(categoriaSecundaria.nome.toLowerCase()));
-    const prateleiraWrapper = viewNode.querySelector('#prateleira-swiper-wrapper');
-
-    if (!prateleiraWrapper) return;
-    
-    if (produtosDaCategoria.length === 0) {
-        prateleiraWrapper.innerHTML = `<div class="swiper-slide flex items-center justify-center text-texto-secundario">Nenhum produto nesta categoria.</div>`;
-    } else {
-        prateleiraWrapper.innerHTML = produtosDaCategoria.map(p => `
-            <div class="swiper-slide">
-                <button class="prateleira-btn w-full h-full flex flex-col items-center justify-around rounded-lg p-2 text-center bg-fundo-principal border border-borda" data-product-id="${p.id}">
-                    <span class="font-bold text-sm leading-tight">${p.nome}</span>
-                    <div class="flex gap-2 items-center">
-                        <div class="stock-badge bg-green-500 text-white" title="Stock na Loja"><span>${p.stockLoja}</span></div>
-                        <div class="stock-badge bg-blue-500 text-white" title="Stock no Armazém"><span>${p.stockArmazem}</span></div>
+    return cliente.dividas
+        .sort((a, b) => new Date(b.data) - new Date(a.data))
+        .map(divida => {
+            const isDebito = divida.tipo === 'debito';
+            const corValor = isDebito ? 'text-red-500' : 'text-green-500';
+            const sinal = isDebito ? '-' : '+';
+            return `
+                <div class="flex justify-between items-center bg-fundo-principal p-3 rounded-lg">
+                    <div>
+                        <p class="font-semibold">${divida.descricao}</p>
+                        <p class="text-xs text-texto-secundario">${new Date(divida.data).toLocaleDateString('pt-PT')}</p>
                     </div>
-                </button>
-            </div>
-        `).join('');
-    }
-    if (prateleiraSwiper) {
-        prateleiraSwiper.update();
-        prateleiraSwiper.slideTo(0);
-    }
-}
-
-function renderOrderList(conta) {
-    if (!conta || conta.pedidos.length === 0) {
-        return `<p class="text-center text-texto-secundario p-4">Nenhum pedido nesta conta.</p>`;
-    }
-
-    const state = store.getState();
-    const pedidosAgrupados = {};
-
-    conta.pedidos.forEach(item => {
-        const produto = state.inventario.find(p => p.id === item.produtoId);
-        if (!produto || !produto.tags || produto.tags.length === 0) return;
-
-        const tagSecundariaNome = produto.tags[0].toLowerCase();
-        const categoriaSecundaria = state.categoriasDeProduto.find(c => c.nome.toLowerCase() === tagSecundariaNome);
-        const categoriaPrimaria = categoriaSecundaria ? state.categoriasDeProduto.find(c => c.id === categoriaSecundaria.parentId) : null;
-        
-        const grupoId = categoriaPrimaria ? categoriaPrimaria.id : 'sem-categoria';
-
-        if (!pedidosAgrupados[grupoId]) {
-            pedidosAgrupados[grupoId] = { nome: categoriaPrimaria ? categoriaPrimaria.nome : 'Outros', cor: categoriaPrimaria ? categoriaPrimaria.cor : '#808080', items: [] };
-        }
-        pedidosAgrupados[grupoId].items.push(item);
-    });
-
-    return Object.values(pedidosAgrupados).map(grupo => {
-        const itemsHTML = grupo.items.map(item => `
-            <div class="p-3 rounded-lg flex justify-between items-center" style="background-color: ${grupo.cor}33;">
-                <div>
-                    <span class="font-bold">${item.qtd}x ${item.nome}</span>
-                    <p class="text-sm font-semibold">${(item.preco * item.qtd).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</p>
+                    <span class="font-bold ${corValor}">${sinal} ${(Math.abs(divida.valor)).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</span>
                 </div>
-                <button class="btn-item-actions text-xl p-2 -mr-2" data-pedido-id="${item.id}"><i class="lni lni-more-alt"></i></button>
-            </div>
-        `).join('');
-
-        return `
-            <div class="space-y-2">
-                <h3 class="font-bold text-texto-secundario">${grupo.nome}</h3>
-                ${itemsHTML}
-            </div>
-        `;
-    }).join('<hr class="my-3 border-borda">');
+            `;
+        }).join('');
 }
 
-function render(contaId) {
+function render(clienteId) {
     const state = store.getState();
-    const conta = state.contasAtivas.find(c => c.id === contaId);
-    const cliente = conta ? state.clientes.find(c => c.id === conta.clienteId) : null;
-    if (!conta || !cliente) return `<p class="p-4 text-center">Conta ou cliente não encontrado.</p>`;
+    const cliente = state.clientes.find(c => c.id === clienteId);
+    if (!cliente) return `<p class="p-4 text-center">Cliente não encontrado.</p>`;
 
-    const { primaryFiltersHTML, secondaryFiltersHTML } = renderCategoryFilters();
-    const totalAPagar = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0);
+    const profile = calculateClientProfile(clienteId, state);
+    const dividaTotal = cliente.dividas.reduce((total, d) => total + (d.tipo === 'debito' ? d.valor : -Math.abs(d.valor)), 0);
 
     return `
-        <style>
-            .category-filters::-webkit-scrollbar { display: none; }
-            .prateleira-btn { min-width: 100px; }
-            .stock-badge {
-                width: 28px; height: 28px; border-radius: 50%;
-                display: flex; align-items: center; justify-content: center;
-                font-size: 12px; font-weight: bold; font-family: monospace;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-            }
-            .main-content {
-                /* Altura do rodapé: p-4(1rem*2) + h-20(5rem) + h-btn(3.25rem) + gap(0.5rem) ~= 11rem */
-                padding-bottom: 11rem; 
-            }
-        </style>
+        <section class="pb-24">
+            <header class="p-4 flex justify-between items-center">
+                <button id="btn-voltar-clientes" class="p-2 -ml-2 text-2xl text-texto-secundario"><i class="lni lni-arrow-left"></i></button>
+                <h2 class="text-2xl font-bold">Perfil do Cliente</h2>
+                <button id="btn-apagar-cliente" class="text-xl text-red-500"><i class="lni lni-trash-can"></i></button>
+            </header>
 
-        <header class="p-4 sticky top-0 bg-fundo-principal z-10 shadow-sm space-y-3">
-            <div class="flex items-center gap-2">
-                <button id="btn-voltar-atendimento" class="p-2 -ml-2 text-2xl text-texto-secundario"><i class="lni lni-arrow-left"></i></button>
-                <div id="primary-filters-container" class="category-filters flex gap-2 overflow-x-auto">
-                    ${primaryFiltersHTML}
+            <div class="p-4 space-y-6">
+                <div class="flex flex-col items-center text-center space-y-2">
+                    <img src="${cliente.fotoDataUrl || './icons/logo-small-192.png'}" alt="Foto de ${cliente.nome}" class="w-24 h-24 rounded-full object-cover bg-fundo-secundario ring-4 ring-primaria/50">
+                    <h3 class="text-2xl font-bold">${cliente.nome}</h3>
+                    <p class="text-texto-secundario">${cliente.contacto || 'Sem contacto'}</p>
+                    <button id="btn-editar-cliente" class="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline">Editar Dados</button>
                 </div>
-            </div>
-            <div id="secondary-filters-container" class="category-filters flex gap-2 overflow-x-auto">
-                ${secondaryFiltersHTML}
-            </div>
-        </header>
-
-        <main class="main-content p-4 space-y-4">
-            <div class="bg-fundo-secundario p-4 rounded-lg shadow-md">
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center gap-2">
-                        <img src="${cliente.fotoDataUrl || './icons/logo-small-192.png'}" alt="Foto de ${cliente.nome}" class="w-10 h-10 rounded-full object-cover bg-fundo-principal">
-                        <span class="font-bold text-lg">${cliente.nome}</span>
-                        <button class="btn-client-actions text-texto-secundario p-1 -ml-1"><i class="lni lni-chevron-down"></i></button>
+                
+                <div class="grid grid-cols-3 gap-4 text-center bg-fundo-secundario p-4 rounded-lg shadow-md">
+                    <div>
+                        <span class="block font-bold text-lg">${profile.visitas}</span>
+                        <span class="text-xs text-texto-secundario">Visitas</span>
                     </div>
-                    <div class="text-right">
-                         <span class="text-xs">Total a pagar</span>
-                         <span class="font-extrabold text-2xl block text-green-500">${totalAPagar.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</span>
+                    <div>
+                        <span class="block font-bold text-lg">${profile.gastoTotal.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</span>
+                        <span class="text-xs text-texto-secundario">Gasto Total</span>
+                    </div>
+                    <div>
+                        <span class="block font-bold text-lg">${profile.ticketMedio.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</span>
+                        <span class="text-xs text-texto-secundario">Ticket Médio</span>
                     </div>
                 </div>
-                <hr class="my-4 border-borda">
-                <div id="order-list-container" class="space-y-4">
-                    ${renderOrderList(conta)}
+
+                <div class="bg-fundo-secundario p-4 rounded-lg shadow-md">
+                    <div class="flex justify-between items-center mb-3">
+                        <div>
+                            <h4 class="text-lg font-semibold">Conta Corrente</h4>
+                            <p class="text-2xl font-bold ${dividaTotal > 0 ? 'text-red-500' : 'text-green-500'}">
+                                ${dividaTotal.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}
+                            </p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="btn-liquidar-divida" class="bg-green-500 text-white font-bold py-2 px-4 rounded-lg" ${dividaTotal <= 0 ? 'disabled' : ''}>Pagar</button>
+                            <button id="btn-add-divida" class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg">+</button>
+                        </div>
+                    </div>
+                    <div id="lista-dividas-container" class="space-y-2 max-h-60 overflow-y-auto">
+                        ${renderDividas(cliente)}
+                    </div>
                 </div>
             </div>
-        </main>
-
-        <footer class="fixed bottom-0 left-0 w-full bg-fundo-secundario shadow-lg p-4 space-y-2 border-t border-borda z-20">
-            <div id="prateleira-swiper" class="swiper h-20">
-                <div id="prateleira-swiper-wrapper" class="swiper-wrapper"></div>
-            </div>
-            <div class="flex gap-2">
-                <button id="btn-pagar" class="flex-grow bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg">Pagar</button>
-                <button id="btn-pagar-actions" class="w-12 bg-blue-800 text-white font-bold py-3 rounded-lg shadow-lg"><i class="lni lni-chevron-down"></i></button>
-            </div>
-        </footer>
+        </section>
     `;
 }
 
-function mount(contaId) {
+function mount(clienteId) {
     viewNode = document.getElementById('app-root');
-    contaAtivaId = contaId;
-    activePrimaryCategoryId = null;
-    activeSecondaryCategoryId = null;
-
-    const updateView = () => {
-        const state = store.getState();
-        const conta = state.contasAtivas.find(c => c.id === contaAtivaId);
-        if(!conta) { Router.navigateTo('#atendimento'); return; }
-        
-        const currentPrimary = activePrimaryCategoryId;
-        const currentSecondary = activeSecondaryCategoryId;
-
-        viewNode.innerHTML = render(contaId);
-        
-        activePrimaryCategoryId = currentPrimary;
-        activeSecondaryCategoryId = currentSecondary;
-        
-        renderPrateleira();
-        
-        if(prateleiraSwiper) prateleiraSwiper.destroy(true, true);
-        prateleiraSwiper = new Swiper('#prateleira-swiper', {
-            slidesPerView: 'auto',
-            spaceBetween: 8,
-        });
+    const update = () => {
+        if (!viewNode) return;
+        viewNode.innerHTML = render(clienteId);
     };
-    
+
     const handleViewClick = (e) => {
         const state = store.getState();
-        const conta = state.contasAtivas.find(c => c.id === contaAtivaId);
-        const cliente = conta ? state.clientes.find(c => c.id === conta.clienteId) : null;
-        if (!conta || !cliente) return;
+        const cliente = state.clientes.find(c => c.id === clienteId);
+        if (!cliente) return;
 
-        if (e.target.closest('#btn-voltar-atendimento')) { Router.navigateTo('#atendimento'); return; }
-        
-        const primaryFilterBtn = e.target.closest('.primary-filter-btn');
-        if (primaryFilterBtn) {
-            activePrimaryCategoryId = primaryFilterBtn.dataset.categoryId;
-            activeSecondaryCategoryId = null;
-            updateView();
-            return;
-        }
-
-        const secondaryFilterBtn = e.target.closest('.secondary-filter-btn');
-        if (secondaryFilterBtn) {
-            activeSecondaryCategoryId = secondaryFilterBtn.dataset.categoryId;
-            viewNode.querySelectorAll('.secondary-filter-btn').forEach(btn => {
-                const isActive = btn.dataset.categoryId === activeSecondaryCategoryId;
-                btn.classList.toggle('bg-gray-200', isActive);
-                btn.classList.toggle('dark:bg-gray-700', isActive);
-                btn.classList.toggle('border-gray-400', isActive);
-            });
-            renderPrateleira();
-            return;
-        }
-
-        const prateleiraBtn = e.target.closest('.prateleira-btn');
-        if (prateleiraBtn) {
-            const produtoId = prateleiraBtn.dataset.productId;
-            const produto = state.inventario.find(p => p.id === produtoId);
-            if (produto) {
-                abrirModalSeletorQuantidade(produto.nome, 0, (quantidade) => {
-                    store.dispatch({ type: 'ADD_ORDER_ITEM', payload: { contaId, produto, quantidade } });
-                    Toast.mostrarNotificacao(`${quantidade}x ${produto.nome} adicionado(s).`);
-                });
-            }
-            return;
-        }
-        
-        const itemActionsBtn = e.target.closest('.btn-item-actions');
-        if (itemActionsBtn) {
-            const pedidoId = itemActionsBtn.dataset.pedidoId;
-            const pedido = conta.pedidos.find(p => p.id === pedidoId);
-            if (pedido) {
-                abrirModalAcoesPedido(pedido,
-                    () => { // onEdit
-                        abrirModalSeletorQuantidade(pedido.nome, pedido.qtd, (novaQuantidade) => {
-                            store.dispatch({ type: 'UPDATE_ORDER_ITEM_QTD', payload: { contaId, pedidoId, novaQuantidade } });
-                            Toast.mostrarNotificacao(`Quantidade de ${pedido.nome} atualizada.`);
-                        });
-                    },
-                    () => { // onRemove
-                        store.dispatch({ type: 'REMOVE_ORDER_ITEM', payload: { contaId, pedidoId } });
-                        Toast.mostrarNotificacao(`${pedido.nome} removido da conta.`);
-                    }
-                );
-            }
-            return;
-        }
-
-        if (e.target.closest('.btn-client-actions')) {
-            const botoesCliente = [
-                { acao: 'ver_perfil', texto: 'Ver Perfil do Cliente', icone: 'lni-user', callback: () => Router.navigateTo(`#cliente-detalhes/${cliente.id}`) },
-                { acao: 'trocar_titular', texto: 'Trocar Titular da Conta', icone: 'lni-users', callback: () => {
-                    abrirModalTrocarCliente(conta, (novoTitular) => {
-                        store.dispatch({ type: 'CHANGE_ACCOUNT_CLIENT', payload: { contaId: conta.id, novoClienteId: novoTitular.clienteId, novoClienteNome: novoTitular.clienteNome } });
-                        Toast.mostrarNotificacao(`Conta transferida para ${novoTitular.clienteNome}.`);
-                    });
-                }}
-            ];
-            abrirModalAcoesFlutuantes('Ações do Cliente', botoesCliente);
-            return;
-        }
-
-        if (e.target.closest('#btn-pagar')) {
-            if(conta.pedidos.length > 0) abrirModalPagamento(conta);
-            else Toast.mostrarNotificacao("Adicione pedidos à conta antes de pagar.", "erro");
-            return;
-        }
-        
-        if (e.target.closest('#btn-pagar-actions')) {
-            const totalAPagar = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0);
-            if (totalAPagar <= 0) {
-                return Toast.mostrarNotificacao("Adicione pedidos à conta antes de escolher uma ação de pagamento.", "erro");
-            }
-            const botoesPagamento = [
-                { acao: 'add_divida', texto: 'Adicionar Total à Dívida', icone: 'lni-book', cor: '#EF4444', callback: () => {
-                    // Aqui seria ideal abrir uma confirmação antes de adicionar
-                    store.dispatch({ type: 'ADD_DEBT', payload: { clienteId: cliente.id, valor: totalAPagar, descricao: `Consumo da conta #${conta.id.substring(0,4)}` } });
-                    // Idealmente, a conta seria fechada após isso.
-                    Toast.mostrarNotificacao(`Dívida de ${totalAPagar} Kz adicionada a ${cliente.nome}.`);
-                }},
-                { acao: 'pagar_tpa', texto: 'Pagar com TPA', icone: 'lni-credit-cards', cor: '#3B82F6', callback: () => abrirModalPagamento(conta, 'TPA') },
-                { acao: 'pagar_numerario', texto: 'Pagar com Numerário', icone: 'lni-money-location', cor: '#10B981', callback: () => abrirModalPagamento(conta, 'Numerário') }
-            ];
-            abrirModalAcoesFlutuantes('Opções de Pagamento', botoesPagamento);
+        if (e.target.closest('#btn-voltar-clientes')) { Router.navigateTo('#clientes'); return; }
+        if (e.target.closest('#btn-editar-cliente')) { abrirModalEditCliente(cliente); return; }
+        if (e.target.closest('#btn-add-divida')) { abrirModalAddDivida(cliente); return; }
+        if (e.target.closest('#btn-liquidar-divida')) { abrirModalLiquidarDivida(cliente); return; }
+        if (e.target.closest('#btn-apagar-cliente')) {
+            abrirModalConfirmacao(
+                `Apagar ${cliente.nome}?`,
+                'Esta ação é irreversível e irá apagar todo o histórico de dívidas e gastos deste cliente.',
+                () => {
+                    store.dispatch({ type: 'DELETE_CLIENT', payload: cliente.id });
+                    Toast.mostrarNotificacao(`Cliente ${cliente.nome} apagado.`);
+                    Router.navigateTo('#clientes');
+                }
+            );
             return;
         }
     };
-    
-    viewNode.addEventListener('click', handleViewClick);
-    
-    updateView();
-    unsubscribe = store.subscribe(() => {
-        const conta = store.getState().contasAtivas.find(c => c.id === contaAtivaId);
-        if(!conta) {
-            if(unsubscribe) unsubscribe();
-            Router.navigateTo('#atendimento');
-            return;
-        }
-        viewNode.querySelector('#order-list-container').innerHTML = renderOrderList(conta);
-        const totalEl = viewNode.querySelector('.font-extrabold.text-2xl');
-        if (totalEl) {
-            totalEl.textContent = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
-        }
-    });
 
+    update(); // Renderiza a primeira vez
+    viewNode.addEventListener('click', handleViewClick);
+    unsubscribe = store.subscribe(update); // Subscreve para re-renderizar em caso de mudanças
+    
+    // Sobrescreve o unmount para limpar o event listener
     const originalUnmount = unmount;
     unmount = () => {
         if(viewNode) viewNode.removeEventListener('click', handleViewClick);
@@ -356,11 +142,8 @@ function mount(contaId) {
 
 function unmount() {
     if (unsubscribe) unsubscribe();
-    if (prateleiraSwiper) prateleiraSwiper.destroy(true, true);
     unsubscribe = null;
     viewNode = null;
-    contaAtivaId = null;
-    prateleiraSwiper = null;
 }
 
 export default { render, mount, unmount };
