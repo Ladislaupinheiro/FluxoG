@@ -1,4 +1,4 @@
-// /modules/features/atendimento/ContaDetalhesView.js (FINAL E FUNCIONAL)
+// /modules/features/atendimento/ContaDetalhesView.js (FINAL COM UX CORRIGIDA)
 'use strict';
 
 import store from '../../shared/services/Store.js';
@@ -18,16 +18,12 @@ let viewNode = null;
 let contaAtivaId = null;
 let prateleiraSwiper = null;
 
-// Estado local da View para gerir a navegação de categorias
 let activePrimaryCategoryId = null;
 let activeSecondaryCategoryId = null;
 
-/**
- * Renderiza os filtros de categoria primários e secundários.
- */
 function renderCategoryFilters() {
     const state = store.getState();
-    const categoriasPrimarias = state.categoriasDeProduto.filter(c => !c.parentId);
+    const categoriasPrimarias = state.categoriasDeProduto.filter(c => c.isSystemDefault);
     
     if (categoriasPrimarias.length > 0 && !activePrimaryCategoryId) {
         activePrimaryCategoryId = categoriasPrimarias[0].id;
@@ -57,9 +53,6 @@ function renderCategoryFilters() {
     return { primaryFiltersHTML, secondaryFiltersHTML };
 }
 
-/**
- * Renderiza a prateleira de produtos com base na categoria secundária ativa.
- */
 function renderPrateleira() {
     if (!viewNode || !activeSecondaryCategoryId) return;
 
@@ -67,7 +60,9 @@ function renderPrateleira() {
     const categoriaSecundaria = state.categoriasDeProduto.find(c => c.id === activeSecondaryCategoryId);
     if (!categoriaSecundaria) return;
 
+    // LÓGICA CORRIGIDA: Usa um filtro direto em vez de analytics
     const produtosDaCategoria = state.inventario.filter(p => p.tags && p.tags.includes(categoriaSecundaria.nome.toLowerCase()));
+
     const prateleiraWrapper = viewNode.querySelector('#prateleira-swiper-wrapper');
 
     if (!prateleiraWrapper) return;
@@ -75,18 +70,17 @@ function renderPrateleira() {
     if (produtosDaCategoria.length === 0) {
         prateleiraWrapper.innerHTML = `<div class="swiper-slide flex items-center justify-center text-texto-secundario">Nenhum produto nesta categoria.</div>`;
     } else {
-        prateleiraWrapper.innerHTML = produtosDaCategoria.map(p => {
-            return `
+        prateleiraWrapper.innerHTML = produtosDaCategoria.map(p => `
             <div class="swiper-slide">
-                <button class="prateleira-btn w-full h-full flex flex-col items-center justify-center rounded-lg p-2 text-center bg-fundo-principal border border-borda" data-product-id="${p.id}">
+                <button class="prateleira-btn w-full h-full flex flex-col items-center justify-around rounded-lg p-2 text-center bg-fundo-principal border border-borda" data-product-id="${p.id}">
                     <span class="font-bold text-sm leading-tight">${p.nome}</span>
-                    <div class="flex gap-2 mt-1">
-                        <span class="text-xs font-mono bg-green-100 text-green-800 px-1 rounded">LOJ ${p.stockLoja}</span>
-                        <span class="text-xs font-mono bg-blue-100 text-blue-800 px-1 rounded">ARM ${p.stockArmazem}</span>
+                    <div class="flex gap-2 items-center">
+                        <div class="stock-badge bg-green-500 text-white" title="Stock na Loja"><span>${p.stockLoja}</span></div>
+                        <div class="stock-badge bg-blue-500 text-white" title="Stock no Armazém"><span>${p.stockArmazem}</span></div>
                     </div>
                 </button>
             </div>
-        `}).join('');
+        `).join('');
     }
     if (prateleiraSwiper) {
         prateleiraSwiper.update();
@@ -94,10 +88,6 @@ function renderPrateleira() {
     }
 }
 
-
-/**
- * Renderiza a lista de pedidos agrupados por categoria.
- */
 function renderOrderList(conta) {
     if (!conta || conta.pedidos.length === 0) {
         return `<p class="text-center text-texto-secundario p-4">Nenhum pedido nesta conta.</p>`;
@@ -109,40 +99,30 @@ function renderOrderList(conta) {
     conta.pedidos.forEach(item => {
         const produto = state.inventario.find(p => p.id === item.produtoId);
         if (!produto || !produto.tags || produto.tags.length === 0) return;
-
         const tagSecundariaNome = produto.tags[0].toLowerCase();
         const categoriaSecundaria = state.categoriasDeProduto.find(c => c.nome.toLowerCase() === tagSecundariaNome);
         const categoriaPrimaria = categoriaSecundaria ? state.categoriasDeProduto.find(c => c.id === categoriaSecundaria.parentId) : null;
-        
         const grupoId = categoriaPrimaria ? categoriaPrimaria.id : 'sem-categoria';
-
         if (!pedidosAgrupados[grupoId]) {
-            pedidosAgrupados[grupoId] = { 
-                nome: categoriaPrimaria ? categoriaPrimaria.nome : 'Outros',
-                cor: categoriaPrimaria ? categoriaPrimaria.cor : '#808080',
-                items: [] 
-            };
+            pedidosAgrupados[grupoId] = { nome: categoriaPrimaria ? categoriaPrimaria.nome : 'Outros', cor: categoriaPrimaria ? categoriaPrimaria.cor : '#808080', items: [] };
         }
         pedidosAgrupados[grupoId].items.push(item);
     });
 
     return Object.values(pedidosAgrupados).map(grupo => {
         const itemsHTML = grupo.items.map(item => `
-            <div class="p-3 rounded-lg flex justify-between items-center" style="background-color: ${grupo.cor}33;">
-                <div>
-                    <span class="font-bold">${item.qtd}x ${item.nome}</span>
-                    <p class="text-sm font-semibold">${(item.preco * item.qtd).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</p>
+            <div class="p-3 rounded-lg flex justify-between items-center" style="background-color: ${grupo.cor};">
+                <div class="text-white">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold">${item.qtd}x ${item.nome}</span>
+                        <span class="price-badge">${(item.preco).toLocaleString('pt-AO', { minimumFractionDigits: 0 })} Kz</span>
+                    </div>
+                    <p class="text-sm font-semibold opacity-90">${(item.preco * item.qtd).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' })}</p>
                 </div>
-                <button class="btn-item-actions text-xl p-2 -mr-2" data-pedido-id="${item.id}"><i class="lni lni-more-alt"></i></button>
+                <button class="btn-item-actions text-xl p-2 -mr-2 text-white"><i class="lni lni-more-alt"></i></button>
             </div>
         `).join('');
-
-        return `
-            <div class="space-y-2">
-                <h3 class="font-bold text-texto-secundario">${grupo.nome}</h3>
-                ${itemsHTML}
-            </div>
-        `;
+        return `<div class="space-y-2"><h3 class="font-bold text-texto-secundario">${grupo.nome}</h3>${itemsHTML}</div>`;
     }).join('<hr class="my-3 border-borda">');
 }
 
@@ -158,22 +138,25 @@ function render(contaId) {
     return `
         <style>
             .category-filters::-webkit-scrollbar { display: none; }
-            .prateleira-btn { min-width: 100px; }
+            .prateleira-btn { min-width: 100px; border-radius: 12px; }
+            .stock-badge { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; font-family: monospace; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+            .price-badge { background-color: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+            #prateleira-swiper .swiper-pagination { bottom: -2px !important; }
+            #prateleira-swiper .swiper-pagination-bullet { background-color: var(--cor-borda); width: 6px; height: 6px; }
+            #prateleira-swiper .swiper-pagination-bullet-active { background-color: var(--cor-primaria); }
+            /* LAYOUT CORRIGIDO: O padding-bottom garante que o último item da lista role para cima do nav inferior */
+            .main-content { padding-bottom: 8rem; }
         </style>
 
         <header class="p-4 sticky top-0 bg-fundo-principal z-10 shadow-sm space-y-3">
             <div class="flex items-center gap-2">
                 <button id="btn-voltar-atendimento" class="p-2 -ml-2 text-2xl text-texto-secundario"><i class="lni lni-arrow-left"></i></button>
-                <div id="primary-filters-container" class="category-filters flex gap-2 overflow-x-auto">
-                    ${primaryFiltersHTML}
-                </div>
+                <div id="primary-filters-container" class="category-filters flex gap-2 overflow-x-auto"> ${primaryFiltersHTML} </div>
             </div>
-            <div id="secondary-filters-container" class="category-filters flex gap-2 overflow-x-auto">
-                ${secondaryFiltersHTML}
-            </div>
+            <div id="secondary-filters-container" class="category-filters flex gap-2 overflow-x-auto"> ${secondaryFiltersHTML} </div>
         </header>
 
-        <main class="p-4 space-y-4">
+        <main class="main-content p-4 space-y-4">
             <div class="bg-fundo-secundario p-4 rounded-lg shadow-md">
                 <div class="flex justify-between items-center">
                     <div class="flex items-center gap-2">
@@ -187,52 +170,65 @@ function render(contaId) {
                     </div>
                 </div>
                 <hr class="my-4 border-borda">
-                <div id="order-list-container" class="space-y-4 max-h-[calc(100vh-480px)] overflow-y-auto">
-                    ${renderOrderList(conta)}
-                </div>
+                <div id="order-list-container" class="space-y-4"> ${renderOrderList(conta)} </div>
             </div>
         </main>
-
-        <footer class="fixed bottom-0 left-0 w-full bg-fundo-secundario shadow-lg p-4 space-y-2 border-t border-borda">
-            <div id="prateleira-swiper" class="swiper h-20">
-                <div id="prateleira-swiper-wrapper" class="swiper-wrapper"></div>
-            </div>
-            <div class="flex gap-2">
-                <button id="btn-pagar" class="flex-grow bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg">Pagar</button>
-                <button id="btn-pagar-actions" class="w-12 bg-blue-800 text-white font-bold py-3 rounded-lg shadow-lg"><i class="lni lni-chevron-down"></i></button>
-            </div>
-        </footer>
+        
+        {/* NOVO: BOTÕES DE AÇÃO FLUTUANTE (FAB) */}
+        <div class="fixed bottom-20 right-4 flex flex-col items-center gap-2 z-50">
+            <button id="btn-fab-pagar-actions" class="w-12 h-12 bg-blue-800 text-white rounded-full shadow-lg flex items-center justify-center text-xl" title="Mais Opções de Pagamento">
+                <i class="lni lni-chevron-up"></i>
+            </button>
+            <button id="btn-fab-pagar" class="w-16 h-16 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-2xl font-bold" title="Pagar">
+                Pagar
+            </button>
+        </div>
     `;
 }
 
-function mount(contaId) {
+export const mount = (contaId) => {
     viewNode = document.getElementById('app-root');
     contaAtivaId = contaId;
     activePrimaryCategoryId = null;
     activeSecondaryCategoryId = null;
 
-    const updateView = () => {
-        const state = store.getState();
+    const updateView = () => { 
+const state = store.getState();
         const conta = state.contasAtivas.find(c => c.id === contaAtivaId);
-        if(!conta) { Router.navigateTo('#atendimento'); return; }
+        if(!conta) {
+            Router.navigateTo('#atendimento');
+            return;
+        }
         
+        // Guarda o estado atual dos filtros antes da re-renderização
         const currentPrimary = activePrimaryCategoryId;
         const currentSecondary = activeSecondaryCategoryId;
 
+        // Re-renderiza a view inteira
         viewNode.innerHTML = render(contaId);
         
+        // Restaura o estado dos filtros
         activePrimaryCategoryId = currentPrimary;
         activeSecondaryCategoryId = currentSecondary;
         
+        // Popula a prateleira com base nos filtros restaurados
         renderPrateleira();
         
+        // Destrói a instância antiga do Swiper e cria uma nova
         if(prateleiraSwiper) prateleiraSwiper.destroy(true, true);
         prateleiraSwiper = new Swiper('#prateleira-swiper', {
-            slidesPerView: 'auto',
+            slidesPerView: 3,
             spaceBetween: 8,
+            pagination: {
+                el: '#prateleira-swiper .swiper-pagination',
+                clickable: true,
+            },
         });
+
+        
     };
     
+    // LÓGICA DE EVENTOS COMPLETA E RESTAURADA
     const handleViewClick = (e) => {
         const state = store.getState();
         const conta = state.contasAtivas.find(c => c.id === contaAtivaId);
@@ -244,7 +240,8 @@ function mount(contaId) {
         const primaryFilterBtn = e.target.closest('.primary-filter-btn');
         if (primaryFilterBtn) {
             activePrimaryCategoryId = primaryFilterBtn.dataset.categoryId;
-            activeSecondaryCategoryId = null;
+            const subcategorias = state.categoriasDeProduto.filter(c => c.parentId === activePrimaryCategoryId);
+            activeSecondaryCategoryId = subcategorias.length > 0 ? subcategorias[0].id : null;
             updateView();
             return;
         }
@@ -310,21 +307,21 @@ function mount(contaId) {
             return;
         }
 
-        if (e.target.closest('#btn-pagar')) {
+        if (e.target.closest('#btn-fab-pagar')) {
             if(conta.pedidos.length > 0) abrirModalPagamento(conta);
             else Toast.mostrarNotificacao("Adicione pedidos à conta antes de pagar.", "erro");
             return;
         }
         
-        if (e.target.closest('#btn-pagar-actions')) {
+        if (e.target.closest('#btn-fab-pagar-actions')) {
             const totalAPagar = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0);
             if (totalAPagar <= 0) {
                 return Toast.mostrarNotificacao("Adicione pedidos à conta antes de escolher uma ação de pagamento.", "erro");
             }
             const botoesPagamento = [
                 { acao: 'add_divida', texto: 'Adicionar Total à Dívida', icone: 'lni-book', cor: '#EF4444', callback: () => {
-                    abrirModalAddDivida(cliente, { valor: totalAPagar, descricao: 'Consumo na conta' });
-                    // Futuro: poderia fechar a conta automaticamente após adicionar à dívida.
+                    store.dispatch({ type: 'ADD_DEBT', payload: { clienteId: cliente.id, valor: totalAPagar, descricao: `Consumo da conta #${conta.nome}` } });
+                    Toast.mostrarNotificacao(`Dívida de ${totalAPagar.toLocaleString('pt-AO',{style:'currency', currency:'AOA'})} adicionada a ${cliente.nome}.`);
                 }},
                 { acao: 'pagar_tpa', texto: 'Pagar com TPA', icone: 'lni-credit-cards', cor: '#3B82F6', callback: () => abrirModalPagamento(conta, 'TPA') },
                 { acao: 'pagar_numerario', texto: 'Pagar com Numerário', icone: 'lni-money-location', cor: '#10B981', callback: () => abrirModalPagamento(conta, 'Numerário') }
@@ -336,22 +333,37 @@ function mount(contaId) {
     
     viewNode.addEventListener('click', handleViewClick);
     
-    updateView();
-    unsubscribe = store.subscribe(() => {
-        // Uma subscrição mais simples que apenas atualiza a view sem resetar os filtros
+    viewNode.innerHTML = render(contaId);
+    renderPrateleira();
+    
+    prateleiraSwiper = new Swiper('#prateleira-swiper', {
+        slidesPerView: 3,
+        spaceBetween: 8,
+        pagination: { el: '#prateleira-swiper .swiper-pagination', clickable: true },
+    });
+
+    unsubscribe = store.subscribe(() => { if (!viewNode) return;
+
         const conta = store.getState().contasAtivas.find(c => c.id === contaAtivaId);
+        
+        // Se a conta foi fechada ou removida, limpa a subscrição e navega para fora
         if(!conta) {
-            if(unsubscribe) unsubscribe(); // Evita loop se a conta for fechada
+            if(unsubscribe) unsubscribe(); 
             Router.navigateTo('#atendimento');
             return;
         }
-        viewNode.querySelector('#order-list-container').innerHTML = renderOrderList(conta);
+        
+        // Atualização cirúrgica: re-renderiza apenas a lista de pedidos
+        const orderListContainer = viewNode.querySelector('#order-list-container');
+        if(orderListContainer) {
+            orderListContainer.innerHTML = renderOrderList(conta);
+        }
+
+        // Atualização cirúrgica: re-renderiza apenas o total a pagar
         const totalEl = viewNode.querySelector('.font-extrabold.text-2xl');
         if (totalEl) {
             totalEl.textContent = conta.pedidos.reduce((total, p) => total + (p.preco * p.qtd), 0).toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' });
-        }
-    });
-
+        } });
     const originalUnmount = unmount;
     unmount = () => {
         if(viewNode) viewNode.removeEventListener('click', handleViewClick);
@@ -359,13 +371,22 @@ function mount(contaId) {
     };
 }
 
-function unmount() {
-    if (unsubscribe) unsubscribe();
-    if (prateleiraSwiper) prateleiraSwiper.destroy(true, true);
+function unmount() { 
+if (unsubscribe) {
+        unsubscribe();
+    }
+    if (prateleiraSwiper) {
+        prateleiraSwiper.destroy(true, true);
+    }
+    // O event listener principal é removido no 'mount' através do encapsulamento, mas resetamos as variáveis globais aqui
     unsubscribe = null;
     viewNode = null;
     contaAtivaId = null;
     prateleiraSwiper = null;
-}
+    activePrimaryCategoryId = null;
+    activeSecondaryCategoryId = null;
+
+
+ }
 
 export default { render, mount, unmount };
